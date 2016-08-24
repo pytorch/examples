@@ -1,15 +1,20 @@
 import os
 import torch
 import json
+import errno
+import codecs
 from tqdm import tqdm
 
 if not os.path.exists('data/raw/train-images-idx3-ubyte'):
     try:
         os.makedirs(os.path.join('data', 'raw'))
         os.makedirs(os.path.join('data', 'processed'))
-    except FileExistsError:
-        pass
-    import urllib.request
+    except OSError as e:
+        if e.errno == errno.EEXIST:
+            pass
+        else:
+            raise
+    from six.moves import urllib
     import gzip
     urls = [
         'http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz',
@@ -30,7 +35,7 @@ if not os.path.exists('data/raw/train-images-idx3-ubyte'):
         os.unlink(file_path)
 
 def get_int(b):
-    return int.from_bytes(b, 'big')
+    return int(codecs.encode(b, 'hex'), 16)
 
 def read_label_file(path):
     with open(path, 'rb') as f:
@@ -60,7 +65,8 @@ def read_image_file(path):
                     row.append(data[idx])
                     idx += 1
         assert len(images) == length
-        return torch.FloatTensor(images)
+        out = torch.FloatTensor(images)
+        return out
 
 print("Loading training set")
 training_set = (
