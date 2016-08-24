@@ -30,9 +30,9 @@ class Net(nn.Container):
     def __init__(self):
         super(Net, self).__init__(
             conv1 = nn.Conv2d(1, 20, 5, 5),
-            pool1 = nn.MaxPooling2d(2, 2),
+            pool1 = nn.MaxPool2d(2, 2),
             conv2 = nn.Conv2d(20, 50, 5, 5),
-            pool2 = nn.MaxPooling2d(2, 2),
+            pool2 = nn.MaxPool2d(2, 2),
             fc1   = nn.Linear(800, 500),
             fc2   = nn.Linear(500, 10),
             relu  = nn.ReLU(),
@@ -73,14 +73,15 @@ def train(epoch):
 
 def test(epoch):
     test_loss = 0
-    batch_data = Variable(torch.cuda.FloatTensor(TEST_BATCH_SIZE, 1, 28, 28), requires_grad=False)
-    batch_targets = Variable(torch.cuda.FloatTensor(TEST_BATCH_SIZE), requires_grad=False)
+    batch_data = Variable(torch.cuda.FloatTensor(TEST_BATCH_SIZE, 1, 28, 28), volatile=True)
+    batch_targets = Variable(torch.cuda.FloatTensor(TEST_BATCH_SIZE), volatile=True)
     for i in range(0, test_data.size(0), TEST_BATCH_SIZE):
         print('Testing model: {}/{}'.format(i, test_data.size(0)), end='\r')
         batch_data.data[:] = test_data[i:i+TEST_BATCH_SIZE]
         batch_targets.data[:] = test_labels[i:i+TEST_BATCH_SIZE]
-        test_loss += criterion(model(batch_data), batch_targets).data[0]
+        test_loss += criterion(model(batch_data), batch_targets)
 
+    test_loss = test_loss.data[0]
     test_loss /= (test_data.size(0) / TEST_BATCH_SIZE) # criterion averages over batch size
     print('TEST SET RESULTS:' + ' ' * 20)
     print('Average loss: {:.4f}'.format(test_loss))
