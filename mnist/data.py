@@ -37,12 +37,17 @@ if not os.path.exists('data/raw/train-images-idx3-ubyte'):
 def get_int(b):
     return int(codecs.encode(b, 'hex'), 16)
 
+def parse_byte(b):
+    if isinstance(b, str):
+        return ord(b)
+    return b
+
 def read_label_file(path):
     with open(path, 'rb') as f:
         data = f.read()
         assert get_int(data[:4]) == 2049
         length = get_int(data[4:8])
-        labels = [b for b in tqdm(data[8:], total=length)]
+        labels = [parse_byte(b) for b in tqdm(data[8:], total=length)]
         assert len(labels) == length
         return torch.LongTensor(labels)
 
@@ -62,11 +67,10 @@ def read_image_file(path):
                 row = []
                 img.append(row)
                 for c in range(num_cols):
-                    row.append(data[idx])
+                    row.append(parse_byte(data[idx]))
                     idx += 1
         assert len(images) == length
-        out = torch.FloatTensor(images)
-        return out
+        return torch.FloatTensor(images)
 
 print("Loading training set")
 training_set = (

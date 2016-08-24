@@ -28,7 +28,7 @@ del test_set
 print_header('Building model')
 class Net(nn.Container):
     def __init__(self):
-        super(LeNet, self).__init__(
+        super(Net, self).__init__(
             conv1 = nn.Conv2d(1, 20, 5, 5),
             pool1 = nn.MaxPooling2d(2, 2),
             conv2 = nn.Conv2d(20, 50, 5, 5),
