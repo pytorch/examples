@@ -1,4 +1,5 @@
 from __future__ import print_function
+import os
 import torch
 import torch.nn as nn
 import torch.nn.cuda
@@ -8,6 +9,9 @@ from tqdm import tqdm
 
 def print_header(msg):
     print('===>', msg)
+
+if not os.path.exists('data/processed/training.pt'):
+    import data
 
 # Data
 print_header('Loading data')
@@ -29,9 +33,9 @@ print_header('Building model')
 class Net(nn.Container):
     def __init__(self):
         super(Net, self).__init__(
-            conv1 = nn.Conv2d(1, 20, 5, 5),
+            conv1 = nn.Conv2d(1, 20, 5),
             pool1 = nn.MaxPool2d(2, 2),
-            conv2 = nn.Conv2d(20, 50, 5, 5),
+            conv2 = nn.Conv2d(20, 50, 5),
             pool2 = nn.MaxPool2d(2, 2),
             fc1   = nn.Linear(800, 500),
             fc2   = nn.Linear(500, 10),
@@ -56,7 +60,7 @@ BATCH_SIZE = 150
 TEST_BATCH_SIZE = 1000
 NUM_EPOCHS = 2
 
-optimizer = optim.SGD((model, criterion), lr=1e-2, momentum=0.9)
+optimizer = optim.SGD(model, lr=1e-2, momentum=0.9)
 
 def train(epoch):
     batch_data = Variable(torch.cuda.FloatTensor(BATCH_SIZE, 1, 28, 28), requires_grad=False)
@@ -64,27 +68,32 @@ def train(epoch):
     for i in range(0, training_data.size(0), BATCH_SIZE):
         batch_data.data[:] = training_data[i:i+BATCH_SIZE]
         batch_targets.data[:] = training_labels[i:i+BATCH_SIZE]
-        loss = optimizer.step(batch_data, batch_targets)
-        model.zero_grad_parameters()
+        loss = optimizer.step(lambda: criterion(model(batch_data), batch_targets))
 
         print('Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.4f}'.format(epoch,
             i+BATCH_SIZE, training_data.size(0),
-            (i+BATCH_SIZE)/training_data.size(0)*100, loss))
+            float(i+BATCH_SIZE)/training_data.size(0)*100, loss))
 
 def test(epoch):
     test_loss = 0
     batch_data = Variable(torch.cuda.FloatTensor(TEST_BATCH_SIZE, 1, 28, 28), volatile=True)
     batch_targets = Variable(torch.cuda.FloatTensor(TEST_BATCH_SIZE), volatile=True)
+    correct = 0
     for i in range(0, test_data.size(0), TEST_BATCH_SIZE):
         print('Testing model: {}/{}'.format(i, test_data.size(0)), end='\r')
         batch_data.data[:] = test_data[i:i+TEST_BATCH_SIZE]
         batch_targets.data[:] = test_labels[i:i+TEST_BATCH_SIZE]
-        test_loss += criterion(model(batch_data), batch_targets)
+        output = model(batch_data)
+        test_loss += criterion(output, batch_targets)
+        pred = output.data.max(1)[1]
+        correct += pred.long().eq(batch_targets.data.long()).sum()
 
     test_loss = test_loss.data[0]
     test_loss /= (test_data.size(0) / TEST_BATCH_SIZE) # criterion averages over batch size
     print('TEST SET RESULTS:' + ' ' * 20)
-    print('Average loss: {:.4f}'.format(test_loss))
+    print('Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)'.format(
+        test_loss, correct, test_data.size(0),
+        float(correct)/test_data.size(0)*100))
 
 for epoch in range(1, NUM_EPOCHS+1):
     train(epoch)
