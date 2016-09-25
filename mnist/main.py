@@ -2,7 +2,14 @@ from __future__ import print_function
 import os
 import torch
 import torch.nn as nn
-import torch.nn.cuda
+
+try:
+    import torch.nn.cuda
+    cuda = True
+except ImportError:
+    print('Could not import CUDA, skipping')
+    cuda = False
+
 import torch.optim as optim
 from torch.autograd import Variable
 from tqdm import tqdm
@@ -51,9 +58,11 @@ class Net(nn.Container):
         x = self.relu(self.fc2(x))
         return self.softmax(x)
 
-model = Net().cuda()
+model = Net()
+if cuda == True:
+    model.cuda()
 
-criterion = nn.ClassNLLCriterion()
+criterion = nn.NLLLoss()
 
 # Training settings
 BATCH_SIZE = 150
@@ -63,8 +72,13 @@ NUM_EPOCHS = 2
 optimizer = optim.SGD(model, lr=1e-2, momentum=0.9)
 
 def train(epoch):
-    batch_data = Variable(torch.cuda.FloatTensor(BATCH_SIZE, 1, 28, 28), requires_grad=False)
-    batch_targets = Variable(torch.cuda.FloatTensor(BATCH_SIZE), requires_grad=False)
+    batch_data_t = torch.FloatTensor(BATCH_SIZE, 1, 28, 28)
+    batch_targets_t = torch.LongTensor(BATCH_SIZE)
+    if cuda:
+        batch_data_t = batch_data_t.cuda()
+        batch_targets_t = batch_targets_t.cuda()
+    batch_data = Variable(batch_data_t, requires_grad=False)
+    batch_targets = Variable(batch_targets_t, requires_grad=False)
     for i in range(0, training_data.size(0), BATCH_SIZE):
         batch_data.data[:] = training_data[i:i+BATCH_SIZE]
         batch_targets.data[:] = training_labels[i:i+BATCH_SIZE]
@@ -76,8 +90,13 @@ def train(epoch):
 
 def test(epoch):
     test_loss = 0
-    batch_data = Variable(torch.cuda.FloatTensor(TEST_BATCH_SIZE, 1, 28, 28), volatile=True)
-    batch_targets = Variable(torch.cuda.FloatTensor(TEST_BATCH_SIZE), volatile=True)
+    batch_data_t = torch.FloatTensor(TEST_BATCH_SIZE, 1, 28, 28)
+    batch_targets_t = torch.LongTensor(TEST_BATCH_SIZE)
+    if cuda:
+        batch_data_t = batch_data_t.cuda()
+        batch_targets_t = batch_targets_t.cuda()
+    batch_data = Variable(batch_data_t, volatile=True)
+    batch_targets = Variable(batch_targets_t, volatile=True)
     correct = 0
     for i in range(0, test_data.size(0), TEST_BATCH_SIZE):
         print('Testing model: {}/{}'.format(i, test_data.size(0)), end='\r')
@@ -98,4 +117,3 @@ def test(epoch):
 for epoch in range(1, NUM_EPOCHS+1):
     train(epoch)
     test(epoch)
-

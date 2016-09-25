@@ -1,1 +1,2 @@
 mnist/data
+*.pyc
