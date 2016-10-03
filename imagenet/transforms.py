@@ -1,6 +1,7 @@
 import torch
 import math
 import random
+import numpy as np
 from PIL import Image
 
 
@@ -16,7 +17,7 @@ class Compose(object):
 
 class ToTensor(object):
     def __call__(self, pic):
-        img = torch.ByteTensor(torch.ByteStorage(pic.tobytes()))
+        img = torch.ByteTensor(np.asarray(pic, dtype=np.uint8))
         img = img.view(pic.size[0], pic.size[1], 3)
         # put it in CHW format
         # yikes, this transpose takes 80% of the loading time/CPU
@@ -43,9 +44,9 @@ class Scale(object):
         if (w <= h and w == self.size) or (h <= w and h == self.size):
             return img
         if w < h:
-            return img.resize((w, round(h / w * self.size)), self.interpolation)
+            return img.resize((w, int(round(h / w * self.size))), self.interpolation)
         else:
-            return img.resize((round(w / h * self.size), h), self.interpolation)
+            return img.resize((int(round(w / h * self.size)), h), self.interpolation)
 
 
 class CenterCrop(object):
