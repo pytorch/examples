@@ -2,17 +2,11 @@ from __future__ import print_function
 import os
 import torch
 import torch.nn as nn
-
-try:
-    import torch.nn.cuda
-    cuda = True
-except ImportError:
-    print('Could not import CUDA, skipping')
-    cuda = False
-
 import torch.optim as optim
 from torch.autograd import Variable
 from tqdm import tqdm
+
+cuda = torch.cuda.is_available()
 
 def print_header(msg):
     print('===>', msg)
@@ -105,7 +99,7 @@ def test(epoch):
         output = model(batch_data)
         test_loss += criterion(output, batch_targets)
         pred = output.data.max(1)[1]
-        correct += pred.long().eq(batch_targets.data.long()).sum()
+        correct += pred.long().eq(batch_targets.data.long()).cpu().sum()
 
     test_loss = test_loss.data[0]
     test_loss /= (test_data.size(0) / TEST_BATCH_SIZE) # criterion averages over batch size
