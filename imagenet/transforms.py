@@ -28,7 +28,7 @@ class ToTensor(object):
 class Normalize(object):
     def __call__(self, tensor):
         std = tensor.std()
-        tensor.add_(tensor.mean())
+        tensor.sub_(tensor.mean())
         tensor.div_(std)
         return tensor
 

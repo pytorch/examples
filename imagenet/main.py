@@ -26,7 +26,7 @@ parser.add_argument('--nEpochs', default=90, type=int, metavar='N',
 parser.add_argument('--epochNumber', default=1, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
 parser.add_argument('--batchSize', '-b', default=256, type=int, metavar='N',
-                    help='mini-batch size (1 = pure stochastic)')
+                    help='mini-batch size (1 = pure stochastic) Default: 256')
 parser.add_argument('--lr', default=0.1, type=float, metavar='LR',
                     help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
@@ -45,24 +45,37 @@ if args.arch.startswith('resnet'):
 else:
     parser.error('invalid architecture: {}'.format(args.arch))
 
-if torch.cuda.device_count() > 1:
-    class DataParallel(nn.Container):
-        def __init__(self):
-            super(DataParallel, self).__init__(
-                model=model,
-            )
+# this is soon going to go away, and nn.parallel.data_parallel
+# will be pushed into the model definition
+class DataParallel(nn.Container):
+    def __init__(self):
+        super(DataParallel, self).__init__(
+            model=model,
+        )
 
-        def forward(self, input):
+    def forward(self, input):
+        if torch.cuda.device_count() > 1:
             gpu_ids = range(torch.cuda.device_count())
             return nn.parallel.data_parallel(self.model, input, gpu_ids)
+        else:
+            return self.model(input.cuda()).cpu()
 
-    model = DataParallel()
+model = DataParallel()
+
+# For debugging. Left in code to leave as an example for the user
+# for m in model.modules():
+#     def func(self, gi, go):
+#         print(go[0].min(), go[0].max())
+#         if isinstance(m, nn.Conv2d):
+#             print(self.weight.grad.min(), self.weight.grad.max())
+#             print(self.bias.grad.min(), self.bias.grad.max())
+#     m.register_backward_hook('hook1', func)
 
 train, val = data.make_datasets(args.data)
 train_loader = torch.utils.data.DataLoader(
     train, batch_size=args.batchSize, shuffle=True, num_workers=args.nThreads)
 
-criterion = nn.CrossEntropyLoss()
+criterion = nn.CrossEntropyLoss().cuda()
 optimizer = torch.optim.SGD(model, learningRate, momentum)
 t = trainer.Trainer(model, criterion, optimizer, train_loader)
 
