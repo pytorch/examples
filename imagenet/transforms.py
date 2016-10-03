@@ -24,12 +24,14 @@ class ToTensor(object):
         img = img.transpose(0, 2).transpose(1, 2).contiguous()
         return img.float()
 
-
 class Normalize(object):
+    def __init__(self, mean, std):
+        self.mean = mean
+        self.std = std
+
     def __call__(self, tensor):
-        std = tensor.std()
-        tensor.sub_(tensor.mean())
-        tensor.div_(std)
+        for t, m, s in zip(tensor, self.mean, self.std):
+            t.sub_(m).div_(s)
         return tensor
 
 

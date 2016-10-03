@@ -69,7 +69,7 @@ model = DataParallel()
 #         if isinstance(m, nn.Conv2d):
 #             print(self.weight.grad.min(), self.weight.grad.max())
 #             print(self.bias.grad.min(), self.bias.grad.max())
-#     m.register_backward_hook('hook1', func)
+#     m.register_backward_hook('print_grads', func)
 
 train, val = data.make_datasets(args.data)
 train_loader = torch.utils.data.DataLoader(
@@ -79,8 +79,9 @@ criterion = nn.CrossEntropyLoss().cuda()
 optimizer = torch.optim.SGD(model, learningRate, momentum)
 t = trainer.Trainer(model, criterion, optimizer, train_loader)
 
+t.register_plugin(trainer.plugins.ProgressMonitor())
 t.register_plugin(trainer.plugins.AccuracyMonitor())
 t.register_plugin(trainer.plugins.LossMonitor())
 t.register_plugin(trainer.plugins.TimeMonitor())
-t.register_plugin(trainer.plugins.Logger(['accuracy', 'loss', 'time']))
+t.register_plugin(trainer.plugins.Logger(['progress', 'accuracy', 'loss', 'time']))
 t.run(args.nEpochs)

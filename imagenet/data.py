@@ -71,7 +71,8 @@ def make_datasets(root):
         transforms.RandomSizedCrop(224),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
-        transforms.Normalize(),
+        transforms.Normalize(mean = [ 0.485, 0.456, 0.406 ],
+                             std = [ 0.229, 0.224, 0.225 ]),
     ])
 
     trainset = ImageNetDataset(traindir, train_samples, transform)
