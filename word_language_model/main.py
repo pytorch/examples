@@ -23,7 +23,7 @@ parser.add_argument('-emsize'    , type=int, default=200          , help='Size o
 parser.add_argument('-nhid'      , type=int, default=200          , help='Number of hidden units per layer.'        )
 parser.add_argument('-nlayers'   , type=int, default=2            , help='Number of layers.'                        )
 # Optimization parameters.
-parser.add_argument('-lr'        , type=float, default=20         , help='Initial learning rate.'                   )
+parser.add_argument('-lr'        , type=float, default=1          , help='Initial learning rate.'                   )
 parser.add_argument('-clip'      , type=float, default=0.5        , help='Gradient clipping.'                       )
 parser.add_argument('-maxepoch'  , type=int,   default=6          , help='Upper epoch limit.'                       )
 parser.add_argument('-batchsize' , type=int,   default=20         , help='Batch size.'                              )
@@ -68,8 +68,6 @@ bsz   = args.batchsize
 # MAKE MODEL
 ###############################################################################
 
-initrange = 0.1
-
 class RNNModel(nn.Container):
     """A container module with an encoder, an RNN (one of several flavors),
     and a decoder. Runs one RNN step at a time.
@@ -96,11 +94,12 @@ class RNNModel(nn.Container):
 
         # FIXME: is this better than the standard init? probably
         # FIXME: we need better reset_parameters methods in stdlib
+        initrange = 0.1
         self.encoder.weight.data.uniform_(-initrange, initrange)
         self.decoder.bias.data.fill_(0)
         self.decoder.weight.data.uniform_(-initrange, initrange)
 
-    def __call__(self, hidden, input):
+    def forward(self, hidden, input):
         emb = self.encoder(input)
         hidden, output = self.rnn(hidden, emb)
         decoded = self.decoder(output)
@@ -130,9 +129,9 @@ def evaluate(model, data, criterion):
     # Loop over validation data.
     for i in range(0, data.size(0) - 1):
         hidden, output = model(hidden, Variable(data[i], requires_grad=False))
-        loss += criterion(output, Variable(data[i+1], requires_grad=False)).data[0]
+        loss += criterion(output, Variable(data[i+1], requires_grad=False)).data
 
-    return loss / data.size(0)
+    return loss[0] / data.size(0)
 
 # simple gradient clipping, using the total norm of the gradient
 def clipGradient(model, clip):
@@ -193,7 +192,8 @@ for epoch in range(1, args.maxepoch+1):
             print(
                     ('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.6f} | ms/batch {:5.2f} | '
                     + 'train loss {:5.2f} | train ppl {:8.2f}').format(
-                epoch, i / bptt, train.size(0) / bptt, lr, elapsed * 1000 / reportinterval,
+                epoch, i / bptt, train.size(0) / bptt, lr,
+                elapsed * 1000 / reportinterval * bptt,
                 cur_loss, math.exp(cur_loss)
             ))
             total_loss = 0
@@ -204,7 +204,7 @@ for epoch in range(1, args.maxepoch+1):
     # ps = pstats.Stats(pr, stream=s).sort_stats("time")
     # ps.print_stats()
     # print(s.getvalue())
-    # val_loss = evaluate(model, valid, criterion)
+    val_loss = evaluate(model, valid, criterion)
 
     print(
         '| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | valid ppl {:8.2f}'.format(

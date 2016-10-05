@@ -12,8 +12,8 @@ class RNN(nn.Container):
    
     def __init__(self, ninp, nhid):
         super(RNN, self).__init__(
-            i2h=nn.Linear(ninp, nhid),
-            h2h=nn.Linear(nhid, nhid),
+            i2h=nn.Linear(ninp, nhid, bias=False),
+            h2h=nn.Linear(nhid, nhid, bias=False),
             sigmoid=nn.Sigmoid(),
         )
         self.ninp = ninp
@@ -31,15 +31,15 @@ class LSTM(nn.Container):
    
     def __init__(self, ninp, nhid):
         super(LSTM, self).__init__(
-            i2h=nn.Linear(ninp, 4 * nhid), 
-            h2h=nn.Linear(nhid, 4 * nhid), 
+            i2h=nn.Linear(ninp, 4 * nhid, bias=False),
+            h2h=nn.Linear(nhid, 4 * nhid, bias=False),
             sigmoid=nn.Sigmoid(),
             tanh=nn.Tanh(),
         )
         self.ninp = ninp
         self.nhid = nhid
 
-    def __call__(self, hidden, input):
+    def forward(self, hidden, input):
         c, h = hidden
         gates = self.h2h(h) + self.i2h(input)
         gates      = gates.view(input.size(0), 4, self.nhid).transpose(0, 1)
@@ -63,23 +63,23 @@ class GRU(nn.Container):
    
     def __init__(self, ninp, nhid):
         super(GRU, self).__init__(
-            i2h=nn.Linear(ninp, 3 * nhid),
-            h2h=nn.Linear(nhid, 3 * nhid),
+            i2h=nn.Linear(ninp, 3 * nhid, bias=False),
+            h2h=nn.Linear(nhid, 3 * nhid, bias=False),
             sigmoid=nn.Sigmoid(),
             tanh=nn.Tanh(),
         )
         self.ninp = ninp
         self.nhid = nhid
 
-    def __call__(self, hidden, input):
-        gi = i2h(input).view(3, input.size(0), self.nhid).transpose(0, 1)
-        gh = h2h(hidden).view(3, input.size(0), self.nhid).transpose(0, 1)
+    def forward(self, hidden, input):
+        gi = self.i2h(input).view(input.size(0), 3, self.nhid).transpose(0, 1)
+        gh = self.h2h(hidden).view(input.size(0), 3, self.nhid).transpose(0, 1)
 
         resetgate  = self.sigmoid(gi[0] + gh[0])
         updategate = self.sigmoid(gi[1] + gh[1])
 
         output = self.tanh(gi[2] + resetgate * gh[2])
-        nexth = hidden + updategate * (output - h)
+        nexth = hidden + updategate * (output - hidden)
 
         return nexth, output
 
@@ -97,7 +97,7 @@ class StackedRNN(nn.Container):
             self.layers += [layer]
             self.add_module('layer' + str(i), layer)
 
-    def __call__(self, hidden, input):
+    def forward(self, hidden, input):
         output = input
         new_hidden = [None] * self.nlayers
         for i in range(self.nlayers):
