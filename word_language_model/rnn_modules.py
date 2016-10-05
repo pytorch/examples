@@ -87,4 +87,22 @@ class GRU(nn.Container):
         return Variable(self.h2h.weight.data.new(bsz, self.nhid).zero_())
 
 
+class StackedRNN(nn.Container):
+    def __init__(self, rnnClass, ninp, nhid, nlayers):
+        super(StackedRNN, self).__init__()
+        self.nlayers = nlayers
+        self.layers = []
+        for i in range(nlayers):
+            layer = rnnClass(ninp, nhid)
+            self.layers += [layer]
+            self.add_module('layer' + str(i), layer)
 
+    def __call__(self, hidden, input):
+        output = input
+        new_hidden = [None] * self.nlayers
+        for i in range(self.nlayers):
+            new_hidden[i], output = self.layers[i](hidden[i], output)
+        return new_hidden, output
+
+    def initHidden(self, bsz):
+        return [m.initHidden(bsz) for m in self.layers]

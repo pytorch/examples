@@ -16,23 +16,24 @@ import data
 parser = argparse.ArgumentParser(description='PyTorch PTB Language Model')
 
 # Data parameters
-parser.add_argument('-data'      , type=str, default='./data/penn', help='Location of the data corpus'               )
+parser.add_argument('-data'      , type=str, default='./data/penn', help='Location of the data corpus'              )
 # Model parameters.
-parser.add_argument('-model'     , type=str, default='RNN'        , help='Type of recurrent net. RNN, LSTM, or GRU.' )
-parser.add_argument('-emsize'    , type=int, default=200          , help='Size of word embeddings'                   )
-parser.add_argument('-nhid'      , type=int, default=200          , help='Number of hidden units per layer.'         )
+parser.add_argument('-model'     , type=str, default='LSTM'       , help='Type of recurrent net. RNN, LSTM, or GRU.')
+parser.add_argument('-emsize'    , type=int, default=200          , help='Size of word embeddings'                  )
+parser.add_argument('-nhid'      , type=int, default=200          , help='Number of hidden units per layer.'        )
+parser.add_argument('-nlayers'   , type=int, default=2            , help='Number of layers.'                        )
 # Optimization parameters.
-parser.add_argument('-lr'        , type=float, default=20         , help='Initial learning rate.'                  )
-parser.add_argument('-clip'      , type=float, default=0.5        , help='Gradient clipping.'                      )
-parser.add_argument('-maxepoch'  , type=int,   default=6          , help='Upper epoch limit.'                      )
-parser.add_argument('-batchsize' , type=int,   default=20         , help='Batch size.'                             )
-parser.add_argument('-bptt'      , type=int,   default=20         , help='Sequence length.'                        )
+parser.add_argument('-lr'        , type=float, default=20         , help='Initial learning rate.'                   )
+parser.add_argument('-clip'      , type=float, default=0.5        , help='Gradient clipping.'                       )
+parser.add_argument('-maxepoch'  , type=int,   default=6          , help='Upper epoch limit.'                       )
+parser.add_argument('-batchsize' , type=int,   default=20         , help='Batch size.'                              )
+parser.add_argument('-bptt'      , type=int,   default=20         , help='Sequence length.'                         )
 # Device parameters.
-parser.add_argument('-seed'      , type=int,   default=1111       , help='Random seed.'                            )
-parser.add_argument('-cuda'      , action='store_true'            , help='Use CUDA.'                               )
+parser.add_argument('-seed'      , type=int,   default=1111       , help='Random seed.'                             )
+parser.add_argument('-cuda'      , action='store_true'            , help='Use CUDA.'                                )
 # Misc parameters.
-parser.add_argument('-reportint' , type=int,   default=1000       , help='Report interval.'                        )
-parser.add_argument('-save'      , type=str,   default='model.pt' , help='Path to save the final model.'           )
+parser.add_argument('-reportint' , type=int,   default=200        , help='Report interval.'                         )
+parser.add_argument('-save'      , type=str,   default='model.pt' , help='Path to save the final model.'            )
 args = parser.parse_args()
 
 # Set the random seed manually for reproducibility.
@@ -59,8 +60,6 @@ def batchify(data, bsz, bptt):
 train = batchify(corpus.train, args.batchsize, args.bptt)
 valid = batchify(corpus.valid, 10, 1)
 test  = batchify(corpus.test,  10, 1)
-train = train[:10000]
-valid = valid[:100]
 
 bptt  = args.bptt
 bsz   = args.batchsize
@@ -87,11 +86,11 @@ class RNNModel(nn.Container):
         else:
             error("Unknown RNN module: " + name)
 
-    def __init__(self, rnnType, ntoken, ninp, nhid):
+    def __init__(self, rnnType, ntoken, ninp, nhid, nlayers):
         rnnModule = RNNModel.name2module(rnnType)
         super(RNNModel, self).__init__(
             encoder = nn.sparse.Embedding(ntoken, ninp),
-            rnn = rnnModule(ninp, nhid),
+            rnn = StackedRNN(rnnModule, ninp, nhid, nlayers),
             decoder = nn.Linear(nhid, ntoken),
         )
 
@@ -110,7 +109,7 @@ class RNNModel(nn.Container):
     def initHidden(self, bsz):
         return self.rnn.initHidden(bsz)
 
-model = RNNModel(args.model, corpus.dic.ntokens(), args.emsize, args.nhid)
+model = RNNModel(args.model, corpus.dic.ntokens(), args.emsize, args.nhid, args.nlayers)
 if args.cuda:
     model.cuda()
 
@@ -122,7 +121,7 @@ criterion = nn.CrossEntropyLoss()
 
 lr   = args.lr
 clip = args.clip
-reportinterval = args.reportint
+reportinterval = args.reportint * args.batchsize
 
 # Perform the forward pass only.
 def evaluate(model, data, criterion):
@@ -151,7 +150,7 @@ def repackageHidden(h):
     if type(h) == Variable:
         return Variable(h.data)
     else:
-        return tuple(repackageVariable(v) for v in h)
+        return tuple(repackageHidden(v) for v in h)
 
 # Loop over epochs.
 prev_loss = None
@@ -167,6 +166,9 @@ for epoch in range(1, args.maxepoch+1):
 
     total_loss = 0
     start_time = epoch_start_time = time.time()
+    # import cProfile, pstats, StringIO
+    # pr = cProfile.Profile()
+    # pr.enable()
     while i < train.size(0) - 1:
         hidden, output = model(hidden, Variable(train[i], requires_grad=False))
         loss += criterion(output, Variable(train[i+1], requires_grad=False))
@@ -182,26 +184,31 @@ for epoch in range(1, args.maxepoch+1):
 
             hidden = repackageHidden(hidden)
             model.zero_grad()
-            total_loss += loss.data[0]
+            total_loss += loss.data
             loss = 0
 
         if i % reportinterval == 0:
-            cur_loss = total_loss / reportinterval
+            cur_loss = total_loss[0] / reportinterval
             elapsed = time.time() - start_time
             print(
                     ('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.6f} | ms/batch {:5.2f} | '
                     + 'train loss {:5.2f} | train ppl {:8.2f}').format(
-                epoch, i, train.size(0), lr, elapsed * 1000 / reportinterval * bsz,
+                epoch, i / bptt, train.size(0) / bptt, lr, elapsed * 1000 / reportinterval,
                 cur_loss, math.exp(cur_loss)
             ))
             total_loss = 0
             start_time = time.time()
 
-    val_loss = evaluate(model, valid, criterion)
+    # pr.disable()
+    # s = StringIO.StringIO()
+    # ps = pstats.Stats(pr, stream=s).sort_stats("time")
+    # ps.print_stats()
+    # print(s.getvalue())
+    # val_loss = evaluate(model, valid, criterion)
 
     print(
-        '| end of epoch {:3d} | ms/batch {:5.2f} | valid loss {:5.2f} | valid ppl {:8.2f}'.format(
-        epoch, (time.time() - epoch_start_time) * 1000 / train.size(0), val_loss, math.exp(val_loss)
+        '| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | valid ppl {:8.2f}'.format(
+        epoch, (time.time() - epoch_start_time), val_loss, math.exp(val_loss)
     ))
 
     # The annealing schedule.
