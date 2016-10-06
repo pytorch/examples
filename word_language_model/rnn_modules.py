@@ -93,7 +93,8 @@ class StackedRNN(nn.Container):
         self.nlayers = nlayers
         self.layers = []
         for i in range(nlayers):
-            layer = rnnClass(ninp, nhid)
+            ninp_layer = ninp if i == 0 else nhid
+            layer = rnnClass(ninp_layer, nhid)
             self.layers += [layer]
             self.add_module('layer' + str(i), layer)
 

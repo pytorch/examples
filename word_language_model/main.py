@@ -165,9 +165,6 @@ for epoch in range(1, args.maxepoch+1):
 
     total_loss = 0
     start_time = epoch_start_time = time.time()
-    # import cProfile, pstats, StringIO
-    # pr = cProfile.Profile()
-    # pr.enable()
     while i < train.size(0) - 1:
         hidden, output = model(hidden, Variable(train[i], requires_grad=False))
         loss += criterion(output, Variable(train[i+1], requires_grad=False))
@@ -192,18 +189,13 @@ for epoch in range(1, args.maxepoch+1):
             print(
                     ('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.6f} | ms/batch {:5.2f} | '
                     + 'train loss {:5.2f} | train ppl {:8.2f}').format(
-                epoch, i / bptt, train.size(0) / bptt, lr,
+                epoch, i // bptt), train.size(0) // bptt, lr,
                 elapsed * 1000 / reportinterval * bptt,
                 cur_loss, math.exp(cur_loss)
             ))
             total_loss = 0
             start_time = time.time()
 
-    # pr.disable()
-    # s = StringIO.StringIO()
-    # ps = pstats.Stats(pr, stream=s).sort_stats("time")
-    # ps.print_stats()
-    # print(s.getvalue())
     val_loss = evaluate(model, valid, criterion)
 
     print(
