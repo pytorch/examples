@@ -63,7 +63,7 @@ BATCH_SIZE = 150
 TEST_BATCH_SIZE = 1000
 NUM_EPOCHS = 2
 
-optimizer = optim.SGD(model, lr=1e-2, momentum=0.9)
+optimizer = optim.SGD(model.parameters(), lr=1e-2, momentum=0.9)
 
 def train(epoch):
     batch_data_t = torch.FloatTensor(BATCH_SIZE, 1, 28, 28)
@@ -77,7 +77,7 @@ def train(epoch):
         batch_data.data[:] = training_data[i:i+BATCH_SIZE]
         batch_targets.data[:] = training_labels[i:i+BATCH_SIZE]
         loss = optimizer.step(lambda: criterion(model(batch_data), batch_targets))
-
+        loss = loss.data[0]
         print('Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.4f}'.format(epoch,
             i+BATCH_SIZE, training_data.size(0),
             float(i+BATCH_SIZE)/training_data.size(0)*100, loss))
