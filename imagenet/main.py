@@ -76,7 +76,7 @@ train_loader = torch.utils.data.DataLoader(
     train, batch_size=args.batchSize, shuffle=True, num_workers=args.nThreads)
 
 criterion = nn.CrossEntropyLoss().cuda()
-optimizer = torch.optim.SGD(model, learningRate, momentum)
+optimizer = torch.optim.SGD(model.parameters(), learningRate, momentum)
 t = trainer.Trainer(model, criterion, optimizer, train_loader)
 
 t.register_plugin(trainer.plugins.ProgressMonitor())
