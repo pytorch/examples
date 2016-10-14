@@ -1,7 +1,6 @@
 import torch
 import math
 import random
-import numpy as np
 from PIL import Image
 
 
@@ -17,7 +16,7 @@ class Compose(object):
 
 class ToTensor(object):
     def __call__(self, pic):
-        img = torch.ByteTensor(np.asarray(pic, dtype=np.uint8))
+        img = torch.ByteTensor(torch.ByteStorage.from_buffer(pic.tobytes()))
         img = img.view(pic.size[0], pic.size[1], 3)
         # put it in CHW format
         # yikes, this transpose takes 80% of the loading time/CPU
