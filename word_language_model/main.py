@@ -78,7 +78,7 @@ class RNNModel(nn.Container):
     def __init__(self, rnnType, ntoken, ninp, nhid, nlayers):
         super(RNNModel, self).__init__(
             encoder = nn.sparse.Embedding(ntoken, ninp),
-            rnn = nn.rnn.RNNBase(rnnType, ninp, nhid, nlayers, bias=False),
+            rnn = nn.RNNBase(rnnType, ninp, nhid, nlayers, bias=False),
             decoder = nn.Linear(nhid, ntoken),
         )
 
