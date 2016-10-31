@@ -14,6 +14,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 
 import data
+import model
 
 parser = argparse.ArgumentParser(description='PyTorch PTB Language Model')
 
@@ -70,46 +71,12 @@ bsz   = args.batchsize
 # MAKE MODEL
 ###############################################################################
 
-class RNNModel(nn.Container):
-    """A container module with an encoder, an RNN (one of several flavors),
-    and a decoder. Runs one RNN step at a time.
-    """
-
-    def __init__(self, rnnType, ntoken, ninp, nhid, nlayers):
-        super(RNNModel, self).__init__(
-            encoder = nn.sparse.Embedding(ntoken, ninp),
-            rnn = nn.RNNBase(rnnType, ninp, nhid, nlayers, bias=False),
-            decoder = nn.Linear(nhid, ntoken),
-        )
-
-        # FIXME: add stdv named argument to reset_parameters
-        #        (and/or to the constructors)
-        initrange = 0.1
-        self.encoder.weight.data.uniform_(-initrange, initrange)
-        self.decoder.bias.data.fill_(0)
-        self.decoder.weight.data.uniform_(-initrange, initrange)
-
-    def forward(self, input, hidden):
-        emb = self.encoder(input)
-        output, hidden = self.rnn(emb, hidden)
-        decoded = self.decoder(output.view(output.size(0)*output.size(1), output.size(2)))
-        return decoded.view(output.size(0), output.size(1), decoded.size(1)), hidden
-
 ntokens = corpus.dic.ntokens()
-model = RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers)
+model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers)
 if args.cuda:
     model.cuda()
 
 criterion = nn.CrossEntropyLoss()
-
-def initHidden(model, bsz):
-    weight = next(model.parameters()).data
-    if args.model == 'LSTM':
-        return (Variable(weight.new(args.nlayers, bsz, args.nhid).zero_()),
-                Variable(weight.new(args.nlayers, bsz, args.nhid).zero_()))
-    else:
-        return Variable(weight.new(args.nlayers, bsz, args.nhid).zero_())
-
 
 ########################################
 # TRAINING
@@ -123,7 +90,7 @@ reportinterval = args.reportint
 # Perform the forward pass only.
 def evaluate(model, data, criterion, bsz):
     loss = 0
-    hidden = initHidden(model, bsz)
+    hidden = model.initHidden(bsz)
     # Loop over validation data.
     for i in range(0, data.size(0) - 1, bptt):
         seq_len = min(bptt, data.size(0) - 1 - i)
@@ -158,7 +125,7 @@ for epoch in range(1, args.maxepoch+1):
     total_loss = 0
     epoch_start_time = time.time()
     # Start with an initial hidden state.
-    hidden = initHidden(model, bsz)
+    hidden = model.initHidden(bsz)
 
     loss = 0
     i = 0
