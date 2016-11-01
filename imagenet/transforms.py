@@ -57,8 +57,8 @@ class CenterCrop(object):
 
     def __call__(self, img):
         w, h = img.size
-        x1 = round((w - self.size) / 2)
-        y1 = round((h - self.size) / 2)
+        x1 = int(round((w - self.size) / 2))
+        y1 = int(round((h - self.size) / 2))
         return img.crop((x1, y1, x1 + self.size, y1 + self.size))
 
 
@@ -101,8 +101,8 @@ class RandomSizedCrop(object):
             target_area = random.uniform(0.08, 1.0) * area
             aspect_ratio = random.uniform(3 / 4, 4 / 3)
 
-            w = round(math.sqrt(target_area * aspect_ratio))
-            h = round(math.sqrt(target_area / aspect_ratio))
+            w = int(round(math.sqrt(target_area * aspect_ratio)))
+            h = int(round(math.sqrt(target_area / aspect_ratio)))
 
             if random.random() < 0.5:
                 w, h = h, w
