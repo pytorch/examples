@@ -59,7 +59,7 @@ if cuda == True:
 criterion = nn.NLLLoss()
 
 # Training settings
-BATCH_SIZE = 150
+BATCH_SIZE = 64
 TEST_BATCH_SIZE = 1000
 NUM_EPOCHS = 2
 
@@ -74,10 +74,13 @@ def train(epoch):
     batch_data = Variable(batch_data_t, requires_grad=False)
     batch_targets = Variable(batch_targets_t, requires_grad=False)
     for i in range(0, training_data.size(0), BATCH_SIZE):
+        optimizer.zero_grad()
         batch_data.data[:] = training_data[i:i+BATCH_SIZE]
         batch_targets.data[:] = training_labels[i:i+BATCH_SIZE]
-        loss = optimizer.step(lambda: criterion(model(batch_data), batch_targets))
+        loss = criterion(model(batch_data), batch_targets)
+        loss.backward()
         loss = loss.data[0]
+        optimizer.step()
         print('Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.4f}'.format(epoch,
             i+BATCH_SIZE, training_data.size(0),
             float(i+BATCH_SIZE)/training_data.size(0)*100, loss))
