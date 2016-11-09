@@ -8,10 +8,11 @@ import transforms
 
 
 class ImageNetDataset(data.Dataset):
-    def __init__(self, root, imgs, transform=None):
+    def __init__(self, root, imgs, transform=None, target_transform=None):
         self.root = root
         self.imgs = imgs
         self.transform = transform
+        self.target_transform = target_transform
 
     def __getitem__(self, index):
         path, target = self.imgs[index]
@@ -19,6 +20,8 @@ class ImageNetDataset(data.Dataset):
         img = Image.open(os.path.join(self.root, path)).convert('RGB')
         if self.transform is not None:
             img = self.transform(img)
+        if self.target_transform is not None:
+            target = self.target_transform(img)
 
         return img, target
 
