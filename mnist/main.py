@@ -59,7 +59,7 @@ if cuda == True:
 criterion = nn.NLLLoss()
 
 # Training settings
-BATCH_SIZE = 64
+BATCH_SIZE = 150
 TEST_BATCH_SIZE = 1000
 NUM_EPOCHS = 2
 
