@@ -1,7 +1,7 @@
 ###############################################################################
 # Language Modeling on Penn Tree Bank
 #
-# With the default parameters, this should achieve ~116 perplexity on the 
+# With the default parameters, this should achieve ~116 perplexity on the
 # test set.
 ###############################################################################
 
@@ -139,21 +139,6 @@ for epoch in range(1, args.maxepoch+1):
         output, hidden = model(Variable(train[i:i+seq_len], requires_grad=False), hidden)
         targets = train[i+1:i+seq_len+1].view(-1)
         loss = criterion(output.view(-1, ntokens), Variable(targets, requires_grad=False))
-
-        # FIXME: this is the result of a double bug
-        # bug #1: you can't have dangling nodes in the graph to call backward
-        # bug #2: hidden.sum() doesn't work, gives me an error in backward, which I can't reproduce in a simple way
-        #  File "/data/users/alerer/pytorch/pytorch/torch/autograd/variable.py", line 82, in backward
-        #    self._execution_engine.run_backward(self, gradient, retain_variables)
-        #  File "/data/users/alerer/pytorch/pytorch/torch/autograd/functions/reduce.py", line 27, in backward
-        #    return grad_output.new(*self.input_size).fill_(grad_output[0])
-        #ValueError: fill_ recieved an invalid combination of argument types - got (torch.cuda.FloatTensor), but expected (float value)
-        if args.model == 'LSTM':
-            loss += 0*hidden[0].sum(0).sum(1).sum(2)
-            loss += 0*hidden[1].sum(0).sum(1).sum(2)
-        else:
-            loss += 0*hidden.sum(0).sum(1).sum(2)
-
         loss.backward()
 
         clipped_lr = lr * clipGradient(model, args.clip)
