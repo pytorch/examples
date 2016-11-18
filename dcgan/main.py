@@ -26,6 +26,7 @@ parser.add_argument('--niter', default=25, help='number of epochs to train for')
 parser.add_argument('--lr', default=0.0002, help='learning rate, default=0.0002')
 parser.add_argument('--beta1', default=0.5, help='beta1 for adam. default=0.5')
 parser.add_argument('--cuda'  , action='store_true', help='enables cuda')
+parser.add_argument('--ngpu'  , default=1, help='number of GPUs to use')
 parser.add_argument('--netG', default='', help="path to netG (to continue training)")
 parser.add_argument('--netD', default='', help="path to netD (to continue training)")
 opt = parser.parse_args()
@@ -73,9 +74,10 @@ assert dataset
 dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize,
                                          shuffle=True, num_workers=int(opt.workers))
 
-nz = opt.nz
-ngf = opt.ngf
-ndf = opt.ndf
+ngpu = int(opt.ngpu)
+nz = int(opt.nz)
+ngf = int(opt.ngf)
+ndf = int(opt.ndf)
 nc = 3
 
 # custom weights initialization called on netG and netD
@@ -88,8 +90,9 @@ def weights_init(m):
         m.bias.data.fill_(0)
 
 class _netG(nn.Container):
-    def __init__(self):
+    def __init__(self, ngpu):
         super(_netG, self).__init__()
+        self.ngpu = ngpu
         self.main = nn.Sequential(
             # input is Z, going into a convolution
             nn.ConvTranspose2d(     nz, ngf * 8, 4, 1, 0, bias=False),
@@ -114,22 +117,20 @@ class _netG(nn.Container):
         )
     def forward(self, input):
         gpu_ids = None
-        if isinstance(input.data, torch.cuda.FloatTensor) \
-           and torch.cuda.device_count() > 1:
-            gpu_ids = range(torch.cuda.device_count())
+        if isinstance(input.data, torch.cuda.FloatTensor) and self.ngpu > 1:
+            gpu_ids = range(self.ngpu)
         return nn.parallel.data_parallel(self.main, input, gpu_ids)
 
+netG = _netG(ngpu)
+netG.apply(weights_init)
 if opt.netG != '':
-    netG = torch.load(opt.netG)
-else:
-    netG = _netG()
-    netG.apply(weights_init)
-
+    netG.load_parameter_dict(torch.load(opt.netG))
 print(netG)
 
 class _netD(nn.Container):
-    def __init__(self):
+    def __init__(self, ngpu):
         super(_netD, self).__init__()
+        self.ngpu = ngpu
         self.main = nn.Sequential(
             # input is (nc) x 64 x 64
             nn.Conv2d(nc, ndf, 4, 2, 1, bias=False),
@@ -152,18 +153,15 @@ class _netD(nn.Container):
         )
     def forward(self, input):
         gpu_ids = None
-        # TODO: enable this
-        #if isinstance(input.data, torch.cuda.FloatTensor) \
-        #   and torch.cuda.device_count() > 1:
-        #    gpu_ids = range(torch.cuda.device_count())
+        if isinstance(input.data, torch.cuda.FloatTensor) and self.ngpu > 1:
+            gpu_ids = range(self.ngpu)
         output = nn.parallel.data_parallel(self.main, input, gpu_ids)
         return output.view(-1, 1)
 
+netD = _netD(ngpu)
+netD.apply(weights_init)
 if opt.netD != '':
-    netD = torch.load(opt.netD)
-else:
-    netD = _netD()
-    netD.apply(weights_init)
+    netD.load_parameter_dict(torch.load(opt.netD))
 print(netD)
 
 criterion = nn.BCELoss()
@@ -199,14 +197,16 @@ for epoch in range(opt.niter):
         # train with real
         netD.zero_grad()
         real_cpu, _ = data
-        input.data.copy_(real_cpu)
-        label.data.fill_(real_label)
+        batch_size = real_cpu.size(0)
+        input.data.resize_(real_cpu.size()).copy_(real_cpu)
+        label.data.resize_(batch_size).fill_(real_label)
 
         output = netD(input)
         errD_real = criterion(output, label)
         errD_real.backward()
 
         # train with fake
+        noise.data.resize_(batch_size, nz, 1, 1)
         noise.data.normal_(0, 1)
         fake = netG(noise)
         input.data.copy_(fake.data)
@@ -238,5 +238,5 @@ for epoch in range(opt.niter):
             vutils.save_image(fake.data, 'fake_samples.png')
 
     # do checkpointing
-    torch.save(netG, 'netG_epoch_%d.pth' % epoch)
-    torch.save(netD, 'netD_epoch_%d.pth' % epoch)
+    torch.save(netG.parameter_dict(), 'netG_epoch_%d.pth' % epoch)
+    torch.save(netD.parameter_dict(), 'netD_epoch_%d.pth' % epoch)

@@ -13,7 +13,8 @@ After every epoch, models are saved to: `netG_epoch_%d.pth` and `netD_epoch_%d.p
 usage: main.py [-h] --dataset DATASET --dataroot DATAROOT [--workers WORKERS]
                [--batchSize BATCHSIZE] [--imageSize IMAGESIZE] [--nz NZ]
                [--ngf NGF] [--ndf NDF] [--niter NITER] [--lr LR]
-               [--beta1 BETA1] [--cuda] [--netG NETG] [--netD NETD]
+               [--beta1 BETA1] [--cuda] [--ngpu NGPU] [--netG NETG]
+               [--netD NETD]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -31,6 +32,7 @@ optional arguments:
   --lr LR               learning rate, default=0.0002
   --beta1 BETA1         beta1 for adam. default=0.5
   --cuda                enables cuda
+  --ngpu NGPU           number of GPUs to use
   --netG NETG           path to netG (to continue training)
   --netD NETD           path to netD (to continue training)
 ```
