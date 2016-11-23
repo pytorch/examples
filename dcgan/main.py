@@ -123,7 +123,7 @@ class _netG(nn.Container):
 netG = _netG(ngpu)
 netG.apply(weights_init)
 if opt.netG != '':
-    netG.load_parameter_dict(torch.load(opt.netG))
+    netG.load_state_dict(torch.load(opt.netG))
 print(netG)
 
 class _netD(nn.Container):
@@ -160,7 +160,7 @@ class _netD(nn.Container):
 netD = _netD(ngpu)
 netD.apply(weights_init)
 if opt.netD != '':
-    netD.load_parameter_dict(torch.load(opt.netD))
+    netD.load_state_dict(torch.load(opt.netD))
 print(netD)
 
 criterion = nn.BCELoss()
@@ -237,5 +237,5 @@ for epoch in range(opt.niter):
             vutils.save_image(fake.data, 'fake_samples.png')
 
     # do checkpointing
-    torch.save(netG.parameter_dict(), 'netG_epoch_%d.pth' % epoch)
-    torch.save(netD.parameter_dict(), 'netD_epoch_%d.pth' % epoch)
+    torch.save(netG.state_dict(), 'netG_epoch_%d.pth' % epoch)
+    torch.save(netD.state_dict(), 'netD_epoch_%d.pth' % epoch)
