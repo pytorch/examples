@@ -37,4 +37,4 @@ class RNNModel(nn.Container):
             return (Variable(weight.new(self.nlayers, bsz, self.nhid).zero_()),
                     Variable(weight.new(self.nlayers, bsz, self.nhid).zero_()))
         else:
-            return Variable(weight.new(args.nlayers, bsz, args.nhid).zero_())
+            return Variable(weight.new(self.nlayers, bsz, self.nhid).zero_())
