@@ -44,7 +44,7 @@ class Net(nn.Container):
             softmax = nn.LogSoftmax(),
         )
 
-    def __call__(self, x):
+    def forward(self, x):
         x = self.relu(self.pool1(self.conv1(x)))
         x = self.relu(self.pool2(self.conv2(x)))
         x = x.view(-1, 800)
