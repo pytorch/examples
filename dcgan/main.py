@@ -227,7 +227,7 @@ for epoch in range(opt.niter):
         optimizerG.step()
 
         print('[%d/%d][%d/%d] Loss_D: %f Loss_G: %f'
-              % (epoch, opt.niter, i, len(dataloader)/opt.batchSize,
+              % (epoch, opt.niter, i, len(dataloader),
                  errD.data[0], errG.data[0]))
         if i % 100 == 0:
             vutils.save_image(real_cpu, 'real_samples.png')
