@@ -5,10 +5,7 @@
 # test set.
 ###############################################################################
 
-import argparse
-import time
-import math
-
+import argparse, time, math
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -16,7 +13,7 @@ from torch.autograd import Variable
 import data
 import model
 
-parser = argparse.ArgumentParser(description='PyTorch PTB Language Model')
+parser = argparse.ArgumentParser(description='PyTorch PennTreeBank RNN/LSTM Language Model')
 
 # Data parameters
 parser.add_argument('-data'      , type=str, default='./data/penn', help='Location of the data corpus'              )
@@ -41,8 +38,7 @@ args = parser.parse_args()
 
 # Set the random seed manually for reproducibility.
 torch.manual_seed(args.seed)
-# If the GPU is enabled, do some plumbing.
-
+# If the GPU is enabled, warn the user to use it
 if torch.cuda.is_available() and not args.cuda:
     print("WARNING: You have a CUDA device, so you should probably run with -cuda")
 
