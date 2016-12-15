@@ -7,10 +7,10 @@ class RNNModel(nn.Container):
     and a decoder. Runs one RNN step at a time.
     """
 
-    def __init__(self, rnnType, ntoken, ninp, nhid, nlayers):
+    def __init__(self, rnn_type, ntoken, ninp, nhid, nlayers):
         super(RNNModel, self).__init__(
             encoder = nn.sparse.Embedding(ntoken, ninp),
-            rnn = nn.RNNBase(rnnType, ninp, nhid, nlayers, bias=False),
+            rnn = nn.RNNBase(rnn_type, ninp, nhid, nlayers, bias=False),
             decoder = nn.Linear(nhid, ntoken),
         )
 
@@ -21,7 +21,7 @@ class RNNModel(nn.Container):
         self.decoder.bias.data.fill_(0)
         self.decoder.weight.data.uniform_(-initrange, initrange)
 
-        self.rnnType = rnnType
+        self.rnn_type = rnn_type
         self.nhid = nhid
         self.nlayers = nlayers
 
@@ -33,7 +33,7 @@ class RNNModel(nn.Container):
 
     def initHidden(self, bsz):
         weight = next(self.parameters()).data
-        if self.rnnType == 'LSTM':
+        if self.rnn_type == 'LSTM':
             return (Variable(weight.new(self.nlayers, bsz, self.nhid).zero_()),
                     Variable(weight.new(self.nlayers, bsz, self.nhid).zero_()))
         else:
