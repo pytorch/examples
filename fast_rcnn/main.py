@@ -23,11 +23,6 @@ class_to_ind = dict(zip(cls, range(len(cls))))
 train = VOCDetection('/home/francisco/work/datasets/VOCdevkit/', 'train',
             target_transform=TransformVOCDetectionAnnotation(class_to_ind, False))
 
-# two possibilities
-# 1. have a new dataset class that samples random boxes and outputs, like the batch provider
-# 2. let the dataset do it internally
-# lets go for 1
-
 # image flip goes to the dataset class, not BoxSampler
 
 def bbox_overlaps(a, bb):
@@ -61,25 +56,29 @@ def bbox_overlaps(a, bb):
 
   return torch.cat([o.view(-1,1) for o in oo],1)
 
-def _generate_boxes(self, im):
-    #h, w = im.size()[1:]
-    w, h = im.size
-    x = torch.LongTensor(self.num_boxes, 2).random_(0,w-1).sort(1)
-    y = torch.LongTensor(self.num_boxes, 2).random_(0,h-1).sort(1)
-    
-    x = x[0]
-    y = y[0]
+class BoxGenerator(object):
+    def __init__(self, num_boxes=2000):
+        super(BoxGenerator, self).__init__()
+        self.num_boxes = num_boxes
 
-    return torch.cat([x.select(1,0), y.select(1,0), x.select(1,1), y.select(1,1)], 1)
+    def __call__(self, im):
+        #h, w = im.size()[1:]
+        w, h = im.size
+        x = torch.LongTensor(self.num_boxes, 2).random_(0,w-1).sort(1)
+        y = torch.LongTensor(self.num_boxes, 2).random_(0,h-1).sort(1)
+    
+        x = x[0]
+        y = y[0]
+
+        return torch.cat([x.select(1,0), y.select(1,0), x.select(1,1), y.select(1,1)], 1)
 
 
 class BoxSampler(torch.utils.data.Dataset):
 
-    def __init__(self, dataset, num_boxes=128, fg_fraction=0.25, fg_threshold=0.5, bg_threshold=(0.0,0.5), generate_boxes=_generate_boxes):
+    def __init__(self, dataset, fg_threshold=0.5, bg_threshold=(0.0,0.5), 
+            generate_boxes=BoxGenerator(num_boxes=10000)):
         super(BoxSampler, self).__init__()
         self.dataset = dataset
-        self.num_boxes = num_boxes
-        self.fg_fraction = fg_fraction
         self.fg_threshold = fg_threshold
         self.bg_threshold = bg_threshold
         self.generate_boxes = generate_boxes
@@ -117,10 +116,10 @@ class BoxSampler(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         #super(BoxSampler, self).__getitem__(idx)
         im, gt = self.dataset[idx]
-        boxes = self.generate_boxes(self, im)
+        boxes = self.generate_boxes(im)
         boxes, labels = self._overlap_and_attribute(boxes, gt)
 
-        if True:
+        if False:
             w, h = im.size
             im = torch.ByteTensor(torch.ByteStorage.from_buffer(im.tobytes()))
             im = im.view(h, w, 3)
@@ -135,7 +134,37 @@ class BoxSampler(torch.utils.data.Dataset):
         return len(self.dataset)
 
 
-ds = BoxSampler(train, 64, fg_threshold=0.5)
+class BoxSelector(torch.utils.data.Dataset):
+    def __init__(self, dataset, num_boxes=128, fg_fraction=0.25):
+        super(BoxSelector, self).__init__()
+        self.dataset = dataset
+        self.num_boxes = num_boxes
+        self.fg_fraction = fg_fraction
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        im, boxes, labels = self.dataset[idx]
+
+        boxes = boxes.numpy()
+        labels = labels.numpy()
+
+        bg = np.where(labels == 0)[0]
+        fg = np.where(labels != 0)[0]
+        nfg = min(len(fg), self.num_boxes*self.fg_fraction)
+        nbg = min(len(bg), self.num_boxes - nfg)
+
+        bg = bg[np.random.permutation(len(bg))[:nbg]]
+        fg = fg[np.random.permutation(len(fg))[:nfg]]
+
+        I = np.concatenate([fg, bg], axis=0)
+
+        return im, torch.from_numpy(boxes[I]), torch.from_numpy(labels[I])
+
+
+
+ds = BoxSelector(BoxSampler(train, fg_threshold=0.75), 64, 0.25)
 
 def collate_fn(batch):
     imgs, boxes, labels = zip(*batch)
@@ -146,7 +175,7 @@ def collate_fn(batch):
     #imgs = torch.cat([t.view(1, *t.size()) for t in imgs], 0)
     #boxes = torch.LongTensor([[[i]*t.size(0)] + t.tolist() for i, t in enumerate(boxes, 0)])
     #boxes = [[[i]*t.size(0)] + t.tolist() for i, t in enumerate(boxes, 0)]
-    boxes = np.concatenate([np.column_stack((np.full(t.size(0), i), t.numpy())) for i, t in enumerate(boxes, 0)], axis=0)
+    boxes = np.concatenate([np.column_stack((np.full(t.size(0), i, dtype=np.int64), t.numpy())) for i, t in enumerate(boxes, 0)], axis=0)
     boxes = torch.from_numpy(boxes)
     labels = torch.cat(labels, 0)
     return new_imgs, boxes, labels
@@ -176,13 +205,14 @@ def show(img, boxes, label, cls=None):
             #draw.rectangle(obj[0:4].tolist(), outline=(0,0,255))
     img.show()
 
-for i, (img, boxes, labels) in tqdm(enumerate(train_loader)):
-    pass
+
+#for i, (img, boxes, labels) in tqdm(enumerate(train_loader)):
+#    pass
     #print('====')
     #print(i)
     #print(img.size())
     #print(boxes.size())
     #print(labels.size())
 
-#im, box, label = ds[10]
-#show(im,box,label)
+im, box, label = ds[10]
+show(im,box,label)
