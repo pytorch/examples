@@ -8,6 +8,8 @@ import numpy as np
 from roi_pooling import roi_pooling
 from voc import VOCDetection, TransformVOCDetectionAnnotation
 
+from tqdm import tqdm
+
 
 cls = ('__background__', # always index 0
             'aeroplane', 'bicycle', 'bird', 'boat',
@@ -85,7 +87,7 @@ class BoxSampler(torch.utils.data.Dataset):
     def _overlap_and_attribute(self, boxes, gt_roidb):
 
         #overlaps = np.zeros((boxes.size(0), self.num_classes), dtype=np.float32)
-        overlaps = np.zeros((boxes.size(0), 20), dtype=np.float32)
+        overlaps = np.zeros((boxes.size(0), 21), dtype=np.float32)
 
         if gt_roidb is not None and gt_roidb['boxes'].size > 0:
             gt_boxes = gt_roidb['boxes']
@@ -117,23 +119,40 @@ class BoxSampler(torch.utils.data.Dataset):
         im, gt = self.dataset[idx]
         boxes = self.generate_boxes(self, im)
         boxes, labels = self._overlap_and_attribute(boxes, gt)
+
+        if True:
+            w, h = im.size
+            im = torch.ByteTensor(torch.ByteStorage.from_buffer(im.tobytes()))
+            im = im.view(h, w, 3)
+            # put it from HWC to CHW format
+            # yikes, this transpose takes 80% of the loading time/CPU
+            im = im.transpose(0, 1).transpose(0, 2).contiguous()
+            im = im.float().div_(255)
+
         return im, boxes, labels
 
     def __len__(self):
         return len(self.dataset)
 
 
-ds = BoxSampler(train, 64*32, fg_threshold=0.75)
+ds = BoxSampler(train, 64, fg_threshold=0.5)
 
 def collate_fn(batch):
-    imgs, targets = zip(*batch)
-    imgs = torch.cat([t.view(1, *t.size()) for t in imgs], 0)
-    targets = torch.LongTensor([[i] + t for i, t in enumerate(targets, 0)])
-
-    return imgs, targets
+    imgs, boxes, labels = zip(*batch)
+    max_size = [max(size) for size in zip(*[im.size() for im in imgs])]
+    new_imgs = imgs[0].new(len(imgs), *max_size).fill_(0)
+    for im, im2 in zip(new_imgs, imgs):
+        im.narrow(1,0,im2.size(1)).narrow(2,0,im2.size(2)).copy_(im2)
+    #imgs = torch.cat([t.view(1, *t.size()) for t in imgs], 0)
+    #boxes = torch.LongTensor([[[i]*t.size(0)] + t.tolist() for i, t in enumerate(boxes, 0)])
+    #boxes = [[[i]*t.size(0)] + t.tolist() for i, t in enumerate(boxes, 0)]
+    boxes = np.concatenate([np.column_stack((np.full(t.size(0), i), t.numpy())) for i, t in enumerate(boxes, 0)], axis=0)
+    boxes = torch.from_numpy(boxes)
+    labels = torch.cat(labels, 0)
+    return new_imgs, boxes, labels
 
 train_loader = torch.utils.data.DataLoader(
-            train, batch_size=2, shuffle=True, num_workers=1, collate_fn=collate_fn)
+            ds, batch_size=2, shuffle=True, num_workers=2, collate_fn=collate_fn)
 
 
 def show(img, boxes, label, cls=None):
@@ -157,6 +176,13 @@ def show(img, boxes, label, cls=None):
             #draw.rectangle(obj[0:4].tolist(), outline=(0,0,255))
     img.show()
 
+for i, (img, boxes, labels) in tqdm(enumerate(train_loader)):
+    pass
+    #print('====')
+    #print(i)
+    #print(img.size())
+    #print(boxes.size())
+    #print(labels.size())
 
 #im, box, label = ds[10]
 #show(im,box,label)
