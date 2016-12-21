@@ -7,7 +7,7 @@ import torch
 
 parser = argparse.ArgumentParser(description='train.lua')
 
-parser.add_argument('-config', "Read options from this file")
+parser.add_argument('-config', help="Read options from this file")
 
 ##
 ## **Data options**
@@ -26,7 +26,7 @@ parser.add_argument('-cont', action="store_true", help="If training from a check
 parser.add_argument('-layers',        type=int, default=2,   help="Number of layers in the LSTM encoder/decoder")
 parser.add_argument('-rnn_size',      type=int, default=500, help="Size of LSTM hidden states")
 parser.add_argument('-word_vec_size', type=int, default=500, help="Word embedding sizes")
-parser.add_argument('-feat_merge', 'concat', "Merge action for the features embeddings: concat or sum")
+parser.add_argument('-feat_merge', default='concat', help="Merge action for the features embeddings: concat or sum")
 parser.add_argument('-feat_vec_exponent', type=int, default=0.7, help="""When using concatenation, if the feature takes N values
                                                                 then the embedding dimension will be set to N^exponent""")
 parser.add_argument('-feat_vec_size', type=int, default=20, help="When using sum, the common embedding size of the features")
@@ -39,11 +39,11 @@ parser.add_argument('-brnn_merge', default='sum',           help="Merge action f
 ## **Optimization options**
 ##
 
-parser.add_argument('-max_batch_size',  type=int, default=64,  default="Maximum batch size")
-parser.add_argument('-epochs',          type=int, default=13,  default="Number of training epochs")
-parser.add_argument('-start_epoch',     type=int, default=1,   default="If loading from a checkpoint, the epoch from which to start")
-parser.add_argument('-start_iteration', type=int, default=1,   default="If loading from a checkpoint, the iteration from which to start")
-parser.add_argument('-param_init',      type=int, default=0.1, default="Parameters are initialized over uniform distribution with support (-param_init, param_init)")
+parser.add_argument('-max_batch_size',  type=int, default=64,  help="Maximum batch size")
+parser.add_argument('-epochs',          type=int, default=13,  help="Number of training epochs")
+parser.add_argument('-start_epoch',     type=int, default=0,   help="If loading from a checkpoint, the epoch from which to start")
+parser.add_argument('-start_iteration', type=int, default=0,   help="If loading from a checkpoint, the iteration from which to start")
+parser.add_argument('-param_init',      type=int, default=0.1, help="Parameters are initialized over uniform distribution with support (-param_init, param_init)")
 parser.add_argument('-optim', default='sgd', help="Optimization method. Possible options are: sgd, adagrad, adadelta, adam")
 parser.add_argument('-learning_rate', type=int, default=1, help="""Starting learning rate. If adagrad/adadelta/adam is used,
                                 then this is the global learning rate. Recommed settings. sgd =1,
@@ -52,13 +52,13 @@ parser.add_argument('-max_grad_norm',       type=int, default=5,   help="If the 
 parser.add_argument('-dropout',             type=int, default=0.3, help="Dropout probability. Dropout is applied between vertical LSTM stacks.")
 parser.add_argument('-learning_rate_decay', type=int, default=0.5, help="""Decay learning rate by this much if (i) perplexity does not decrease
                                         on the validation set or (ii) epoch has gone past the start_decay_at_limit""")
-parser.add_argument('-start_decay_at', 9, "Start decay after this epoch")
-parser.add_argument('-curriculum', 0, """For this many epochs, order the minibatches based on source
+parser.add_argument('-start_decay_at', default=8, help="Start decay after this epoch")
+parser.add_argument('-curriculum', type=int, default=0, help="""For this many epochs, order the minibatches based on source
                              sequence length. Sometimes setting this to 1 will increase convergence speed.""")
-parser.add_argument('-pre_word_vecs_enc', '', """If a valid path is specified, then this will load
+parser.add_argument('-pre_word_vecs_enc', help="""If a valid path is specified, then this will load
                                      pretrained word embeddings on the encoder side.
                                      See README for specific formatting instructions.""")
-parser.add_argument('-pre_word_vecs_dec', '', """If a valid path is specified, then this will load
+parser.add_argument('-pre_word_vecs_dec', help="""If a valid path is specified, then this will load
                                      pretrained word embeddings on the decoder side.
                                      See README for specific formatting instructions.""")
 parser.add_argument('-fix_word_vecs_enc', action="store_true", help="Fix word embeddings on the encoder side")
@@ -83,7 +83,9 @@ parser.add_argument('-report_every', type=int, default=50,   help="Print stats e
 parser.add_argument('-seed',         type=int, default=3435, help="Seed for random initialization")
 parser.add_argument('-json_log', action="store_true", help="Outputs logs in JSON format.")
 
-opt = cmd.parse(arg)
+opt = parser.parse_args()
+
+# pool = onmt.utils.Parallel.ThreadPool(opt.nparallel)
 
 def initParams(model, verbose):
     numParams = 0
@@ -152,38 +154,40 @@ def eval(model, criterion, data):
 def trainModel(model, trainData, validData, dataset, info):
     params, gradParams = {}, {}
 
-    def func1(idx):
+    def initParams(idx, args, state):
         # Only logs information of the first thread.
-        verbose = idx == 1 and not opt.json_log
+        verbose = idx == 0 and not opt.json_log
+        model = state['model']
 
-        _G.params, _G.gradParams = initParams(_G.model, verbose)
-        for mod in _G.model.values():
+        params, gradParams = initParams(model, verbose)
+        for mod in model.values():
             mod.training()
 
         # define criterion of each GPU
-        _G.criterion = onmt.utils.Cuda.convert(buildCriterion(dataset.dicts.tgt.words.size(),
-                                                            dataset.dicts.tgt.features))
+        state['criterion'] = onmt.utils.Cuda.convert(buildCriterion(dataset.dicts.tgt.words.size(),
+                                                                    dataset.dicts.tgt.features))
 
-        # optimize memory of the first clone
-        if not opt.disable_mem_optimization:
-            batch = onmt.utils.Cuda.convert(trainData.getBatch(1))
-            batch.totalSize = batch.size
-            onmt.utils.Memory.optimize(_G.model, _G.criterion, batch, verbose)
+        # # optimize memory of the first clone
+        # if not opt.disable_mem_optimization:
+        #     batch = onmt.utils.Cuda.convert(trainData.getBatch(1))
+        #     batch.totalSize = batch.size
+        #     onmt.utils.Memory.optimize(model, criterion, batch, verbose)
 
-        return idx, _G.criterion, _G.params, _G.gradParams
+        return idx, state['criterion'], params, gradParams
 
-    def func2(idx, thecriterion, theparams, thegradParams):
+    def _endcallback(args):
+        idx, thecriterion, theparams, thegradParams = args
         if idx == 0:
             criterion = thecriterion
         params[idx] = theparams
         gradParams[idx] = thegradParams
 
-    onmt.utils.Parallel.launch(None, func1, func2)
+    pool.launch(None, initParams, endcallback=_endcallback)
 
     optim = onmt.train.Optim(
         opt.optim, opt.learning_rate,
         lr_decay=opt.learning_rate_decay,
-        start_decay_at = opt.start_decay_at
+        start_decay_at=opt.start_decay_at
     )
 
     checkpoint = onmt.train.Checkpoint.new(opt, model, optim, dataset)
@@ -191,7 +195,7 @@ def trainModel(model, trainData, validData, dataset, info):
     def trainEpoch(epoch, lastValidPpl):
 
         startI = opt.start_iteration
-        numIterations = math.ceil(trainData.batchCount() / onmt.utils.Parallel.count)
+        numIterations = math.ceil(trainData.batchCount() / pool.count)
 
         if startI > 1 and info != None:
             epochState = onmt.train.EpochState.new(epoch, numIterations, optim.getLearningRate(), lastValidPpl, info.epochStatus)
@@ -204,29 +208,30 @@ def trainModel(model, trainData, validData, dataset, info):
         opt.start_iteration = 1
         ii = 1
 
-        def trainOne(idx):
-            _G.batch = batches[idx]
-            if _G.batch is None:
+        def trainOne(idx, args, state):
+
+            batch = args[idx]
+            if batch is None:
                 return idx, 0
 
-            # s batch data to GPU
-            onmt.utils.Cuda.convert(_G.batch)
-            _G.batch.totalSize = totalSize
+            # send batch data to GPU
+            onmt.utils.Cuda.convert(batch)
+            batch.totalSize = totalSize
 
-            optim.zeroGrad(_G.gradParams)
+            optim.zeroGrad(gradParams)
 
-            encStates, context = _G.model.encoder.forward(_G.batch)
-            decOutputs = _G.model.decoder.forward(_G.batch, encStates, context)
+            encStates, context = model['encoder'].forward(batch)
+            decOutputs = model['decoder'].forward(batch, encStates, context)
 
-            encGradStatesOut, gradContext, loss = _G.model.decoder.backward(_G.batch, decOutputs, _G.criterion)
-            _G.model.encoder.backward(_G.batch, encGradStatesOut, gradContext)
+            encGradStatesOut, gradContext, loss = model['decoder'].backward(batch, decOutputs, criterion)
+            model['encoder'].backward(batch, encGradStatesOut, gradContext)
             return idx, loss
 
-        for i = startI, trainData.batchCount(), onmt.utils.Parallel.count:
+        for i in range(startI, trainData.batchCount(), onmt.utils.Parallel.count):
             batches = {}
             totalSize = 0
 
-            for j = 1, math.min(onmt.utils.Parallel.count, trainData.batchCount()-i+1):
+            for j in range(math.min(onmt.utils.Parallel.count, trainData.batchCount()-i+1)):
                 batchIdx = batchOrder[i+j-1]
                 if epoch <= opt.curriculum:
                     batchIdx = i+j-1
@@ -236,17 +241,20 @@ def trainModel(model, trainData, validData, dataset, info):
 
             losses = {}
 
-            onmt.utils.Parallel.launch(None, trainOne, lambda idx, loss: losses[idx]=loss)
+            def _endcallback(idx, loss):
+                losses[idx] = loss
+
+            pool.launch(None, trainOne, args=batches, endcallback=_endcallback)
 
             # accumulate the gradients from the different parallel threads
-            onmt.utils.Parallel.accGradParams(gradParams, batches)
+            XXX.accGradParams(gradParams, batches)
 
             # update the parameters
             optim.prepareGrad(gradParams[1], opt.max_grad_norm)
             optim.updateParams(params[1], gradParams[1])
 
             # sync the paramaters with the different parallel threads
-            onmt.utils.Parallel.syncParams(params)
+            XXXsyncParams(params)
 
             epochState.update(batches, losses)
 
@@ -261,7 +269,7 @@ def trainModel(model, trainData, validData, dataset, info):
 
     validPpl = 0
 
-    for epoch = opt.start_epoch, opt.epochs:
+    for epoch in range(opt.start_epoch, opt.epochs):
         if not opt.json_log:
             print('')
 
@@ -272,39 +280,38 @@ def trainModel(model, trainData, validData, dataset, info):
         if not opt.json_log:
             print('Validation perplexity. ' + validPpl)
 
-
         if opt.optim == 'sgd':
             optim.updateLearningRate(validPpl, epoch)
 
         checkpoint.saveEpoch(validPpl, epochState, not opt.json_log)
 
-def buildModel(idx):
-    _G.model = {}
+
+def buildModel(idx, args, state):
+    checkpoint = args
+    model = state['model'] = {}
 
     if checkpoint.models:
-        _G.model.encoder = onmt.Models.loadEncoder(checkpoint.models.encoder, idx > 1)
-        _G.model.decoder = onmt.Models.loadDecoder(checkpoint.models.decoder, idx > 1)
+        model['encoder'] = onmt.Models.loadEncoder(checkpoint.models.encoder, idx > 1)
+        model['decoder'] = onmt.Models.loadDecoder(checkpoint.models.decoder, idx > 1)
     else:
         verbose = idx == 1 and not opt.json_log
-        _G.model.encoder = onmt.Models.buildEncoder(opt, dataset.dicts.src)
-        _G.model.decoder = onmt.Models.buildDecoder(opt, dataset.dicts.tgt, verbose)
+        model['encoder'] = onmt.Models.buildEncoder(opt, dataset.dicts.src)
+        model['decoder'] = onmt.Models.buildDecoder(opt, dataset.dicts.tgt, verbose)
 
-
-    for _, mod in pairs(_G.model):
+    for mod in model.values():
         onmt.utils.Cuda.convert(mod)
 
+    return idx, model
 
-    return idx, _G.model
 
 def main():
     onmt.utils.Opt.initConfig(opt)
     onmt.utils.Cuda.init(opt)
-    onmt.utils.Parallel.init(opt)
 
     checkpoint = {}
 
     if opt.train_from is not None:
-        assert(os.path.exists(opt.train_from), 'checkpoint path invalid')
+        assert os.path.exists(opt.train_from), 'checkpoint path invalid'
 
         if not opt.json_log:
           print('Loading checkpoint \'' + opt.train_from + '\'...')
@@ -347,31 +354,31 @@ def main():
     validData.setBatchSize(opt.max_batch_size)
 
     if not opt.json_log:
-        print(string.format(' * vocabulary size. source = %d; target = %d',
-                            dataset.dicts.src.words.size(), dataset.dicts.tgt.words:size()))
-        print(string.format(' * additional features. source = %d; target = %d',
-                            len(dataset.dicts.src.features), #dataset.dicts.tgt.features))
-        print(string.format(' * maximum sequence length. source = %d; target = %d',
-                            trainData.maxSourceLength, trainData.maxTargetLength))
-        print(string.format(' * number of training sentences. %d', len(trainData.src)))
-        print(string.format(' * maximum batch size. %d', opt.max_batch_size * onmt.utils.Parallel.count))
+        print(' * vocabulary size. source = %d; target = %d' %
+                            (dataset.dicts.src.words.size(), dataset.dicts.tgt.words.size()))
+        print(' * additional features. source = %d; target = %d' %
+                            (len(dataset.dicts.src.features), len(dataset.dicts.tgt.features)))
+        print(' * maximum sequence length. source = %d; target = %d' %
+                            (trainData.maxSourceLength, trainData.maxTargetLength))
+        print(' * number of training sentences. %d' % len(trainData.src))
+        print(' * maximum batch size. %d' % opt.max_batch_size * pool.count)
     else:
-        metadata = {
-            options = opt,
-            vocabSize = {
-                source = dataset.dicts.src.words.size(),
-                target = dataset.dicts.tgt.words.size()
-            },
-            additionalFeatures = {
-                source = len(dataset.dicts.src.features),
-                target = len(dataset.dicts.tgt.features)
-            },
-            sequenceLength = {
-                source = trainData.maxSourceLength,
-                target = trainData.maxTargetLength
-            },
+        metadata = dict(
+            options=opt,
+            vocabSize=dict(
+                source=dataset.dicts.src.words.size(),
+                target=dataset.dicts.tgt.words.size()
+            ),
+            additionalFeatures=dict(
+                source=len(dataset.dicts.src.features),
+                target=len(dataset.dicts.tgt.features)
+            ),
+            sequenceLength=dict(
+                source=trainData.maxSourceLength,
+                target=trainData.maxTargetLength
+            ),
             trainingSentences = len(trainData.src)
-        }
+        )
 
         onmt.utils.Log.logJson(metadata)
 
@@ -379,8 +386,12 @@ def main():
     if not opt.json_log:
         print('Building model...')
 
-    onmt.utils.Parallel.launch(None, buildModel,
-            lambda idx, themodel: if idx == 1: model = themodel)
+    def _endcallback(idx, themodel):
+        if idx == 0:
+            model = themodel
+
+    onmt.utils.Parallel.launch(None, buildModel, args=checkpoint,
+            endcallback=_endcallback)
 
     trainModel(model, trainData, validData, dataset, checkpoint.info)
 

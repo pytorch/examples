@@ -1,89 +1,89 @@
-require('nn')
-require('nngraph')
+import nn
+import nngraph
 
-local Cuda = {
-  activated = false
+Cuda = {
+    activated = False
 }
 
-function Cuda.init(opt, gpuIdx)
-  Cuda.activated = opt.gpuid > 0
+def Cuda.init(opt, gpuIdx):
+    Cuda.activated = opt.gpuid > 0
 
-  if Cuda.activated then
-    local _, err = pcall(function()
-      require('cutorch')
-      require('cunn')
-      if gpuIdx == nil then
-        -- allow memory access between devices
-        cutorch.getKernelPeerToPeerAccess(true)
-        if opt.seed then
-          cutorch.manualSeedAll(opt.seed)
-        end
-        cutorch.setDevice(opt.gpuid)
-      else
-        cutorch.setDevice(gpuIdx)
-      end
-      if opt.seed then
-        cutorch.manualSeed(opt.seed)
-      end
-    end)
+    if Cuda.activated:
+        _, err = pcall(function()
+            import cutorch
+            import cunn
+            if gpuIdx == None:
+                # allow memory access between devices
+                cutorch.getKernelPeerToPeerAccess(True)
+                if opt.seed:
+                    cutorch.manualSeedAll(opt.seed)
+                
+                cutorch.setDevice(opt.gpuid)
+            else:
+                cutorch.setDevice(gpuIdx)
+            
+            if opt.seed:
+                cutorch.manualSeed(opt.seed)
+            
+        )
 
-    if err then
-      error(err)
-    end
-  end
-end
+        if err:
+            error(err)
+        
+    
 
---[[
-  Recursively move all supported objects in `obj` on the GPU.
-  When using CPU only, converts to float instead of the default double.
+
+#[[
+    Recursively move all supported objects in `obj` on the GPU.
+    When using CPU only, converts to float instead of the default double.
 ]]
-function Cuda.convert(obj)
-  if torch.typename(obj) then
-    if Cuda.activated and obj.cuda ~= nil then
-      return obj:cuda()
-    elseif not Cuda.activated and obj.float ~= nil then
-      -- Defaults to float instead of double.
-      return obj:float()
-    end
-  end
+def Cuda.convert(obj):
+    if torch.typename(obj):
+        if Cuda.activated and obj.cuda != None:
+            return obj.cuda()
+        elif not Cuda.activated and obj.float != None:
+            # Defaults to float instead of double.
+            return obj.float()
+        
+    
 
-  if torch.typename(obj) or type(obj) == 'table' then
-    for k, v in pairs(obj) do
-      obj[k] = Cuda.convert(v)
-    end
-  end
+    if torch.typename(obj) or type(obj) == 'table':
+        for k, v in pairs(obj):
+            obj[k] = Cuda.convert(v)
+        
+    
 
-  return obj
-end
+    return obj
 
-function Cuda.getGPUs(ngpu)
-  local gpus = {}
-  if Cuda.activated then
-    if ngpu > cutorch.getDeviceCount() then
-      error("not enough available GPU - " .. ngpu .. " requested, " .. cutorch.getDeviceCount() .. " available")
-    end
-    gpus[1] = Cuda.gpuid
-    local i = 1
-    while #gpus ~= ngpu do
-      if i ~= gpus[1] then
-        table.insert(gpus, i)
-      end
-      i = i + 1
-    end
-  else
-    for _ = 1, ngpu do
-      table.insert(gpus, 0)
-    end
-  end
-  return gpus
-end
 
-function Cuda.freeMemory()
-  if Cuda.activated then
-    local freeMemory = cutorch.getMemoryUsage(cutorch.getDevice())
-    return freeMemory
-  end
-  return 0
-end
+def Cuda.getGPUs(ngpu):
+    gpus = {}
+    if Cuda.activated:
+        if ngpu > cutorch.getDeviceCount():
+            error("not enough available GPU - " + ngpu + " requested, " + cutorch.getDeviceCount() + " available")
+        
+        gpus[1] = Cuda.gpuid
+        i = 1
+        while len(gpus) != ngpu:
+            if i != gpus[1]:
+                table.insert(gpus, i)
+            
+            i = i + 1
+        
+    else:
+        for _ = 1, ngpu:
+            table.insert(gpus, 0)
+        
+    
+    return gpus
+
+
+def Cuda.freeMemory():
+    if Cuda.activated:
+        freeMemory = cutorch.getMemoryUsage(cutorch.getDevice())
+        return freeMemory
+    
+    return 0
+
 
 return Cuda

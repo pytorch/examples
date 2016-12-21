@@ -15,5 +15,6 @@
 import onmt.utils.Opt
 from onmt.utils.Dict import Dict
 import onmt.utils.Features
+import onmt.utils.Parallel
 
 # return utils
