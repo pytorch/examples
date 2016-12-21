@@ -8,8 +8,8 @@ cmd.option('-config', '', "Read options from this file")
 ## **Data options**
 ##
 
-cmd.option('-model', help="Path to model .t7 file")
-cmd.option('-src',   help="Source sequence to decode (one line per sequence)")
+cmd.option('-model', required=True, help="Path to model .pt file")
+cmd.option('-src',   required=True, help="Source sequence to decode (one line per sequence)")
 cmd.option('-tgt',   help="True target sequence (optional)")
 cmd.option('-output', default='pred.txt',
            help="Path to output the predictions (each line will be the decoded sequence")

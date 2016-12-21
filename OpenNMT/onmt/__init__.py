@@ -10,4 +10,5 @@
 # onmt.Constants = require('onmt.Constants')
 # onmt.Models = require('onmt.Models')
 
+import onmt.Constants
 # return onmt

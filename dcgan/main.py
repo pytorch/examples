@@ -1,4 +1,6 @@
 from __future__ import print_function
+import os
+import math
 import argparse
 import random
 import torch
@@ -29,9 +31,16 @@ parser.add_argument('--cuda'  , action='store_true', help='enables cuda')
 parser.add_argument('--ngpu'  , type=int, default=1, help='number of GPUs to use')
 parser.add_argument('--netG', default='', help="path to netG (to continue training)")
 parser.add_argument('--netD', default='', help="path to netD (to continue training)")
+parser.add_argument('--outf', default='.', help='folder to output images and model checkpoints')
+
+parser.add_argument('--fict', action='store_true', help='enable fictitious play')
+parser.add_argument('--fict_history', type=int, default=100, help='number of historical copies to save for fictitious play')
+# parser.add_argument('--fict_batch', type=int, default=1, help='# of historical agents to sample during each batch')
+
 opt = parser.parse_args()
 print(opt)
 
+os.makedirs(opt.outf, exist_ok=True)
 opt.manualSeed = random.randint(1, 10000) # fix seed
 print("Random Seed: ", opt.manualSeed)
 random.seed(opt.manualSeed)
@@ -186,8 +195,45 @@ fixed_noise = Variable(fixed_noise)
 optimizerD = optim.Adam(netD.parameters(), lr = opt.lr, betas = (opt.beta1, 0.999))
 optimizerG = optim.Adam(netG.parameters(), lr = opt.lr, betas = (opt.beta1, 0.999))
 
+class ReservoirSampler(object):
+    def __init__(self, k):
+        self.N = 0
+        self.k = k
+        self.buf = torch.FloatTensor(1)
+        self.samples = []
+    
+    def copy(self, data):
+        return OrderedDict({k: copy.copy(data[k]) for k in data})
+
+    def update(self, data):
+        # FIXME
+        self.N += 1
+        if len(self.samples) < self.k:
+            self.samples += [copy(data)]
+        else:
+            loc = math.floor(self.buf.uniform_()[0] * self.N)
+            if loc < self.k:
+                self.samples[loc] = copy(data)
+
+    def get_sample(self):
+        assert(self.samples)
+        loc = math.floor(self.buf.uniform_()[0] * len(self.samples))
+        return self.samples[loc]
+
+
+if opt.fict:
+    G_sampler = ReservoirSampler(opt.fict_history)
+    D_sampler = ReservoirSampler(opt.fict_history)
+
 for epoch in range(opt.niter):
     for i, data in enumerate(dataloader, 0):
+        ############################
+        # (0) Update sampler for fictitious play history
+        ###########################
+        if opt.fict:
+            G_sampler.update(netG)
+            D_sampler.update(netD)
+
         ############################
         # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
         ###########################
@@ -205,7 +251,10 @@ for epoch in range(opt.niter):
         # train with fake
         noise.data.resize_(batch_size, nz, 1, 1)
         noise.data.normal_(0, 1)
-        fake = netG(noise)
+        if opt.fict:
+            fake = G_sampler.get_sample()(noise)
+        else:
+            fake = netG(noise)
         input.data.copy_(fake.data)
         label.data.fill_(fake_label)
         output = netD(input)
@@ -217,11 +266,16 @@ for epoch in range(opt.niter):
         ############################
         # (2) Update G network: maximize log(D(G(z)))
         ###########################
+        noise.data.resize_(batch_size, nz, 1, 1)
+        noise.data.normal_(0, 1)
         netG.zero_grad()
         label.data.fill_(real_label) # fake labels are real for generator cost
         noise.data.normal_(0, 1)
         fake = netG(noise)
-        output = netD(fake)
+        if opt.fict:
+            output = D_sampler.get_sample()(fake)
+        else:
+            output = netD(fake)
         errG = criterion(output, label)
         errG.backward()
         optimizerG.step()
@@ -230,10 +284,12 @@ for epoch in range(opt.niter):
               % (epoch, opt.niter, i, len(dataloader),
                  errD.data[0], errG.data[0]))
         if i % 100 == 0:
-            vutils.save_image(real_cpu, 'real_samples.png')
+            vutils.save_image(real_cpu,
+                    '%s/real_samples.png' % opt.outf)
             fake = netG(fixed_noise)
-            vutils.save_image(fake.data, 'fake_samples.png')
+            vutils.save_image(fake.data,
+                    '%s/fake_samples_epoch_%03d.png' % (opt.outf, epoch))
 
     # do checkpointing
-    torch.save(netG.state_dict(), 'netG_epoch_%d.pth' % epoch)
-    torch.save(netD.state_dict(), 'netD_epoch_%d.pth' % epoch)
+    torch.save(netG.state_dict(), '%s/netG_epoch_%d.pth' % (opt.outf, epoch))
+    torch.save(netD.state_dict(), '%s/netD_epoch_%d.pth' % (opt.outf, epoch))

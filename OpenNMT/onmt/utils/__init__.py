@@ -13,4 +13,7 @@
 # utils.Log = require('onmt.utils.Log')
 #
 import onmt.utils.Opt
+from onmt.utils.Dict import Dict
+import onmt.utils.Features
+
 # return utils

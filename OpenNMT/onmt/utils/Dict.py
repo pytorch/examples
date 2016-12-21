@@ -1,3 +1,5 @@
+import torch
+
 class Dict(object):
     def __init__(self, data):
         self.idxToLabel = {}
@@ -5,161 +7,131 @@ class Dict(object):
         self.frequencies = {}
 
         # Special entries will not be pruned.
-        self.special = {}
+        self.special = []
 
-        if data != None:
-            if type(data) == "string" then # File to load.
+        if data is not None:
+            if type(data) == str:
                 self.loadFile(data)
             else:
                 self.addSpecials(data)
+    def size(self):
+        return len(self.idxToLabel)
+
+    #" Load entries from a file. "
+    def loadFile(self, filename):
+        reader = onmt.utils.FileReader(filename)
+
+        while True:
+            fields = reader.next()
+
+            if not fields:
+                break
+
+            label = fields[0]
+            idx = int(fields[1])
+            self.add(label, idx)
+
+        reader.close()
 
 
+    #" Write entries to a file. "
+    def writeFile(self, filename):
+        with open(filename, 'w') as file:
+            for i in range(self.size()):
+                label = self.idxToLabel[i]
+                file.write('%s %d\n' % (label, i))
+
+        file.close()
+
+    def lookup(self, key, default=None):
+        try:
+            return self.labelToIdx[key]
+        except KeyError:
+            return default
+
+    def getLabel(self, idx, default=None):
+        try:
+            return self.idxToLabel[key]
+        except KeyError:
+            return default
+
+    #" Mark this `label` and `idx` as special (i.e. will not be pruned). "
+    def addSpecial(self, label, idx=None):
+        idx = self.add(label, idx)
+        self.special += [idx]
 
 
-#" Return the number of entries in the dictionary. "
-def Dict.size():
-    return len(self.idxToLabel)
+    #" Mark all labels in `labels` as specials (i.e. will not be pruned). "
+    def addSpecials(self, labels):
+        for label in labels:
+            self.addSpecial(label)
 
 
-#" Load entries from a file. "
-def Dict.loadFile(filename):
-    reader = onmt.utils.FileReader(filename)
-
-    while True:
-        fields = reader.next()
-
-        if not fields:
-            break
-
-
-        label = fields[1]
-        idx = tonumber(fields[2])
-
-        self.add(label, idx)
-
-
-    reader.close()
-
-
-#" Write entries to a file. "
-def Dict.writeFile(filename):
-    file = assert(io.open(filename, 'w'))
-
-    for i = 1, self.size():
-        label = self.idxToLabel[i]
-        file.write(label + ' ' + i + '\n')
-
-
-    file.close()
-
-
-#" Lookup `key` in the dictionary. it can be an index or a string. "
-def Dict.lookup(key):
-    if type(key) == "string":
-        return self.labelToIdx[key]
-    else:
-        return self.idxToLabel[key]
-
-
-
-#" Mark this `label` and `idx` as special (i.e. will not be pruned). "
-def Dict.addSpecial(label, idx):
-    idx = self.add(label, idx)
-    table.insert(self.special, idx)
-
-
-#" Mark all labels in `labels` as specials (i.e. will not be pruned). "
-def Dict.addSpecials(labels):
-    for i = 1, len(labels):
-        self.addSpecial(labels[i])
-
-
-
-#" Add `label` in the dictionary. Use `idx` as its index if given. "
-def Dict.add(label, idx):
-    if idx != None:
-        self.idxToLabel[idx] = label
-        self.labelToIdx[label] = idx
-    else:
-        idx = self.labelToIdx[label]
-        if idx == None:
-            idx = len(self.idxToLabel) + 1
+    #" Add `label` in the dictionary. Use `idx` as its index if given. "
+    def add(self, label, idx=None):
+        if idx is not None:
             self.idxToLabel[idx] = label
             self.labelToIdx[label] = idx
+        else:
+            if label in self.labelToIdx:
+                idx = self.labelToIdx[label]
+            else:
+                idx = len(self.idxToLabel)
+                self.idxToLabel[idx] = label
+                self.labelToIdx[label] = idx
+
+        if idx not in self.frequencies:
+            self.frequencies[idx] = 1
+        else:
+            self.frequencies[idx] += 1
+
+        return idx
 
 
+    #" Return a new dictionary with the `size` most frequent entries. "
+    def prune(self, size):
+        if size >= self.size():
+            return self
 
-    if self.frequencies[idx] == None:
-        self.frequencies[idx] = 1
-    else:
-        self.frequencies[idx] = self.frequencies[idx] + 1
+        # Only keep the `size` most frequent entries.
+        freq = torch.Tensor(self.frequencies)
+        _, idx = torch.sort(freq, 0, True)
 
+        newDict = Dict()
 
-    return idx
+        # Add special entries in all cases.
+        for i in self.special:
+            newDict.addSpecial(self.idxToLabel[i])
 
+        for i in idx[:size]:
+            newDict.add(self.idxToLabel[i])
 
-#" Return a new dictionary with the `size` most frequent entries. "
-def Dict.prune(size):
-    if size >= self.size():
-        return self
+        return newDict
 
+    # Convert `labels` to indices. Use `unkWord` if not found.
+    # Optionally insert `bosWord` at the beginning and `eosWord` at the .
+    def convertToIdx(self, labels, unkWord, bosWord=None, eosWord=None):
+        vec = []
 
-    # Only keep the `size` most frequent entries.
-    freq = torch.Tensor(self.frequencies)
-    _, idx = torch.sort(freq, 1, True)
+        if bosWord is not None:
+            vec += [self.lookup(bosWord)]
 
-    newDict = Dict.new()
+        unk = self.lookup(unkWord)
+        vec += [self.lookup(label, default=unk) for label in labels]
 
-    # Add special entries in all cases.
-    for i = 1, len(self.special):
-        newDict.addSpecial(self.idxToLabel[self.special[i]])
+        if eosWord is not None:
+            vec += [self.lookup(eosWord)]
 
-
-    for i = 1, size:
-        newDict.add(self.idxToLabel[idx[i]])
-
-
-    return newDict
-
-
-#[[
-    Convert `labels` to indices. Use `unkWord` if not found.
-    Optionally insert `bosWord` at the beginning and `eosWord` at the .
-]]
-def Dict.convertToIdx(labels, unkWord, bosWord, eosWord):
-    vec = {}
-
-    if bosWord != None:
-        table.insert(vec, self.lookup(bosWord))
+        return torch.IntTensor(vec)
 
 
-    for i = 1, len(labels):
-        idx = self.lookup(labels[i])
-        if idx == None:
-            idx = self.lookup(unkWord)
+    #" Convert `idx` to labels. If index `stop` is reached, convert it and return. "
+    def convertToLabels(self, idx, stop):
+        labels = []
 
-        table.insert(vec, idx)
+        for i in idx:
+            labels += [self.getLabel(i)]
+            if idx[i] == stop:
+                break
 
-
-    if eosWord != None:
-        table.insert(vec, self.lookup(eosWord))
-
-
-    return torch.IntTensor(vec)
-
-
-#" Convert `idx` to labels. If index `stop` is reached, convert it and return. "
-def Dict.convertToLabels(idx, stop):
-    labels = {}
-
-    for i = 1, len(idx):
-        table.insert(labels, self.lookup(idx[i]))
-        if idx[i] == stop:
-            break
-
-
-
-    return labels
-
-
-return Dict
+        return labels
