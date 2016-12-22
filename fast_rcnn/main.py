@@ -23,6 +23,13 @@ class_to_ind = dict(zip(cls, range(len(cls))))
 train = VOCDetection('/home/francisco/work/datasets/VOCdevkit/', 'train',
             target_transform=TransformVOCDetectionAnnotation(class_to_ind, False))
 
+
+# TODO
+# add class information in dataset
+# separate in different files
+# remove hard-coding 21 from Sampler
+# cache the sampled boxes ?
+
 # image flip goes to the dataset class, not BoxSampler
 
 def bbox_overlaps(a, bb):
@@ -91,7 +98,6 @@ class BoxSampler(torch.utils.data.Dataset):
         if gt_roidb is not None and gt_roidb['boxes'].size > 0:
             gt_boxes = gt_roidb['boxes']
             gt_classes = np.array(gt_roidb['gt_classes'])
-            #gt_overlaps = bbox_overlaps(boxes.astype(np.float),gt_boxes.astype(np.float))
             gt_overlaps = bbox_overlaps(boxes,gt_boxes).numpy()
             argmaxes = gt_overlaps.argmax(axis=1)
             maxes = gt_overlaps.max(axis=1)
@@ -100,26 +106,21 @@ class BoxSampler(torch.utils.data.Dataset):
             pos = maxes >= self.fg_threshold
             neg = (maxes >= self.bg_threshold[0]) & (maxes < self.bg_threshold[1])
             maxes[neg] = 0
-            # need to take care of bg_threshold
 
             I = np.where(maxes > 0)[0]
-            #I = np.where()[0]
             overlaps[I, gt_classes[argmaxes[I]]] = maxes[I]
 
             overlaps = overlaps[pos | neg]
             boxes = boxes.numpy()
             boxes = boxes[pos | neg]
-            #argmaxes[maxes == 0] = 0
-            #return torch.from_numpy(argmaxes)
             return torch.from_numpy(boxes), torch.from_numpy(overlaps.argmax(axis=1))
 
     def __getitem__(self, idx):
-        #super(BoxSampler, self).__getitem__(idx)
         im, gt = self.dataset[idx]
         boxes = self.generate_boxes(im)
         boxes, labels = self._overlap_and_attribute(boxes, gt)
 
-        if False:
+        if True:
             w, h = im.size
             im = torch.ByteTensor(torch.ByteStorage.from_buffer(im.tobytes()))
             im = im.view(h, w, 3)
@@ -163,6 +164,63 @@ class BoxSelector(torch.utils.data.Dataset):
         return im, torch.from_numpy(boxes[I]), torch.from_numpy(labels[I])
 
 
+class ToPILImage(object):
+    """ Converts a torch.*Tensor of range [0, 1] and shape C x H x W 
+    or numpy ndarray of dtype=uint8, range[0, 255] and shape H x W x C
+    to a PIL.Image of range [0, 255]
+    """
+    def __call__(self, pic):
+        from PIL import Image, ImageOps
+        if isinstance(pic, np.ndarray):
+            # handle numpy array
+            img = Image.fromarray(pic)
+        else:
+            npimg = pic.mul(255).byte().numpy()
+            npimg = np.transpose(npimg, (1,2,0))
+            img = Image.fromarray(npimg)
+        return img
+
+def make_grid(tensor, nrow=8, padding=2):
+    import math
+    """
+    Given a 4D mini-batch Tensor of shape (B x C x H x W),
+    or a list of images all of the same size,
+    makes a grid of images
+    """
+    tensorlist = None
+    if isinstance(tensor, list):
+        tensorlist = tensor
+        numImages = len(tensorlist)
+        size = torch.Size(torch.Size([long(numImages)]) + tensorlist[0].size())
+        tensor = tensorlist[0].new(size)
+        for i in range(numImages):
+            tensor[i].copy_(tensorlist[i])
+    if tensor.dim() == 2: # single image H x W
+        tensor = tensor.view(1, tensor.size(0), tensor.size(1))
+    if tensor.dim() == 3: # single image
+        if tensor.size(0) == 1:
+            tensor = torch.cat((tensor, tensor, tensor), 0)
+        return tensor
+    if tensor.dim() == 4 and tensor.size(1) == 1: # single-channel images
+        tensor = torch.cat((tensor, tensor, tensor), 1)
+    # make the mini-batch of images into a grid
+    nmaps = tensor.size(0)
+    xmaps = min(nrow, nmaps)
+    ymaps = int(math.ceil(nmaps / xmaps))
+    height, width = int(tensor.size(2) + padding), int(tensor.size(3) + padding)
+    grid = tensor.new(3, height * ymaps, width * xmaps).fill_(tensor.max())
+    k = 0
+    for y in range(ymaps):
+        for x in range(xmaps):
+            if k >= nmaps:
+                break
+            grid.narrow(1, y*height+1+padding//2,height-padding)\
+                .narrow(2, x*width+1+padding//2, width-padding)\
+                .copy_(tensor[k])
+            k = k + 1
+    return grid
+
+
 
 ds = BoxSelector(BoxSampler(train, fg_threshold=0.75), 64, 0.25)
 
@@ -172,9 +230,6 @@ def collate_fn(batch):
     new_imgs = imgs[0].new(len(imgs), *max_size).fill_(0)
     for im, im2 in zip(new_imgs, imgs):
         im.narrow(1,0,im2.size(1)).narrow(2,0,im2.size(2)).copy_(im2)
-    #imgs = torch.cat([t.view(1, *t.size()) for t in imgs], 0)
-    #boxes = torch.LongTensor([[[i]*t.size(0)] + t.tolist() for i, t in enumerate(boxes, 0)])
-    #boxes = [[[i]*t.size(0)] + t.tolist() for i, t in enumerate(boxes, 0)]
     boxes = np.concatenate([np.column_stack((np.full(t.size(0), i, dtype=np.int64), t.numpy())) for i, t in enumerate(boxes, 0)], axis=0)
     boxes = torch.from_numpy(boxes)
     labels = torch.cat(labels, 0)
@@ -201,18 +256,22 @@ def show(img, boxes, label, cls=None):
             draw.rectangle(obj[0:4].tolist(), outline=(255,0,0))
             draw.text(obj[0:2].tolist(), cls[t], fill=(0,255,0))
         else:
-            pass
-            #draw.rectangle(obj[0:4].tolist(), outline=(0,0,255))
+            #pass
+            draw.rectangle(obj[0:4].tolist(), outline=(0,0,255))
     img.show()
 
 
-#for i, (img, boxes, labels) in tqdm(enumerate(train_loader)):
-#    pass
+for i, (img, boxes, labels) in tqdm(enumerate(train_loader)):
+    #grid = make_grid(img, 2, 1)
+    #grid = ToPILImage()(grid)
+    #grid.show()
+    #break
+    pass
     #print('====')
     #print(i)
     #print(img.size())
     #print(boxes.size())
     #print(labels.size())
 
-im, box, label = ds[10]
-show(im,box,label)
+#im, box, label = ds[10]
+#show(im,box,label)

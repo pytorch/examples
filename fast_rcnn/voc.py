@@ -28,8 +28,8 @@ class TransformVOCDetectionAnnotation(object):
             name = obj[0].text.lower().strip()
             bb = obj.find('bndbox')
             #bbox = obj[4]
-            bndbox = [int(bb.find('xmin').text), int(bb.find('ymin').text),
-                int(bb.find('xmax').text), int(bb.find('ymax').text)]
+            bndbox = map(int, [bb.find('xmin').text, bb.find('ymin').text,
+                bb.find('xmax').text, bb.find('ymax').text])
             # supposes the order is xmin, ymin, xmax, ymax
             # attention with indices
             #bndbox = [int(bb.text)-1 for bb in bbox]
