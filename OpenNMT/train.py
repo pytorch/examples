@@ -4,6 +4,8 @@ import onmt.utils
 import argparse
 import os
 import torch
+import torch.nn as nn
+from torch.autograd import Variable
 
 parser = argparse.ArgumentParser(description='train.lua')
 
@@ -33,7 +35,7 @@ parser.add_argument('-feat_vec_size', type=int, default=20, help="When using sum
 parser.add_argument('-input_feed', type=int,    default=1,  help="Feed the context vector at each time step as additional input (via concatenation with the word embeddings) to the decoder.")
 parser.add_argument('-residual',   action="store_true",     help="Add residual connections between RNN layers.")
 parser.add_argument('-brnn',       action="store_true",     help="Use a bidirectional encoder")
-parser.add_argument('-brnn_merge', default='sum',           help="Merge action for the bidirectional hidden states: concat or sum")
+parser.add_argument('-brnn_merge', default='concat',        help="Merge action for the bidirectional hidden states: concat or sum")
 
 ##
 ## **Optimization options**
@@ -61,8 +63,8 @@ parser.add_argument('-pre_word_vecs_enc', help="""If a valid path is specified, 
 parser.add_argument('-pre_word_vecs_dec', help="""If a valid path is specified, then this will load
                                      pretrained word embeddings on the decoder side.
                                      See README for specific formatting instructions.""")
-parser.add_argument('-fix_word_vecs_enc', action="store_true", help="Fix word embeddings on the encoder side")
-parser.add_argument('-fix_word_vecs_dec', action="store_true", help="Fix word embeddings on the decoder side")
+# parser.add_argument('-fix_word_vecs_enc', action="store_true", help="Fix word embeddings on the encoder side")
+# parser.add_argument('-fix_word_vecs_dec', action="store_true", help="Fix word embeddings on the decoder side")
 
 ##
 ## **Other options**
@@ -70,8 +72,8 @@ parser.add_argument('-fix_word_vecs_dec', action="store_true", help="Fix word em
 
 # GPU
 parser.add_argument('-gpuid',     type=int, default=-1, help="Which gpu to use (1-indexed). < 1 = use CPU")
-parser.add_argument('-nparallel', type=int, default=1,  help="""When using GPUs, how many batches to execute in parallel.
-                            Note. this will technically change the final batch size to max_batch_size*nparallel.""")
+# parser.add_argument('-nparallel', type=int, default=1,  help="""When using GPUs, how many batches to execute in parallel.
+#                             Note. this will technically change the final batch size to max_batch_size*nparallel.""")
 parser.add_argument('-no_nccl', action="store_true", help="Disable usage of nccl in parallel mode.")
 parser.add_argument('-disable_mem_optimization', action="store_true", help="""Disable sharing internal of internal buffers between clones - which is in general safe,
                                                 except if you want to look inside clones for visualization purpose for instance.""")
@@ -85,104 +87,54 @@ parser.add_argument('-json_log', action="store_true", help="Outputs logs in JSON
 
 opt = parser.parse_args()
 
-# pool = onmt.utils.Parallel.ThreadPool(opt.nparallel)
 
-def initParams(model, verbose):
-    numParams = 0
-    params, gradParams = {}, {}
+class NMTCriterion(nn.Container):
+    def __init__(vocabSize, features):
+        self.sub = []
+        def makeOne(size):
+            weight = torch.ones(vocabSize)
+            weight[onmt.Constants.PAD] = 0
+            return nn.NLLLoss(weight)
 
-    if verbose:
-        print('Initializing parameters...')
+        self.sub += [makeOne(vocabSize)]
+        for feature in features:
+            self.sub += [makeOne(features.size())]
 
-    for mod in model.values():
-        p, gp = mod.getParameters()
-
-        if opt.train_from.len() == 0:
-            p.uniform(-opt.param_init, opt.param_init)
-
-        numParams = numParams + p.size(0)
-        params += [p]
-        gradParams += [gp]
-
-    if verbose:
-        print(" * number of parameters. " + numParams)
-
-    return params, gradParams
-
-
-def buildCriterion(vocabSize, features):
-    criterion = nn.ParallelCriterion(False)
-
-    def addNllCriterion(size):
-        # Ignores padding value.
-        w = torch.ones(size)
-        w[onmt.Constants.PAD] = 0
-
-        nll = nn.ClassNLLCriterion(w)
-
-        # Let the training code manage loss normalization.
-        nll.sizeAverage = False
-        criterion.add(nll)
-
-    addNllCriterion(vocabSize)
-
-    for feature in features:
-        addNllCriterion(feature.size())
-
-    return criterion
+    def forward(self, inputs, targets):
+        assert(input.size(1) == len(self.sub))
+        loss = Variable(inputs.new(1).zero_())
+        for feat, target, sub in zip(inputs.split(1), targets.split(1), self.sub):
+            loss += sub(feat, target)
+        return loss
 
 
 def eval(model, criterion, data):
     loss = 0
     total = 0
 
-    model.encoder.evaluate()
-    model.decoder.evaluate()
+    model.evaluate()
 
     for i in range(data.batchCount()):
         batch = onmt.utils.Cuda.convert(data.getBatch(i))
-        encoderStates, context = model.encoder.forward(batch)
-        loss = loss + model.decoder.computeLoss(batch, encoderStates, context, criterion)
+        outputs = model.forward()
+        loss = criterion.forward(outputs, batch.getTargetOutput())
         total = total + batch.targetNonZeros
 
-    model.encoder.training()
-    model.decoder.training()
+    model.training()
 
     return math.exp(loss / total)
 
 
 def trainModel(model, trainData, validData, dataset, info):
-    params, gradParams = {}, {}
 
-    def initParams(idx, args, state):
-        # Only logs information of the first thread.
-        verbose = idx == 0 and not opt.json_log
-        model = state['model']
+    for mod in model.values():
+        mod.training()
+        for p in mod.parameters():
+            p.uniform_(-opt.param_init, opt.param_init)
 
-        params, gradParams = initParams(model, verbose)
-        for mod in model.values():
-            mod.training()
-
-        # define criterion of each GPU
-        state['criterion'] = onmt.utils.Cuda.convert(buildCriterion(dataset.dicts.tgt.words.size(),
-                                                                    dataset.dicts.tgt.features))
-
-        # # optimize memory of the first clone
-        # if not opt.disable_mem_optimization:
-        #     batch = onmt.utils.Cuda.convert(trainData.getBatch(1))
-        #     batch.totalSize = batch.size
-        #     onmt.utils.Memory.optimize(model, criterion, batch, verbose)
-
-        return idx, state['criterion'], params, gradParams
-
-    def _endcallback(args):
-        idx, thecriterion, theparams, thegradParams = args
-        if idx == 0:
-            criterion = thecriterion
-        params[idx] = theparams
-        gradParams[idx] = thegradParams
-
-    pool.launch(None, initParams, endcallback=_endcallback)
+    # define criterion of each GPU
+    criterion = onmt.utils.Cuda.convert(buildCriterion(dataset.dicts.tgt.words.size(),
+                                                       dataset.dicts.tgt.features))
 
     optim = onmt.train.Optim(
         opt.optim, opt.learning_rate,
@@ -190,81 +142,48 @@ def trainModel(model, trainData, validData, dataset, info):
         start_decay_at=opt.start_decay_at
     )
 
-    checkpoint = onmt.train.Checkpoint.new(opt, model, optim, dataset)
+    # checkpoint = onmt.train.Checkpoint.new(opt, model, optim, dataset)
 
     def trainEpoch(epoch, lastValidPpl):
 
         startI = opt.start_iteration
-        numIterations = math.ceil(trainData.batchCount() / pool.count)
 
-        if startI > 1 and info != None:
-            epochState = onmt.train.EpochState.new(epoch, numIterations, optim.getLearningRate(), lastValidPpl, info.epochStatus)
-            batchOrder = info.batchOrder
-        else:
-            epochState = onmt.train.EpochState.new(epoch, numIterations, optim.getLearningRate(), lastValidPpl)
-            # shuffle mini batch order
-            batchOrder = torch.randperm(trainData.batchCount())
+        # shuffle mini batch order
+        batchOrder = torch.randperm(trainData.batchCount())
 
         opt.start_iteration = 1
         ii = 1
 
-        def trainOne(idx, args, state):
-
-            batch = args[idx]
-            if batch is None:
-                return idx, 0
-
-            # send batch data to GPU
-            onmt.utils.Cuda.convert(batch)
-            batch.totalSize = totalSize
-
-            optim.zeroGrad(gradParams)
-
-            encStates, context = model['encoder'].forward(batch)
-            decOutputs = model['decoder'].forward(batch, encStates, context)
-
-            encGradStatesOut, gradContext, loss = model['decoder'].backward(batch, decOutputs, criterion)
-            model['encoder'].backward(batch, encGradStatesOut, gradContext)
-            return idx, loss
-
-        for i in range(startI, trainData.batchCount(), onmt.utils.Parallel.count):
-            batches = {}
+        for i in range(startI, trainData.batchCount()):
             totalSize = 0
 
-            for j in range(math.min(onmt.utils.Parallel.count, trainData.batchCount()-i+1)):
-                batchIdx = batchOrder[i+j-1]
-                if epoch <= opt.curriculum:
-                    batchIdx = i+j-1
+            batchIdx = batchOrder[i]
+            if epoch <= opt.curriculum:
+                batchIdx = i
 
-                table.insert(batches, trainData.getBatch(batchIdx))
-                totalSize = totalSize + batches[-1].size
+            batch = trainData.getBatch(batchIdx)
+            totalSize += batch.size
 
-            losses = {}
+            batch.totalSize = totalSize
 
-            def _endcallback(idx, loss):
-                losses[idx] = loss
+            model.zero_grad()
 
-            pool.launch(None, trainOne, args=batches, endcallback=_endcallback)
 
-            # accumulate the gradients from the different parallel threads
-            XXX.accGradParams(gradParams, batches)
+            outputs = model.forward(batch)
+            loss = criterion.forward(outputs, batch.getTargetOutput())
+            loss.backward()
 
             # update the parameters
-            optim.prepareGrad(gradParams[1], opt.max_grad_norm)
-            optim.updateParams(params[1], gradParams[1])
-
-            # sync the paramaters with the different parallel threads
-            XXXsyncParams(params)
-
-            epochState.update(batches, losses)
+            optim.step(model.params(), opt.max_grad_norm)
 
             if ii % opt.report_every == 0:
-                epochState.log(ii, opt.json_log)
+                print("Done %d batches" % ii)
+                pass # FIXME
 
-            if opt.save_every > 0 and ii % opt.save_every == 0:
-                checkpoint.saveIteration(ii, epochState, batchOrder, not opt.json_log)
+            # if opt.save_every > 0 and ii % opt.save_every == 0:
+            #     checkpoint.saveIteration(ii, epochState, batchOrder, not opt.json_log)
 
-            ii = ii + 1
+            ii += 1
         return epochState
 
     validPpl = 0
@@ -283,25 +202,7 @@ def trainModel(model, trainData, validData, dataset, info):
         if opt.optim == 'sgd':
             optim.updateLearningRate(validPpl, epoch)
 
-        checkpoint.saveEpoch(validPpl, epochState, not opt.json_log)
-
-
-def buildModel(idx, args, state):
-    checkpoint = args
-    model = state['model'] = {}
-
-    if checkpoint.models:
-        model['encoder'] = onmt.Models.loadEncoder(checkpoint.models.encoder, idx > 1)
-        model['decoder'] = onmt.Models.loadDecoder(checkpoint.models.decoder, idx > 1)
-    else:
-        verbose = idx == 1 and not opt.json_log
-        model['encoder'] = onmt.Models.buildEncoder(opt, dataset.dicts.src)
-        model['decoder'] = onmt.Models.buildDecoder(opt, dataset.dicts.tgt, verbose)
-
-    for mod in model.values():
-        onmt.utils.Cuda.convert(mod)
-
-    return idx, model
+        # checkpoint.saveEpoch(validPpl, epochState, not opt.json_log)
 
 
 def main():
@@ -316,7 +217,6 @@ def main():
         if not opt.json_log:
           print('Loading checkpoint \'' + opt.train_from + '\'...')
 
-
         checkpoint = torch.load(opt.train_from)
 
         opt.layers = checkpoint.options.layers
@@ -326,7 +226,7 @@ def main():
         opt.input_feed = checkpoint.options.input_feed
 
         # Resume training from checkpoint
-        if opt.train_from is not None and opt.cont:
+        if opt.cont:
             opt.optim = checkpoint.options.optim
             opt.learning_rate_decay = checkpoint.options.learning_rate_decay
             opt.start_decay_at = checkpoint.options.start_decay_at
@@ -362,36 +262,38 @@ def main():
                             (trainData.maxSourceLength, trainData.maxTargetLength))
         print(' * number of training sentences. %d' % len(trainData.src))
         print(' * maximum batch size. %d' % opt.max_batch_size * pool.count)
-    else:
-        metadata = dict(
-            options=opt,
-            vocabSize=dict(
-                source=dataset.dicts.src.words.size(),
-                target=dataset.dicts.tgt.words.size()
-            ),
-            additionalFeatures=dict(
-                source=len(dataset.dicts.src.features),
-                target=len(dataset.dicts.tgt.features)
-            ),
-            sequenceLength=dict(
-                source=trainData.maxSourceLength,
-                target=trainData.maxTargetLength
-            ),
-            trainingSentences = len(trainData.src)
-        )
-
-        onmt.utils.Log.logJson(metadata)
-
+    # else:
+    #     metadata = dict(
+    #         options=opt,
+    #         vocabSize=dict(
+    #             source=dataset.dicts.src.words.size(),
+    #             target=dataset.dicts.tgt.words.size()
+    #         ),
+    #         additionalFeatures=dict(
+    #             source=len(dataset.dicts.src.features),
+    #             target=len(dataset.dicts.tgt.features)
+    #         ),
+    #         sequenceLength=dict(
+    #             source=trainData.maxSourceLength,
+    #             target=trainData.maxTargetLength
+    #         ),
+    #         trainingSentences=len(trainData.src)
+    #     )
+    #
+    #     onmt.utils.Log.logJson(metadata)
 
     if not opt.json_log:
         print('Building model...')
 
-    def _endcallback(idx, themodel):
-        if idx == 0:
-            model = themodel
+    model = {}
+    if checkpoint.models:
+        encoder = onmt.Models.loadEncoder(checkpoint.models.encoder, idx > 1)
+        decoder = onmt.Models.loadDecoder(checkpoint.models.decoder, idx > 1)
+    else:
+        encoder = onmt.Models.buildEncoder(opt, dataset.dicts.src)
+        decoder = onmt.Models.buildDecoder(opt, dataset.dicts.tgt, not opt.json_log)
 
-    onmt.utils.Parallel.launch(None, buildModel, args=checkpoint,
-            endcallback=_endcallback)
+    model = nn.Sequential(encoder, decoder)
 
     trainModel(model, trainData, validData, dataset, checkpoint.info)
 

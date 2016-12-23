@@ -19,7 +19,7 @@ class ThreadPool(object):
 
     def launch(self, label, closure, args=None, endcallback=None):
         if label is not None:
-            print("START",label)
+            print("START", label)
 
         for j in range(self.count):
             if self.nthreads == 0:

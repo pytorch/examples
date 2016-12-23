@@ -1,63 +1,29 @@
---[[
-  A nngraph unit that maps features ids to embeddings. When using multiple
-  features this can be the concatenation or the sum of each individual embedding.
-]]
-local FeaturesEmbedding, parent = torch.class('onmt.FeaturesEmbedding', 'nn.Container')
+class FeaturesEmbeddding(nn.Container):
 
-function FeaturesEmbedding:__init(dicts, dimExponent, dim, merge)
-  parent.__init(self)
+    def __init__(self, dicts, dimExponent, dim, merge):
+        super(FeaturesEmbedding, self).__init__():
 
-  self.net = self:_buildModel(dicts, dimExponent, dim, merge)
-  self:add(self.net)
-end
+        self.merge = merge
+        self.luts = []
+        self.outputSize = dim if merge == 'sum' else 0
+        for i, dict in dicts.enumerate():
+            vocabSize = dict.size()
+            if merge == 'sum':
+                embSize = dim
+            else:
+                embSize = math.floor(math.pow(vocabSize, dimExponent))
+                self.outputSize += embSize
 
-function FeaturesEmbedding:_buildModel(dicts, dimExponent, dim, merge)
-  local inputs = {}
-  local output
+            lut = nn.LookupTable(vocabSize, embSize)
+            self.luts += []
+            self.add_module('lut_%d' % i, lut)
 
-  if merge == 'sum' then
-    self.outputSize = dim
-  else
-    self.outputSize = 0
-  end
+    def forward(self, input):
+        embs = []
+        for i in range(input.size(1)):
+            embs += [self.luts[i](input.select(1, i))]
 
-  for i = 1, #dicts do
-    local feat = nn.Identity()() -- batchSize
-    table.insert(inputs, feat)
-
-    local vocabSize = dicts[i]:size()
-    local embSize
-
-    if merge == 'sum' then
-      embSize = self.outputSize
-    else
-      embSize = math.floor(vocabSize ^ dimExponent)
-      self.outputSize = self.outputSize + embSize
-    end
-
-    local emb = nn.LookupTable(vocabSize, embSize)(feat)
-
-    if not output then
-      output = emb
-    elseif merge == 'sum' then
-      output = nn.CAddTable()({output, emb})
-    else
-      output = nn.JoinTable(2)({output, emb})
-    end
-  end
-
-  return nn.gModule(inputs, {output})
-end
-
-function FeaturesEmbedding:updateOutput(input)
-  self.output = self.net:updateOutput(input)
-  return self.output
-end
-
-function FeaturesEmbedding:updateGradInput(input, gradOutput)
-  return self.net:updateGradInput(input, gradOutput)
-end
-
-function FeaturesEmbedding:accGradParameters(input, gradOutput, scale)
-  self.net:accGradParameters(input, gradOutput, scale)
-end
+        if self.merge == 'sum':
+            return sum(embs)
+        else:
+            return torch.cat(embs, 1)

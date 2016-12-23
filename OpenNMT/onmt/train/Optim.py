@@ -18,7 +18,7 @@ class Optim(object):
         else:
             raise RuntimeError("Invalid optim method: " + self.method)
 
-    def Optim.prepareGrad(self, params, max_grad_norm):
+    def Optim.step(self, params, max_grad_norm):
         # Compute gradients norm.
         grad_norm = 0
         for param in params:
