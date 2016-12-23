@@ -1,24 +1,27 @@
 from __future__ import print_function
 import os
 import torch
+import torch.utils.data
 import torch.nn as nn
 import torch.optim as optim
 from torch.autograd import Variable
 
+# Training settings
+BATCH_SIZE = 150
+TEST_BATCH_SIZE = 1000
+NUM_EPOCHS = 2
+
+
 cuda = torch.cuda.is_available()
 
-print('Running with CUDA: {0}'.format(cuda))
-
-
-def print_header(msg):
-    print('===>', msg)
+print('====> Running with CUDA: {0}'.format(cuda))
 
 
 assert os.path.exists('data/processed/training.pt'), \
     "Please run python ../mnist/data.py before starting the VAE."
 
 # Data
-print_header('Loading data')
+print('====> Loading data')
 with open('data/processed/training.pt', 'rb') as f:
     training_set = torch.load(f)
 with open('data/processed/test.pt', 'rb') as f:
@@ -30,20 +33,32 @@ test_data = test_set[0].view(-1, 784).div(255)
 del training_set
 del test_set
 
+if cuda:
+    training_data.cuda()
+    test_data.cuda()
+
+train_loader = torch.utils.data.DataLoader(training_data,
+                                           batch_size=BATCH_SIZE,
+                                           shuffle=True)
+
+test_loader = torch.utils.data.DataLoader(test_data,
+                                          batch_size=TEST_BATCH_SIZE)
+
 # Model
-print_header('Building model')
+print('====> Building model')
 
 
 class VAE(nn.Container):
     def __init__(self):
-        super().__init__()
+        super(VAE, self).__init__()
 
         self.fc1 = nn.Linear(784, 400)
-        self.relu = nn.ReLU()
         self.fc21 = nn.Linear(400, 20)
         self.fc22 = nn.Linear(400, 20)
         self.fc3 = nn.Linear(20, 400)
         self.fc4 = nn.Linear(400, 784)
+
+        self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
 
     def encode(self, x):
@@ -83,50 +98,38 @@ def loss_function(recon_x, x, mu, logvar):
     return BCE + KLD
 
 
-# Training settings
-BATCH_SIZE = 150
-TEST_BATCH_SIZE = 1000
-NUM_EPOCHS = 2
-
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
 
 def train(epoch):
-    batch_data_t = torch.FloatTensor(BATCH_SIZE, 784)
-    if cuda:
-        batch_data_t = batch_data_t.cuda()
-    batch_data = Variable(batch_data_t, requires_grad=False)
-    for i in range(0, training_data.size(0), BATCH_SIZE):
+    model.train()
+    train_loss = 0
+    for batch in train_loader:
+        batch = Variable(batch)
+
         optimizer.zero_grad()
-        batch_data.data[:] = training_data[i:i + BATCH_SIZE]
-        recon_batch_data, mu, logvar = model(batch_data)
-        loss = loss_function(recon_batch_data, batch_data, mu, logvar)
+        recon_batch, mu, logvar = model(batch)
+        loss = loss_function(recon_batch, batch, mu, logvar)
         loss.backward()
-        loss = loss.data[0]
+        train_loss += loss
         optimizer.step()
-        if i % 10 == 0:
-            print('Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.4f}'.format(
-                epoch,
-                i + BATCH_SIZE, training_data.size(0),
-                float(i + BATCH_SIZE) / training_data.size(0) * 100,
-                loss / BATCH_SIZE))
+
+    print('====> Epoch: {} Loss: {:.4f}'.format(
+          epoch,
+          train_loss.data[0] / training_data.size(0)))
 
 
 def test(epoch):
+    model.eval()
     test_loss = 0
-    batch_data_t = torch.FloatTensor(TEST_BATCH_SIZE, 784)
-    if cuda:
-        batch_data_t = batch_data_t.cuda()
-    batch_data = Variable(batch_data_t, volatile=True)
-    for i in range(0, test_data.size(0), TEST_BATCH_SIZE):
-        print('Testing model: {}/{}'.format(i, test_data.size(0)), end='\r')
-        batch_data.data[:] = test_data[i:i + TEST_BATCH_SIZE]
-        recon_batch_data, mu, logvar = model(batch_data)
-        test_loss += loss_function(recon_batch_data, batch_data, mu, logvar)
+    for batch in test_loader:
+        batch = Variable(batch)
+
+        recon_batch, mu, logvar = model(batch)
+        test_loss += loss_function(recon_batch, batch, mu, logvar)
 
     test_loss = test_loss.data[0] / test_data.size(0)
-    print('TEST SET RESULTS:' + ' ' * 20)
-    print('Average loss: {:.4f}'.format(test_loss))
+    print('====> Test set results: {:.4f}'.format(test_loss))
 
 
 for epoch in range(1, NUM_EPOCHS + 1):
