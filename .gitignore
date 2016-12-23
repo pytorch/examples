@@ -1,2 +1,3 @@
 mnist/data
+VAE/data
 *.pyc
