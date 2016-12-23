@@ -1,21 +1,19 @@
 import torch.nn as nn
 import numpy as np
 
-# clean up environment
-from bbox_transform import bbox_transform, bbox_transform_inv, clip_boxes, filter_boxes
-
+# should handle multiple scales, how?
 class FasterRCNN(nn.Container):
 
   def __init__(self):
-    self.rpn_param = {
-        '_feat_stride':16
-    }
+    super(FasterRCNN, self).__init__()
+    self.batch_size = 128
+    self.fg_fraction = 0.25
+    self.fg_threshold = 0.5
+    self.bg_threshold = (0, 0.5)
 
-  # need to have a train and test mode
   # should it support batched images ?
-  # need to pass target as argument only in train mode
   def forward(self, x):
-    if self.train is True:
+    if self.training is True:
       im, gt = x
       # call model.train() here ?
     else
@@ -23,26 +21,9 @@ class FasterRCNN(nn.Container):
 
     feats = self._features(im)
 
-    # improve
-    # it is used in get_anchors and also present in roi_pooling
-    self._feat_stride = round(im.size(4)/feats.size(4))
-    # rpn
-    # put in a separate function
-    rpn_map, rpn_bbox_transform = self._rpn_classifier(feats)
-    all_anchors = self.rpn_get_anchors(im)
-    #rpn_boxes = self.rpn_estimate(all_anchors, rpn_map)
-    if self.train is True:
-      rpn_labels, rpn_bbox_targets = self.rpn_targets(all_anchors, im, gt)
-      # need to subsample boxes here
-      rpn_loss = self.rpn_loss(rpn_map, rpn_bbox_transform, rpn_labels, rpn_bbox_targets)
+    roi_boxes, rpn_prob, rpn_loss = self.rpn(im, feats, gt)
 
-    # roi proposal
-    # clip, sort, pre nms topk, nms, after nms topk
-    # proposal_layer.py
-    # roi_boxes = self.get_roi_boxes(rpn_map, rpn_boxes)
-    roi_boxes = self.get_roi_boxes(all_anchors, rpn_map, rpn_bbox_transform)
-
-    if self.train is True:
+    if self.training is True:
       # append gt boxes and sample fg / bg boxes
       # proposal_target-layer.py
       roi_boxes, frcnn_labels, frcnn_bbox_targets = self.frcnn_targets(roi_boxes, im, gt)
@@ -54,7 +35,7 @@ class FasterRCNN(nn.Container):
     boxes = self.bbox_reg(roi_boxes, bbox_transform)
 
     # apply cls + bbox reg loss here
-    if self.train is True:
+    if self.training is True:
       frcnn_loss = self.frcnn_loss(scores, boxes, frcnn_labels, frcnn_bbox_targets)
       loss = frcnn_loss + rpn_loss
       return loss, scores, boxes
@@ -63,141 +44,117 @@ class FasterRCNN(nn.Container):
 
   # the user define their model in here
   def _features(self, x):
-    # _feat_stride should be defined / inferred from here
     pass
   def _classifier(self, x):
     pass
   def _roi_pooling(self, x):
     pass
-  def _rpn_classifier(self, x):
-    pass
 
-  # from faster rcnn py
-  def rpn_get_anchors(self, im):
-    height, width = im.size()[-2:]
-    # 1. Generate proposals from bbox deltas and shifted anchors
-    shift_x = np.arange(0, width) * self._feat_stride
-    shift_y = np.arange(0, height) * self._feat_stride
-    shift_x, shift_y = np.meshgrid(shift_x, shift_y)
-    shifts = np.vstack((shift_x.ravel(), shift_y.ravel(),
-                        shift_x.ravel(), shift_y.ravel())).transpose()
-    # add A anchors (1, A, 4) to
-    # cell K shifts (K, 1, 4) to get
-    # shift anchors (K, A, 4)
-    # reshape to (K*A, 4) shifted anchors
-    A = self._num_anchors
-    K = shifts.shape[0]
-    all_anchors = (self._anchors.reshape((1, A, 4)) +
-                   shifts.reshape((1, K, 4)).transpose((1, 0, 2)))
-    all_anchors = all_anchors.reshape((K * A, 4))
-    return all_anchors
-
-  # restructure because we don't want -1 in labels
-  # shouldn't we instead keep only the bboxes for which labels >= 0?
-  def rpn_targets(self, all_anchors, im, gt):
-    total_anchors = all_anchors.shape[0]
+  def frcnn_targets(self, all_rois, im, gt):
     gt_boxes = gt['boxes']
-
-    height, width = im.size()[-2:]
-    # only keep anchors inside the image
-    _allowed_border = 0
-    inds_inside = np.where(
-         (all_anchors[:, 0] >= -_allowed_border) &
-         (all_anchors[:, 1] >= -_allowed_border) &
-         (all_anchors[:, 2] < width  + _allowed_border) &  # width
-         (all_anchors[:, 3] < height + _allowed_border)    # height
-     )[0]
-     
-     # keep only inside anchors
-     anchors = all_anchors[inds_inside, :]
-
-    # label: 1 is positive, 0 is negative, -1 is dont care
-    labels = np.empty((len(inds_inside), ), dtype=np.float32)
-    labels.fill(-1)
-
-    # overlaps between the anchors and the gt boxes
-    # overlaps (ex, gt)
-    overlaps = bbox_overlaps(anchors, gt_boxes)#.numpy()
-    argmax_overlaps = overlaps.argmax(axis=1)
-    max_overlaps = overlaps[np.arange(len(inds_inside)), argmax_overlaps]
-    gt_argmax_overlaps = overlaps.argmax(axis=0)
-    gt_max_overlaps = overlaps[gt_argmax_overlaps,
-                               np.arange(overlaps.shape[1])]
-    gt_argmax_overlaps = np.where(overlaps == gt_max_overlaps)[0]
+    gt_labels = gt['gt_classes']
+    #zeros = np.zeros((gt_boxes.shape[0], 1), dtype=gt_boxes.dtype)
+    #all_rois = np.vstack(
+    #    (all_rois, np.hstack((zeros, gt_boxes[:, :-1])))
+    #)
+    all_rois = np.vstack(all_rois, gt_boxes)
+    zeros = np.zeros((all_rois.shape[0], 1), dtype=all_rois.dtype)
+    all_rois = np.hstack((zeros, all_rois))
     
-    # assign bg labels first so that positive labels can clobber them
-    labels[max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0
-
-    # fg label: for each gt, anchor with highest overlap
-    labels[gt_argmax_overlaps] = 1
-
-    # fg label: above threshold IOU
-    labels[max_overlaps >= cfg.TRAIN.RPN_POSITIVE_OVERLAP] = 1
+    num_images = 1
+    rois_per_image = self.batch_size / num_images
+    fg_rois_per_image = np.round(self.fg_fraction * rois_per_image)
     
-    # subsample positive labels if we have too many
-    num_fg = int(cfg.TRAIN.RPN_FG_FRACTION * cfg.TRAIN.RPN_BATCHSIZE)
-    fg_inds = np.where(labels == 1)[0]
-    if len(fg_inds) > num_fg:
-      disable_inds = npr.choice(
-          fg_inds, size=(len(fg_inds) - num_fg), replace=False)
-      labels[disable_inds] = -1
+    # Sample rois with classification labels and bounding box regression
+    # targets
+    labels, rois, bbox_targets = _sample_rois(
+        all_rois, gt_boxes, gt_labels, fg_rois_per_image,
+        rois_per_image, self._num_classes)
+    
+    return all_rois, labels, rois, bbox_targets
+    
+def _get_bbox_regression_labels(bbox_target_data, num_classes):
+    """Bounding-box regression targets (bbox_target_data) are stored in a
+    compact form N x (class, tx, ty, tw, th)
+    This function expands those targets into the 4-of-4*K representation used
+    by the network (i.e. only one class has non-zero targets).
+    Returns:
+        bbox_target (ndarray): N x 4K blob of regression targets
+        bbox_inside_weights (ndarray): N x 4K blob of loss weights
+    """
 
-    # subsample negative labels if we have too many
-    num_bg = cfg.TRAIN.RPN_BATCHSIZE - np.sum(labels == 1)
-    bg_inds = np.where(labels == 0)[0]
-    if len(bg_inds) > num_bg:
-      disable_inds = npr.choice(
-          bg_inds, size=(len(bg_inds) - num_bg), replace=False)
-      labels[disable_inds] = -1
-
-    #bbox_targets = np.zeros((len(inds_inside), 4), dtype=np.float32)
-    #bbox_targets = _compute_targets(anchors, gt_boxes[argmax_overlaps, :])
-    bbox_targets = bbox_transform(anchors, gt_boxes[argmax_overlaps, :])
-
-    # map up to original set of anchors
-    labels = _unmap(labels, total_anchors, inds_inside, fill=-1)
-    bbox_targets = _unmap(bbox_targets, total_anchors, inds_inside, fill=0)
-
-    return labels, bbox_targets
+    clss = bbox_target_data[:, 0]
+    bbox_targets = np.zeros((clss.size, 4 * num_classes), dtype=np.float32)
+    bbox_inside_weights = np.zeros(bbox_targets.shape, dtype=np.float32)
+    inds = np.where(clss > 0)[0]
+    for ind in inds:
+        cls = clss[ind]
+        start = 4 * cls
+        end = start + 4
+        bbox_targets[ind, start:end] = bbox_target_data[ind, 1:]
+    return bbox_targets
 
 
-  # I need to know the original image size (or have the scaling factor)
-  def get_roi_boxes(self, all_anchors, rpn_map, rpn_bbox_deltas)
+def _compute_targets(ex_rois, gt_rois, labels):
+    """Compute bounding-box regression targets for an image."""
 
-    bbox_deltas = bbox_deltas.transpose((0, 2, 3, 1)).reshape((-1, 4))
+    assert ex_rois.shape[0] == gt_rois.shape[0]
+    assert ex_rois.shape[1] == 4
+    assert gt_rois.shape[1] == 4
 
-    # the first set of _num_anchors channels are bg probs
-    # the second set are the fg probs, which we want
-    #scores = bottom[0].data[:, self._num_anchors:, :, :]
-    scores = scores.transpose((0, 2, 3, 1)).reshape((-1, 1))
+    targets = bbox_transform(ex_rois, gt_rois)
+    if False: #cfg.TRAIN.BBOX_NORMALIZE_TARGETS_PRECOMPUTED:
+        # Optionally normalize targets by a precomputed mean and stdev
+        targets = ((targets - np.array(cfg.TRAIN.BBOX_NORMALIZE_MEANS))
+                / np.array(cfg.TRAIN.BBOX_NORMALIZE_STDS))
+    return np.hstack(
+            (labels[:, np.newaxis], targets)).astype(np.float32, copy=False)
 
-    # Convert anchors into proposals via bbox transformations
-    proposals = bbox_transform_inv(anchors, bbox_deltas)
+def _sample_rois(all_rois, gt_boxes, gt_labels, fg_rois_per_image, rois_per_image, num_classes):
+    """Generate a random sample of RoIs comprising foreground and background
+    examples.
+    """
+    # overlaps: (rois x gt_boxes)
+    overlaps = bbox_overlaps(
+        np.ascontiguousarray(all_rois[:, 1:5], dtype=np.float),
+        np.ascontiguousarray(gt_boxes[:, :4], dtype=np.float))
+    gt_assignment = overlaps.argmax(axis=1)
+    max_overlaps = overlaps.max(axis=1)
+    #labels = gt_boxes[gt_assignment, 4]
+    labels = gt_labels[gt_assignment]
 
-    # 2. clip predicted boxes to image
-    proposals = clip_boxes(proposals, im_info[:2])
+    # Select foreground RoIs as those with >= FG_THRESH overlap
+    fg_inds = np.where(max_overlaps >= self.fg_threshold)[0]
+    # Guard against the case when an image has fewer than fg_rois_per_image
+    # foreground RoIs
+    fg_rois_per_this_image = min(fg_rois_per_image, fg_inds.size)
+    # Sample foreground regions without replacement
+    if fg_inds.size > 0:
+        fg_inds = npr.choice(fg_inds, size=fg_rois_per_this_image, replace=False)
 
-    # 3. remove predicted boxes with either height or width < threshold
-    # (NOTE: convert min_size to input image scale stored in im_info[2])
-    keep = filter_boxes(proposals, min_size * im_info[2])
-    proposals = proposals[keep, :]
-    scores = scores[keep]
+    # Select background RoIs as those within [BG_THRESH_LO, BG_THRESH_HI)
+    bg_inds = np.where((max_overlaps < self.bg_threshold[1]) &
+                       (max_overlaps >= self.bg_threshold[0]))[0]
+    # Compute number of background RoIs to take from this image (guarding
+    # against there being fewer than desired)
+    bg_rois_per_this_image = rois_per_image - fg_rois_per_this_image
+    bg_rois_per_this_image = min(bg_rois_per_this_image, bg_inds.size)
+    # Sample background regions without replacement
+    if bg_inds.size > 0:
+        bg_inds = npr.choice(bg_inds, size=bg_rois_per_this_image, replace=False)
 
-    # 4. sort all (proposal, score) pairs by score from highest to lowest
-    # 5. take top pre_nms_topN (e.g. 6000)
-    order = scores.ravel().argsort()[::-1]
-    if pre_nms_topN > 0:
-      order = order[:pre_nms_topN]
-    proposals = proposals[order, :]
-    scores = scores[order]
+    # The indices that we're selecting (both fg and bg)
+    keep_inds = np.append(fg_inds, bg_inds)
+    # Select sampled values from various arrays:
+    labels = labels[keep_inds]
+    # Clamp labels for the background RoIs to 0
+    labels[fg_rois_per_this_image:] = 0
+    rois = all_rois[keep_inds]
 
-    # 6. apply nms (e.g. threshold = 0.7)
-    # 7. take after_nms_topN (e.g. 300)
-    # 8. return the top proposals (-> RoIs top)
-    keep = nms(np.hstack((proposals, scores)), nms_thresh)
-    if post_nms_topN > 0:
-      keep = keep[:post_nms_topN]
-    proposals = proposals[keep, :]
-    scores = scores[keep]
+    bbox_target_data = _compute_targets(
+        rois[:, 1:5], gt_boxes[gt_assignment[keep_inds], :4], labels)
 
-    return roi_boxes
+    bbox_targets = \
+        _get_bbox_regression_labels(bbox_target_data, num_classes)
+
+    return labels, rois, bbox_targets
