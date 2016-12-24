@@ -1,6 +1,15 @@
+import torch
 import torch.nn as nn
+from torch.autograd import Variable
 import numpy as np
+import numpy.random as npr
+from rpn import RPN
 
+from bbox_transform import bbox_transform, bbox_transform_inv, clip_boxes, filter_boxes, bbox_overlaps
+
+m1 = nn.Conv2d(3, 3, 3, 16, 1)
+m2 = nn.Linear(3*3*3, 21)
+m3 = nn.Linear(3*3*3, 21*4)
 # should handle multiple scales, how?
 class FasterRCNN(nn.Container):
 
@@ -10,33 +19,35 @@ class FasterRCNN(nn.Container):
     self.fg_fraction = 0.25
     self.fg_threshold = 0.5
     self.bg_threshold = (0, 0.5)
+    self._num_classes = 21
+    self.rpn = RPN()
 
   # should it support batched images ?
   def forward(self, x):
     if self.training is True:
       im, gt = x
       # call model.train() here ?
-    else
+    else:
       im = x
 
-    feats = self._features(im)
+    feats = self._features(_tovar(im))
 
     roi_boxes, rpn_prob, rpn_loss = self.rpn(im, feats, gt)
 
     if self.training is True:
       # append gt boxes and sample fg / bg boxes
       # proposal_target-layer.py
-      roi_boxes, frcnn_labels, frcnn_bbox_targets = self.frcnn_targets(roi_boxes, im, gt)
+      all_rois, frcnn_labels, roi_boxes, frcnn_bbox_targets = self.frcnn_targets(roi_boxes, im, gt)
 
     # r-cnn
     regions = self._roi_pooling(feats, roi_boxes)
     scores, bbox_transform = self._classifier(regions)
 
-    boxes = self.bbox_reg(roi_boxes, bbox_transform)
+    boxes = self.bbox_reg(roi_boxes, bbox_transform, im)
 
     # apply cls + bbox reg loss here
     if self.training is True:
-      frcnn_loss = self.frcnn_loss(scores, boxes, frcnn_labels, frcnn_bbox_targets)
+      frcnn_loss = self.frcnn_loss(scores, bbox_transform, frcnn_labels, frcnn_bbox_targets)
       loss = frcnn_loss + rpn_loss
       return loss, scores, boxes
 
@@ -44,20 +55,33 @@ class FasterRCNN(nn.Container):
 
   # the user define their model in here
   def _features(self, x):
-    pass
+    return m1(x)
   def _classifier(self, x):
-    pass
-  def _roi_pooling(self, x):
-    pass
+    return m2(x), m3(x)
+  def _roi_pooling(self, x, rois):
+    from roi_pooling import roi_pooling
+    x = roi_pooling(x, rois, size=(3,3), spatial_scale=1.0/16.0)
+    return x.view(x.size(0), -1)
+
+  def frcnn_loss(self, scores, bbox_transform, labels, bbox_targets):
+    cls_crit = nn.CrossEntropyLoss()
+    cls_loss = cls_crit(scores, labels)
+
+    reg_crit = nn.SmoothL1Loss()
+    reg_loss = reg_crit(bbox_transform, bbox_targets)
+
+    loss = cls_loss + reg_loss
+    return loss
 
   def frcnn_targets(self, all_rois, im, gt):
-    gt_boxes = gt['boxes']
-    gt_labels = gt['gt_classes']
+    all_rois = all_rois.data.numpy()
+    gt_boxes = gt['boxes'].numpy()
+    gt_labels = np.array(gt['gt_classes'])
     #zeros = np.zeros((gt_boxes.shape[0], 1), dtype=gt_boxes.dtype)
     #all_rois = np.vstack(
     #    (all_rois, np.hstack((zeros, gt_boxes[:, :-1])))
     #)
-    all_rois = np.vstack(all_rois, gt_boxes)
+    all_rois = np.vstack((all_rois, gt_boxes))
     zeros = np.zeros((all_rois.shape[0], 1), dtype=all_rois.dtype)
     all_rois = np.hstack((zeros, all_rois))
     
@@ -67,11 +91,18 @@ class FasterRCNN(nn.Container):
     
     # Sample rois with classification labels and bounding box regression
     # targets
-    labels, rois, bbox_targets = _sample_rois(
+    labels, rois, bbox_targets = _sample_rois(self,
         all_rois, gt_boxes, gt_labels, fg_rois_per_image,
         rois_per_image, self._num_classes)
     
-    return all_rois, labels, rois, bbox_targets
+    return _tovar((all_rois, labels, rois, bbox_targets))
+
+  def bbox_reg(self, boxes, box_deltas, im):
+    boxes = boxes.data[:,1:].numpy()
+    box_deltas = box_deltas.data.numpy()
+    pred_boxes = bbox_transform_inv(boxes, box_deltas)
+    pred_boxes = clip_boxes(pred_boxes, im.size()[-2:])
+    return _tovar(pred_boxes)
     
 def _get_bbox_regression_labels(bbox_target_data, num_classes):
     """Bounding-box regression targets (bbox_target_data) are stored in a
@@ -110,7 +141,7 @@ def _compute_targets(ex_rois, gt_rois, labels):
     return np.hstack(
             (labels[:, np.newaxis], targets)).astype(np.float32, copy=False)
 
-def _sample_rois(all_rois, gt_boxes, gt_labels, fg_rois_per_image, rois_per_image, num_classes):
+def _sample_rois(self, all_rois, gt_boxes, gt_labels, fg_rois_per_image, rois_per_image, num_classes):
     """Generate a random sample of RoIs comprising foreground and background
     examples.
     """
@@ -118,6 +149,7 @@ def _sample_rois(all_rois, gt_boxes, gt_labels, fg_rois_per_image, rois_per_imag
     overlaps = bbox_overlaps(
         np.ascontiguousarray(all_rois[:, 1:5], dtype=np.float),
         np.ascontiguousarray(gt_boxes[:, :4], dtype=np.float))
+    overlaps = overlaps.numpy()
     gt_assignment = overlaps.argmax(axis=1)
     max_overlaps = overlaps.max(axis=1)
     #labels = gt_boxes[gt_assignment, 4]
@@ -158,3 +190,14 @@ def _sample_rois(all_rois, gt_boxes, gt_labels, fg_rois_per_image, rois_per_imag
         _get_bbox_regression_labels(bbox_target_data, num_classes)
 
     return labels, rois, bbox_targets
+
+def _tovar(x):
+    if isinstance(x, np.ndarray):
+        return Variable(torch.from_numpy(x), requires_grad=False)
+    elif torch.is_tensor(x):
+        return Variable(x, requires_grad=True)
+    elif isinstance(x, tuple):
+        t = []
+        for i in x:
+            t.append(_tovar(i))
+        return t

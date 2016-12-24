@@ -86,6 +86,12 @@ def filter_boxes(boxes, min_size):
 
 # torch tensors
 def bbox_overlaps(a, bb):
+  if isinstance(a, np.ndarray):
+    a = torch.from_numpy(a)
+
+  if isinstance(bb, np.ndarray):
+    bb = torch.from_numpy(bb)
+
   oo = []
 
   for b in bb:

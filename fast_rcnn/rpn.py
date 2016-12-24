@@ -1,4 +1,4 @@
-#import torch
+import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import numpy as np
@@ -61,7 +61,7 @@ class RPN(nn.Container):
     #    Variable(torch.from_numpy(rpn_labels))
 
   def _rpn_classifier(self, x):
-    x = Variable(x, requires_grad=True)
+    #x = Variable(x, requires_grad=True)
     m1 = nn.Conv2d(3, 18, 3, 1, 1)
     m2 = nn.Conv2d(3, 36, 3, 1, 1)
     return m1(x), m2(x)
