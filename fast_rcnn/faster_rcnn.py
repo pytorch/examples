@@ -8,8 +8,8 @@ from rpn import RPN
 from bbox_transform import bbox_transform, bbox_transform_inv, clip_boxes, filter_boxes, bbox_overlaps
 
 m1 = nn.Conv2d(3, 3, 3, 16, 1)
-m2 = nn.Linear(3*3*3, 21)
-m3 = nn.Linear(3*3*3, 21*4)
+m2 = nn.Linear(3*7*7, 21)
+m3 = nn.Linear(3*7*7, 21*4)
 # should handle multiple scales, how?
 class FasterRCNN(nn.Container):
 
@@ -60,7 +60,7 @@ class FasterRCNN(nn.Container):
     return m2(x), m3(x)
   def _roi_pooling(self, x, rois):
     from roi_pooling import roi_pooling
-    x = roi_pooling(x, rois, size=(3,3), spatial_scale=1.0/16.0)
+    x = roi_pooling(x, rois, size=(7,7), spatial_scale=1.0/16.0)
     return x.view(x.size(0), -1)
 
   def frcnn_loss(self, scores, bbox_transform, labels, bbox_targets):

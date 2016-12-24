@@ -105,6 +105,7 @@ class RPN(nn.Container):
      
     # keep only inside anchors
     anchors = all_anchors[inds_inside, :]
+    assert anchors.shape[0] > 0
 
     # label: 1 is positive, 0 is negative, -1 is dont care
     labels = np.empty((len(inds_inside), ), dtype=np.float32)

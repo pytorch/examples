@@ -4,10 +4,12 @@ import torch.autograd as ag
 import torch.utils.trainer as trainer
 import torch.utils.data
 import numpy as np
+import torchvision.transforms as transforms
 
 from roi_pooling import roi_pooling
 from voc import VOCDetection, TransformVOCDetectionAnnotation
 from faster_rcnn import FasterRCNN
+from tqdm import tqdm
 
 cls = ('__background__', # always index 0
             'aeroplane', 'bicycle', 'bird', 'boat',
@@ -19,28 +21,25 @@ class_to_ind = dict(zip(cls, range(len(cls))))
 
 
 train = VOCDetection('/home/francisco/work/datasets/VOCdevkit/', 'train',
+            transform=transforms.ToTensor(),
             target_transform=TransformVOCDetectionAnnotation(class_to_ind, False))
 
+def collate_fn(batch):
+    imgs, gt = zip(*batch)
+    return imgs[0].unsqueeze(0), gt[0]
 
-#train_loader = torch.utils.data.DataLoader(
-#            ds, batch_size=1, shuffle=True, num_workers=0)
+train_loader = torch.utils.data.DataLoader(
+            train, batch_size=1, shuffle=True, num_workers=0, collate_fn=collate_fn)
 
 frcnn = FasterRCNN()
 
 frcnn.train()
-#for i, (im, gt) in (enumerate(train_loader)):
+for i, (im, gt) in tqdm(enumerate(train_loader)):
+  loss, scores, boxes = frcnn((im, gt))
+  loss.backward()
 
-im, gt = train[0]
-if True:
-            w, h = im.size
-            im = torch.ByteTensor(torch.ByteStorage.from_buffer(im.tobytes()))
-            im = im.view(h, w, 3)
-            # put it from HWC to CHW format
-            # yikes, this transpose takes 80% of the loading time/CPU
-            im = im.transpose(0, 1).transpose(0, 2).contiguous()
-            im = im.float().div_(255)
-            im = im.unsqueeze(0)
+#im, gt = train[0]
+#im = im.unsqueeze(0)
 
-
-loss, scores, boxes = frcnn((im, gt))
-from IPython import embed; embed()
+#loss, scores, boxes = frcnn((im, gt))
+#from IPython import embed; embed()
