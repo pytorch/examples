@@ -21,8 +21,8 @@ class FasterRCNN(nn.Container):
     super(FasterRCNN, self).__init__()
     self.features = features
     self.roi_pooling = pooler
-    self.classifier = classifier
     self.rpn = rpn
+    self.classifier = classifier
     
     self.batch_size = batch_size
     self.fg_fraction = fg_fraction
@@ -31,7 +31,6 @@ class FasterRCNN(nn.Container):
         bg_threshold = (0, 0.5)
     self.bg_threshold = bg_threshold
     self._num_classes = num_classes
-
 
   # should it support batched images ?
   def forward(self, x):
