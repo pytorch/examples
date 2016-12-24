@@ -8,29 +8,38 @@ import numpy.random as npr
 from bbox_transform import bbox_transform, bbox_transform_inv, clip_boxes, filter_boxes, bbox_overlaps
 from generate_anchors import generate_anchors
 
+from bbox_transform import to_var as _tovar
+
 from py_cpu_nms import py_cpu_nms as nms
 
 class RPN(nn.Container):
 
-  def __init__(self, classifier):
+  def __init__(self,
+      classifier, anchor_scales=None,
+      negative_overlap=0.3, positive_overlap=0.7,
+      fg_fraction=0.5, batch_size=256,
+      nms_thresh=0.7, min_size=16,
+      pre_nms_topN=12000, post_nms_topN=2000
+      ):
     super(RPN, self).__init__()
 
     self.rpn_classifier = classifier
 
-    anchor_scales = (8, 16, 32)
+    if anchor_scales is None:
+      anchor_scales = (8, 16, 32)
     self._anchors = generate_anchors(scales=np.array(anchor_scales))
     self._num_anchors = self._anchors.shape[0]
 
-    self.negative_overlap = 0.3
-    self.positive_overlap = 0.7
-    self.fg_fraction = 0.5
-    self.batch_size = 256
+    self.negative_overlap = negative_overlap
+    self.positive_overlap = positive_overlap
+    self.fg_fraction = fg_fraction
+    self.batch_size = batch_size
 
     # used for both train and test
-    self.nms_thresh = 0.7
-    self.pre_nms_topN = 12000
-    self.post_nms_topN = 2000
-    self.min_size = 16
+    self.nms_thresh = nms_thresh
+    self.pre_nms_topN = pre_nms_topN
+    self.post_nms_topN = post_nms_topN
+    self.min_size = min_size
 
 
   # output rpn probs as well
@@ -40,27 +49,24 @@ class RPN(nn.Container):
     self._feat_stride = round(im.size(3)/feats.size(3))
     # rpn
     # put in a separate function
-    rpn_map, rpn_bbox_transform = self.rpn_classifier(feats)
+    rpn_map, rpn_bbox_pred = self.rpn_classifier(feats)
     all_anchors = self.rpn_get_anchors(feats)
     rpn_loss = None
     if self.training is True:
       assert gt is not None
       rpn_labels, rpn_bbox_targets = self.rpn_targets(all_anchors, im, gt)
       # need to subsample boxes here
-      rpn_loss = self.rpn_loss(rpn_map, rpn_bbox_transform, rpn_labels, rpn_bbox_targets)
+      rpn_loss = self.rpn_loss(rpn_map, rpn_bbox_pred, rpn_labels, rpn_bbox_targets)
 
     # roi proposal
     # clip, sort, pre nms topk, nms, after nms topk
     # params are different for train and test
     # proposal_layer.py
-    roi_boxes, scores = self.get_roi_boxes(all_anchors, rpn_map, rpn_bbox_transform, im)
+    roi_boxes, scores = self.get_roi_boxes(all_anchors, rpn_map, rpn_bbox_pred, im)
     # only for visualization
     #roi_boxes = all_anchors
 
-    #return roi_boxes, scores, rpn_loss
-    return Variable(torch.from_numpy(roi_boxes),requires_grad=False), Variable(torch.from_numpy(scores),requires_grad=False), rpn_loss
-    #return Variable(torch.from_numpy(roi_boxes),requires_grad=False), Variable(torch.from_numpy(scores),requires_grad=False), rpn_loss, \
-    #    Variable(torch.from_numpy(rpn_labels))
+    return _tovar((roi_boxes, scores, rpn_loss))
 
   # from faster rcnn py
   def rpn_get_anchors(self, im):

@@ -4,30 +4,39 @@ from torch.autograd import Variable
 import numpy as np
 import numpy.random as npr
 
-from bbox_transform import bbox_transform, bbox_transform_inv, clip_boxes, filter_boxes, bbox_overlaps
+from bbox_transform import \
+    bbox_transform, bbox_transform_inv, clip_boxes, bbox_overlaps
+
+from bbox_transform import to_var as _tovar
 
 # should handle multiple scales, how?
 class FasterRCNN(nn.Container):
 
-  def __init__(self, features, pooler, classifier, rpn):
+  def __init__(self,
+          features, pooler,
+          classifier, rpn,
+          batch_size=128, fg_fraction=0.25,
+          fg_threshold=0.5, bg_threshold=None,
+          num_classes=21):
     super(FasterRCNN, self).__init__()
     self.features = features
     self.roi_pooling = pooler
     self.classifier = classifier
     self.rpn = rpn
     
-    self.batch_size = 128
-    self.fg_fraction = 0.25
-    self.fg_threshold = 0.5
-    self.bg_threshold = (0, 0.5)
-    self._num_classes = 21
+    self.batch_size = batch_size
+    self.fg_fraction = fg_fraction
+    self.fg_threshold = fg_threshold
+    if bg_threshold is None:
+        bg_threshold = (0, 0.5)
+    self.bg_threshold = bg_threshold
+    self._num_classes = num_classes
 
 
   # should it support batched images ?
   def forward(self, x):
     if self.training is True:
       im, gt = x
-      # call model.train() here ?
     else:
       im = x
 
@@ -42,24 +51,24 @@ class FasterRCNN(nn.Container):
 
     # r-cnn
     regions = self.roi_pooling(feats, roi_boxes)
-    scores, bbox_transform = self.classifier(regions)
+    scores, bbox_pred = self.classifier(regions)
 
-    boxes = self.bbox_reg(roi_boxes, bbox_transform, im)
+    boxes = self.bbox_reg(roi_boxes, bbox_pred, im)
 
     # apply cls + bbox reg loss here
     if self.training is True:
-      frcnn_loss = self.frcnn_loss(scores, bbox_transform, frcnn_labels, frcnn_bbox_targets)
+      frcnn_loss = self.frcnn_loss(scores, bbox_pred, frcnn_labels, frcnn_bbox_targets)
       loss = frcnn_loss + rpn_loss
       return loss, scores, boxes
 
     return scores, boxes
 
-  def frcnn_loss(self, scores, bbox_transform, labels, bbox_targets):
+  def frcnn_loss(self, scores, bbox_pred, labels, bbox_targets):
     cls_crit = nn.CrossEntropyLoss()
     cls_loss = cls_crit(scores, labels)
 
     reg_crit = nn.SmoothL1Loss()
-    reg_loss = reg_crit(bbox_transform, bbox_targets)
+    reg_loss = reg_crit(bbox_pred, bbox_targets)
 
     loss = cls_loss + reg_loss
     return loss
@@ -182,13 +191,4 @@ def _sample_rois(self, all_rois, gt_boxes, gt_labels, fg_rois_per_image, rois_pe
 
     return labels, rois, bbox_targets
 
-def _tovar(x):
-    if isinstance(x, np.ndarray):
-        return Variable(torch.from_numpy(x), requires_grad=False)
-    elif torch.is_tensor(x):
-        return Variable(x, requires_grad=True)
-    elif isinstance(x, tuple):
-        t = []
-        for i in x:
-            t.append(_tovar(i))
-        return t
+

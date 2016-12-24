@@ -73,13 +73,13 @@ frcnn.train()
 optimizer = optim.SGD(frcnn.parameters(), lr = 0.01, momentum=0.9)
 
 
-from IPython import embed; embed()
+#from IPython import embed; embed()
 
-#for i, (im, gt) in tqdm(enumerate(train_loader)):
-#  optimizer.zero_grad()
-#  loss, scores, boxes = frcnn((im, gt))
-#  loss.backward()
-#  optimizer.step()
+for i, (im, gt) in tqdm(enumerate(train_loader)):
+  optimizer.zero_grad()
+  loss, scores, boxes = frcnn((im, gt))
+  loss.backward()
+  optimizer.step()
 
 #im, gt = train[0]
 #im = im.unsqueeze(0)

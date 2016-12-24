@@ -6,6 +6,7 @@
 # --------------------------------------------------------
 
 import torch
+from torch.autograd import Variable
 import numpy as np
 
 def bbox_transform(ex_rois, gt_rois):
@@ -120,4 +121,15 @@ def bbox_overlaps(a, bb):
 
   return torch.cat([o.view(-1,1) for o in oo],1)
 
-
+def to_var(x):
+    if isinstance(x, np.ndarray):
+        return Variable(torch.from_numpy(x), requires_grad=False)
+    elif torch.is_tensor(x):
+        return Variable(x, requires_grad=True)
+    elif isinstance(x, tuple):
+        t = []
+        for i in x:
+            t.append(to_var(i))
+        return t
+    elif isinstance(x, Variable):
+        return x
