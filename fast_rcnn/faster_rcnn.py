@@ -3,24 +3,25 @@ import torch.nn as nn
 from torch.autograd import Variable
 import numpy as np
 import numpy.random as npr
-from rpn import RPN
 
 from bbox_transform import bbox_transform, bbox_transform_inv, clip_boxes, filter_boxes, bbox_overlaps
 
-m1 = nn.Conv2d(3, 3, 3, 16, 1)
-m2 = nn.Linear(3*7*7, 21)
-m3 = nn.Linear(3*7*7, 21*4)
 # should handle multiple scales, how?
 class FasterRCNN(nn.Container):
 
-  def __init__(self):
+  def __init__(self, features, pooler, classifier, rpn):
     super(FasterRCNN, self).__init__()
+    self.features = features
+    self.roi_pooling = pooler
+    self.classifier = classifier
+    self.rpn = rpn
+    
     self.batch_size = 128
     self.fg_fraction = 0.25
     self.fg_threshold = 0.5
     self.bg_threshold = (0, 0.5)
     self._num_classes = 21
-    self.rpn = RPN()
+
 
   # should it support batched images ?
   def forward(self, x):
@@ -30,7 +31,7 @@ class FasterRCNN(nn.Container):
     else:
       im = x
 
-    feats = self._features(_tovar(im))
+    feats = self.features(_tovar(im))
 
     roi_boxes, rpn_prob, rpn_loss = self.rpn(im, feats, gt)
 
@@ -40,8 +41,8 @@ class FasterRCNN(nn.Container):
       all_rois, frcnn_labels, roi_boxes, frcnn_bbox_targets = self.frcnn_targets(roi_boxes, im, gt)
 
     # r-cnn
-    regions = self._roi_pooling(feats, roi_boxes)
-    scores, bbox_transform = self._classifier(regions)
+    regions = self.roi_pooling(feats, roi_boxes)
+    scores, bbox_transform = self.classifier(regions)
 
     boxes = self.bbox_reg(roi_boxes, bbox_transform, im)
 
@@ -52,16 +53,6 @@ class FasterRCNN(nn.Container):
       return loss, scores, boxes
 
     return scores, boxes
-
-  # the user define their model in here
-  def _features(self, x):
-    return m1(x)
-  def _classifier(self, x):
-    return m2(x), m3(x)
-  def _roi_pooling(self, x, rois):
-    from roi_pooling import roi_pooling
-    x = roi_pooling(x, rois, size=(7,7), spatial_scale=1.0/16.0)
-    return x.view(x.size(0), -1)
 
   def frcnn_loss(self, scores, bbox_transform, labels, bbox_targets):
     cls_crit = nn.CrossEntropyLoss()

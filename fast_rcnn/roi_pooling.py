@@ -3,10 +3,8 @@ import torch.nn as nn
 import torch.autograd as ag
 import math
 
-#import torch.nn.functions as F
 from torch.autograd.function import Function
 from torch._thnn import type2backend
-
 
 class AdaptiveMaxPool2d(Function):
     def __init__(self, out_w, out_h):
@@ -34,23 +32,7 @@ class AdaptiveMaxPool2d(Function):
                 indices)
         return grad_input, None
 
-
-
-# approximation for the adaptive max pooling which is currently missing from nn
-# doesn't work if the input is smaller than size
-def adaptive_max_pool_old(input, size):
-    s = input.size()[2:]
-    assert(s[0]>= size[0] and s[1] >= size[1])
-    ratio = [float(x)/y for x,y in zip(s, size)]
-    kernel_size = [int(math.ceil(x)) for x in ratio]
-    stride = kernel_size
-    remainder = [x*y-z for x, y, z in zip(kernel_size, size, s)]
-    padding = [int(math.floor((x+1)/2)) for x in remainder]
-    return nn.MaxPool2d(kernel_size,stride,padding=padding, ceil_mode=True)(input)
-    #return nn.MaxPool2d(kernel_size,stride,padding=padding, ceil_mode=False)(input)
-
 def adaptive_max_pool(input, size):
-    #return F.thnn.AdaptiveMaxPool2d(size[0],size[1])(input)
     return AdaptiveMaxPool2d(size[0],size[1])(input)
 
 def roi_pooling(input, rois, size=(7,7), spatial_scale=1.0):

@@ -12,8 +12,10 @@ from py_cpu_nms import py_cpu_nms as nms
 
 class RPN(nn.Container):
 
-  def __init__(self):
+  def __init__(self, classifier):
     super(RPN, self).__init__()
+
+    self.rpn_classifier = classifier
 
     anchor_scales = (8, 16, 32)
     self._anchors = generate_anchors(scales=np.array(anchor_scales))
@@ -38,7 +40,7 @@ class RPN(nn.Container):
     self._feat_stride = round(im.size(3)/feats.size(3))
     # rpn
     # put in a separate function
-    rpn_map, rpn_bbox_transform = self._rpn_classifier(feats)
+    rpn_map, rpn_bbox_transform = self.rpn_classifier(feats)
     all_anchors = self.rpn_get_anchors(feats)
     rpn_loss = None
     if self.training is True:
@@ -59,13 +61,6 @@ class RPN(nn.Container):
     return Variable(torch.from_numpy(roi_boxes),requires_grad=False), Variable(torch.from_numpy(scores),requires_grad=False), rpn_loss
     #return Variable(torch.from_numpy(roi_boxes),requires_grad=False), Variable(torch.from_numpy(scores),requires_grad=False), rpn_loss, \
     #    Variable(torch.from_numpy(rpn_labels))
-
-  def _rpn_classifier(self, x):
-    #x = Variable(x, requires_grad=True)
-    m1 = nn.Conv2d(3, 18, 3, 1, 1)
-    m2 = nn.Conv2d(3, 36, 3, 1, 1)
-    return m1(x), m2(x)
-    #pass
 
   # from faster rcnn py
   def rpn_get_anchors(self, im):
@@ -264,7 +259,19 @@ def show(img, boxes, label):
 if __name__ == '__main__':
   import torch
   from voc import VOCDetection, TransformVOCDetectionAnnotation
-  rpn = RPN()
+  import torchvision.transforms as transforms
+
+  class RPNClassifier(nn.Container):
+    def __init__(self, n):
+      super(RPNClassifier, self).__init__()
+      self.m1 = nn.Conv2d(n, 18, 3, 1, 1)
+      self.m2 = nn.Conv2d(n, 36, 3, 1, 1)
+
+    def forward(self, x):
+      return self.m1(x), self.m2(x)
+
+
+  rpn = RPN(RPNClassifier(3))
   cls = ('__background__', # always index 0
             'aeroplane', 'bicycle', 'bird', 'boat',
             'bottle', 'bus', 'car', 'cat', 'chair',
@@ -275,23 +282,15 @@ if __name__ == '__main__':
 
 
   train = VOCDetection('/home/francisco/work/datasets/VOCdevkit/', 'train',
+            transform=transforms.ToTensor(),
             target_transform=TransformVOCDetectionAnnotation(class_to_ind, False))
   
   im, gt = train[11]
   im0 = im
 
-  if True:
-            w, h = im.size
-            im = torch.ByteTensor(torch.ByteStorage.from_buffer(im.tobytes()))
-            im = im.view(h, w, 3)
-            # put it from HWC to CHW format
-            # yikes, this transpose takes 80% of the loading time/CPU
-            im = im.transpose(0, 1).transpose(0, 2).contiguous()
-            im = im.float().div_(255).unsqueeze(0)
+  im = im.unsqueeze(0)
 
-
-
-  feats = torch.rand(1,3,im.size(2)/16, im.size(3)/16)
+  feats = Variable(torch.rand(1,3,im.size(2)/16, im.size(3)/16))
   print(feats.size())
   print(im.size())
 
