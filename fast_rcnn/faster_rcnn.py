@@ -34,16 +34,21 @@ class FasterRCNN(nn.Container):
 
   # should it support batched images ?
   def forward(self, x):
-    if self.training is True:
+    #if self.training is True:
+    if isinstance(x, tuple):
       im, gt = x
     else:
       im = x
+      gt = None
+
+    assert im.size(0) == 1, 'only single element batches supported'
 
     feats = self.features(_tovar(im))
 
     roi_boxes, rpn_prob, rpn_loss = self.rpn(im, feats, gt)
 
-    if self.training is True:
+    #if self.training is True:
+    if gt is not None:
       # append gt boxes and sample fg / bg boxes
       # proposal_target-layer.py
       all_rois, frcnn_labels, roi_boxes, frcnn_bbox_targets = self.frcnn_targets(roi_boxes, im, gt)
@@ -55,7 +60,8 @@ class FasterRCNN(nn.Container):
     boxes = self.bbox_reg(roi_boxes, bbox_pred, im)
 
     # apply cls + bbox reg loss here
-    if self.training is True:
+    #if self.training is True:
+    if gt is not None:
       frcnn_loss = self.frcnn_loss(scores, bbox_pred, frcnn_labels, frcnn_bbox_targets)
       loss = frcnn_loss + rpn_loss
       return loss, scores, boxes

@@ -1,5 +1,6 @@
 import argparse
 import time
+#from copy import deepcopy
 
 import torch
 import torch.nn as nn
@@ -40,9 +41,15 @@ cls = ('__background__', # always index 0
 class_to_ind = dict(zip(cls, range(len(cls))))
 
 args = parser.parse_args()
-model = importlib.import_module(args.model).model
+model = importlib.import_module(args.model).model()
+model_test = importlib.import_module(args.model).model()
+model_test.load_state_dict(model.state_dict())
 
-train = VOCDetection(args.data, 'train',
+train_data = VOCDetection(args.data, 'train',
+            transform=transforms.ToTensor(),
+            target_transform=TransformVOCDetectionAnnotation(class_to_ind, False))
+
+val_data = VOCDetection(args.data, 'val',
             transform=transforms.ToTensor(),
             target_transform=TransformVOCDetectionAnnotation(class_to_ind, False))
 
@@ -51,10 +58,13 @@ def collate_fn(batch):
     return imgs[0].unsqueeze(0), gt[0]
 
 train_loader = torch.utils.data.DataLoader(
-            train, batch_size=1, shuffle=True,
+            train_data, batch_size=1, shuffle=True,
             num_workers=0, collate_fn=collate_fn)
 
 
+val_loader = torch.utils.data.DataLoader(
+            val_data, batch_size=1, shuffle=False,
+            num_workers=0, collate_fn=collate_fn)
 
 optimizer = optim.SGD(model.parameters(), lr=args.lr, 
                       momentum=args.momentum,
@@ -68,6 +78,8 @@ def train(train_loader, model, optimizer, epoch):
   model.train()
   end = time.time()
   for i, (im, gt) in (enumerate(train_loader)):
+    adjust_learning_rate(optimizer, epoch)
+
     # measure data loading time
     data_time.update(time.time() - end)
 
@@ -93,7 +105,45 @@ def train(train_loader, model, optimizer, epoch):
             data_time=data_time, loss=losses,
             #top1=top1, top5=top5
             ))
+      #global model_test
+      #assert model.state_dict() == model_test.state_dict()
 
+def validate(val_loader, model):
+  batch_time = AverageMeter()
+  losses = AverageMeter()
+
+  # switch to evaluate mode
+  model.eval()
+
+  end = time.time()
+
+  for i, (im, gt) in enumerate(val_loader):
+    loss, scores, boxes = model((im, gt))
+    losses.update(loss.data[0], im.size(0))
+    # measure elapsed time
+    batch_time.update(time.time() - end)
+    end = time.time()
+
+    if i % args.print_freq == 0:
+      print('Test: [{0}/{1}]\t'
+            'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+            #'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
+            'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+            #'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+            #'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'
+            .format(
+            i, len(val_loader), batch_time=batch_time,
+            #data_time=data_time, 
+            loss=losses,
+            #top1=top1, top5=top5
+            ))
+
+
+def adjust_learning_rate(optimizer, epoch):
+  """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
+  lr = args.lr * (0.1 ** (epoch // 30))
+  for param_group in optimizer.state_dict()['param_groups']:
+    param_group['lr'] = lr
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -114,6 +164,7 @@ class AverageMeter(object):
 
 for epoch in range(0, 10):
   train(train_loader, model, optimizer, epoch)
+  #validate(val_loader, model)
 
 #from IPython import embed; embed()
 

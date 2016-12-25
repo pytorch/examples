@@ -44,6 +44,7 @@ class RPN(nn.Container):
 
   # output rpn probs as well
   def forward(self, im, feats, gt=None):
+    assert im.size(0) == 1, 'only single element batches supported'
     # improve
     # it is used in get_anchors and also present in roi_pooling
     self._feat_stride = round(im.size(3)/feats.size(3))
@@ -52,7 +53,8 @@ class RPN(nn.Container):
     rpn_map, rpn_bbox_pred = self.rpn_classifier(feats)
     all_anchors = self.rpn_get_anchors(feats)
     rpn_loss = None
-    if self.training is True:
+    #if self.training is True:
+    if gt is not None:
       assert gt is not None
       rpn_labels, rpn_bbox_targets = self.rpn_targets(all_anchors, im, gt)
       # need to subsample boxes here
@@ -106,7 +108,7 @@ class RPN(nn.Container):
      
     # keep only inside anchors
     anchors = all_anchors[inds_inside, :]
-    assert anchors.shape[0] > 0
+    assert anchors.shape[0] > 0, '{0}x{1} -> {2}'.format(height,width,total_anchors)
 
     # label: 1 is positive, 0 is negative, -1 is dont care
     labels = np.empty((len(inds_inside), ), dtype=np.float32)

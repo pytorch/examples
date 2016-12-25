@@ -16,32 +16,27 @@ class TransformVOCDetectionAnnotation(object):
         self.class_to_ind = class_to_ind
 
     def __call__(self, target):
-        #res = []
-        #res = {}
         boxes = []
         gt_classes = []
         for obj in target.iter('object'):
             difficult = int(obj.find('difficult').text) == 1
             if not self.keep_difficult and difficult:
                 continue
-            #name = obj.find('name').text
-            name = obj[0].text.lower().strip()
+            name = obj.find('name').text.lower().strip()
             bb = obj.find('bndbox')
-            #bbox = obj[4]
             bndbox = map(int, [bb.find('xmin').text, bb.find('ymin').text,
                 bb.find('xmax').text, bb.find('ymax').text])
-            # supposes the order is xmin, ymin, xmax, ymax
-            # attention with indices
-            #bndbox = [int(bb.text)-1 for bb in bbox]
 
-            #res += [bndbox + [name]]
-            #res += [bndbox + [class_to_ind[name]]]
             boxes += [torch.LongTensor(bndbox)]
             gt_classes += [self.class_to_ind[name]]
-
+  
+        size = target.find('size')
+        im_info = map(int,(size.find('height').text, size.find('width').text, 1))
+  
         res = {
             'boxes': torch.cat([b.view(1,-1) for b in boxes], 0),
-            'gt_classes':gt_classes
+            'gt_classes':gt_classes,
+            'im_info': im_info
         }
         return res
 

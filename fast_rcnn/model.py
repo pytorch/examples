@@ -34,17 +34,18 @@ class _RPNClassifier(nn.Container):
   def forward(self, x):
     return self.m1(x), self.m2(x)
 
-_features = _Features()
-_classifier = _Classifier()
-_rpn_classifier = _RPNClassifier(3)
+def model():
+  _features = _Features()
+  _classifier = _Classifier()
+  _rpn_classifier = _RPNClassifier(3)
 
-_rpn = _RPN(
+  _rpn = _RPN(
     classifier=_rpn_classifier
-)
-
-model = _FasterRCNN(
+  )
+  _model = _FasterRCNN(
     features=_features,
     pooler=_pooler,
     classifier=_classifier,
     rpn=_rpn
-)
+  )
+  return _model
