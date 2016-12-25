@@ -9,6 +9,13 @@ if sys.version_info[0] == 2:
 else:
     import xml.etree.ElementTree as ET
 
+def _flip_box(boxes, width):
+  boxes = boxes.clone()
+  oldx1 = boxes[:, 0].clone()
+  oldx2 = boxes[:, 2].clone()
+  boxes[:, 0] = width - oldx2 - 1
+  boxes[:, 2] = width - oldx1 - 1
+  return boxes
 
 class TransformVOCDetectionAnnotation(object):
     def __init__(self, class_to_ind, keep_difficult=False):
@@ -27,14 +34,14 @@ class TransformVOCDetectionAnnotation(object):
             bndbox = map(int, [bb.find('xmin').text, bb.find('ymin').text,
                 bb.find('xmax').text, bb.find('ymax').text])
 
-            boxes += [torch.LongTensor(bndbox)]
+            boxes += [bndbox]
             gt_classes += [self.class_to_ind[name]]
   
         size = target.find('size')
         im_info = map(int,(size.find('height').text, size.find('width').text, 1))
   
         res = {
-            'boxes': torch.cat([b.view(1,-1) for b in boxes], 0),
+            'boxes': torch.LongTensor(boxes),
             'gt_classes':gt_classes,
             'im_info': im_info
         }

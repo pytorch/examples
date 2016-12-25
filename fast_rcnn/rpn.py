@@ -66,9 +66,12 @@ class RPN(nn.Container):
     # proposal_layer.py
     roi_boxes, scores = self.get_roi_boxes(all_anchors, rpn_map, rpn_bbox_pred, im)
     # only for visualization
-    #roi_boxes = all_anchors
+    if False:
+      roi_boxes = all_anchors
+      return _tovar((roi_boxes, scores, rpn_loss, rpn_labels))
 
     return _tovar((roi_boxes, scores, rpn_loss))
+
 
   # from faster rcnn py
   def rpn_get_anchors(self, im):
@@ -248,7 +251,9 @@ def _unmap(data, count, inds, fill=0):
 
 def show(img, boxes, label):
     from PIL import Image, ImageDraw
+    import torchvision.transforms as transforms
     #img, target = self.__getitem__(index)
+    img = transforms.ToPILImage()(img)
     draw = ImageDraw.Draw(img)
     for obj, t in zip(boxes, label):
         #print(type(t))
@@ -258,8 +263,8 @@ def show(img, boxes, label):
             #draw.text(obj[0:2].tolist(), cls[t], fill=(0,255,0))
         #else:
         elif t == 0:
-            pass
-            #draw.rectangle(obj[0:4].tolist(), outline=(0,0,255))
+            #pass
+            draw.rectangle(obj[0:4].tolist(), outline=(0,0,255))
     img.show()
 
 
@@ -293,7 +298,7 @@ if __name__ == '__main__':
             transform=transforms.ToTensor(),
             target_transform=TransformVOCDetectionAnnotation(class_to_ind, False))
   
-  im, gt = train[11]
+  im, gt = train[100]
   im0 = im
 
   im = im.unsqueeze(0)
@@ -312,6 +317,6 @@ if __name__ == '__main__':
   print loss
   loss.backward()
 
-  #show(im0, boxes.data, labels.data.int().tolist())
+  show(im0, boxes.data, labels.data.int().tolist())
 
   #from IPython import embed; embed()
