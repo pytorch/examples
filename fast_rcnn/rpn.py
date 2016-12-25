@@ -5,10 +5,10 @@ import numpy as np
 import numpy.random as npr
 
 # clean up environment
-from bbox_transform import bbox_transform, bbox_transform_inv, clip_boxes, filter_boxes, bbox_overlaps
+from utils import bbox_transform, bbox_transform_inv, clip_boxes, filter_boxes, bbox_overlaps
 from generate_anchors import generate_anchors
 
-from bbox_transform import to_var as _tovar
+from utils import to_var as _tovar
 
 from py_cpu_nms import py_cpu_nms as nms
 

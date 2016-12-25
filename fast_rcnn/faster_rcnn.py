@@ -4,10 +4,10 @@ from torch.autograd import Variable
 import numpy as np
 import numpy.random as npr
 
-from bbox_transform import \
+from utils import \
     bbox_transform, bbox_transform_inv, clip_boxes, bbox_overlaps
 
-from bbox_transform import to_var as _tovar
+from utils import to_var as _tovar
 
 # should handle multiple scales, how?
 class FasterRCNN(nn.Container):
