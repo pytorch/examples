@@ -6,6 +6,7 @@ import os
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
+import math
 
 parser = argparse.ArgumentParser(description='train.lua')
 
@@ -110,19 +111,16 @@ class NMTCriterion(nn.Container):
 
 def eval(model, criterion, data):
     loss = 0
-    total = 0
 
     model.evaluate()
 
-    for i in range(data.batchCount()):
-        batch = onmt.utils.Cuda.convert(data.getBatch(i))
-        outputs = model.forward()
-        loss = criterion.forward(outputs, batch.getTargetOutput())
-        total = total + batch.targetNonZeros
+    for src, tgt in data:
+        outputs = model.forward(src)
+        loss = criterion.forward(outputs, tgt)
 
     model.training()
 
-    return math.exp(loss / total)
+    return math.exp(loss / data.len)
 
 
 def trainModel(model, trainData, validData, dataset, info):
@@ -133,8 +131,8 @@ def trainModel(model, trainData, validData, dataset, info):
             p.uniform_(-opt.param_init, opt.param_init)
 
     # define criterion of each GPU
-    criterion = onmt.utils.Cuda.convert(buildCriterion(dataset.dicts.tgt.words.size(),
-                                                       dataset.dicts.tgt.features))
+    criterion = buildCriterion(dataset.dicts.tgt.words.size(),
+                               dataset.dicts.tgt.features)
 
     optim = onmt.train.Optim(
         opt.optim, opt.learning_rate,
@@ -149,25 +147,20 @@ def trainModel(model, trainData, validData, dataset, info):
         startI = opt.start_iteration
 
         # shuffle mini batch order
-        batchOrder = torch.randperm(trainData.batchCount())
+        batchOrder = torch.randperm(len(trainData))
 
         opt.start_iteration = 1
         ii = 1
 
-        for i in range(startI, trainData.batchCount()):
-            totalSize = 0
+        for i in range(startI, len(trainData)):
 
             batchIdx = batchOrder[i]
             if epoch <= opt.curriculum:
                 batchIdx = i
 
-            batch = trainData.getBatch(batchIdx)
-            totalSize += batch.size
-
-            batch.totalSize = totalSize
+            batch = trainData[batchIdx]
 
             model.zero_grad()
-
 
             outputs = model.forward(batch)
             loss = criterion.forward(outputs, batch.getTargetOutput())
@@ -207,7 +200,7 @@ def trainModel(model, trainData, validData, dataset, info):
 
 def main():
     onmt.utils.Opt.initConfig(opt)
-    onmt.utils.Cuda.init(opt)
+    # onmt.utils.Cuda.init(opt)
 
     checkpoint = {}
 
@@ -247,20 +240,17 @@ def main():
 
     dataset = torch.load(opt.data)
 
-    trainData = onmt.data.Dataset.new(dataset.train.src, dataset.train.tgt)
-    validData = onmt.data.Dataset.new(dataset.valid.src, dataset.valid.tgt)
-
-    trainData.setBatchSize(opt.max_batch_size)
-    validData.setBatchSize(opt.max_batch_size)
+    trainData = onmt.data.Dataset(dataset.train.src, dataset.train.tgt, opt.max_batch_size)
+    validData = onmt.data.Dataset(dataset.valid.src, dataset.valid.tgt, opt.max_batch_size)
 
     if not opt.json_log:
         print(' * vocabulary size. source = %d; target = %d' %
                             (dataset.dicts.src.words.size(), dataset.dicts.tgt.words.size()))
         print(' * additional features. source = %d; target = %d' %
                             (len(dataset.dicts.src.features), len(dataset.dicts.tgt.features)))
-        print(' * maximum sequence length. source = %d; target = %d' %
-                            (trainData.maxSourceLength, trainData.maxTargetLength))
-        print(' * number of training sentences. %d' % len(trainData.src))
+        # print(' * maximum sequence length. source = %d; target = %d' %
+        #                     (trainData.maxSourceLength, trainData.maxTargetLength))
+        print(' * number of training sentences. %d' % len(trainData))
         print(' * maximum batch size. %d' % opt.max_batch_size * pool.count)
     # else:
     #     metadata = dict(
