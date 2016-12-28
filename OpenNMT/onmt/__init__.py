@@ -11,4 +11,8 @@
 # onmt.Models = require('onmt.Models')
 
 import onmt.Constants
+import onmt.Models
+from onmt.Dataset import Dataset
+from onmt.Optim import Optim
+
 # return onmt

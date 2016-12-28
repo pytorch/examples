@@ -7,5 +7,5 @@ import torch.nn as nn
 def Generator(rnnSize, outputSize):
     return nn.Sequential(
         nn.Linear(rnnSize, outputSize),
-        nn.LogSoftMax()
+        nn.LogSoftmax()
     )

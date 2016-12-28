@@ -1,6 +1,5 @@
 import onmt
 import onmt.utils
-
 import argparse
 import os
 import torch
@@ -27,7 +26,7 @@ parser.add_argument('-cont', action="store_true", help="If training from a check
 ##
 
 parser.add_argument('-layers',        type=int, default=2,   help="Number of layers in the LSTM encoder/decoder")
-parser.add_argument('-rnn_size',      type=int, default=500, help="Size of LSTM hidden states")
+parser.add_argument('-rnnSize',       type=int, default=500, help="Size of LSTM hidden states")
 parser.add_argument('-word_vec_size', type=int, default=500, help="Word embedding sizes")
 parser.add_argument('-feat_merge', default='concat', help="Merge action for the features embeddings: concat or sum")
 parser.add_argument('-feat_vec_exponent', type=int, default=0.7, help="""When using concatenation, if the feature takes N values
@@ -84,14 +83,16 @@ parser.add_argument('-save_every', type=int, default=0, help="""Save intermediat
                              If = 0, will not save models within an epoch. """)
 parser.add_argument('-report_every', type=int, default=50,   help="Print stats every this many iterations within an epoch.")
 parser.add_argument('-seed',         type=int, default=3435, help="Seed for random initialization")
-parser.add_argument('-json_log', action="store_true", help="Outputs logs in JSON format.")
+# parser.add_argument('-json_log', action="store_true", help="Outputs logs in JSON format.")
 
 opt = parser.parse_args()
 
 
 class NMTCriterion(nn.Container):
-    def __init__(vocabSize, features):
+    def __init__(self, vocabSize, features):
         self.sub = []
+        super(NMTCriterion, self).__init__()
+
         def makeOne(size):
             weight = torch.ones(vocabSize)
             weight[onmt.Constants.PAD] = 0
@@ -102,40 +103,41 @@ class NMTCriterion(nn.Container):
             self.sub += [makeOne(features.size())]
 
     def forward(self, inputs, targets):
-        assert(input.size(1) == len(self.sub))
-        loss = Variable(inputs.new(1).zero_())
-        for feat, target, sub in zip(inputs.split(1), targets.split(1), self.sub):
-            loss += sub(feat, target)
-        return loss
+        if len(self.sub) == 1:
+            batch_size = targets.nelement()
+            return self.sub[0](inputs.view(batch_size, -1), targets.view(batch_size))
+        else:
+            assert(False)
+            loss = Variable(inputs.new(1).zero_())
+            for sub, input, target in zip(self.sub, inputs, targets):
+                loss += sub(input, target)
+            return loss
 
 
 def eval(model, criterion, data):
     loss = 0
 
-    model.evaluate()
-
+    model.eval()
     for src, tgt in data:
         outputs = model.forward(src)
         loss = criterion.forward(outputs, tgt)
 
-    model.training()
-
+    model.train()
     return math.exp(loss / data.len)
 
 
-def trainModel(model, trainData, validData, dataset, info):
-
-    for mod in model.values():
-        mod.training()
-        for p in mod.parameters():
-            p.uniform_(-opt.param_init, opt.param_init)
+def trainModel(model, trainData, validData, dataset):
+    print(model)
+    model.train()
+    for p in model.parameters():
+        p.data.uniform_(-opt.param_init, opt.param_init)
 
     # define criterion of each GPU
-    criterion = buildCriterion(dataset.dicts.tgt.words.size(),
-                               dataset.dicts.tgt.features)
+    criterion = NMTCriterion(dataset['dicts']['tgt']['words'].size(),
+                             dataset['dicts']['tgt']['features'])
 
-    optim = onmt.train.Optim(
-        opt.optim, opt.learning_rate,
+    optim = onmt.Optim(
+        model.parameters(), opt.optim, opt.learning_rate,
         lr_decay=opt.learning_rate_decay,
         start_decay_at=opt.start_decay_at
     )
@@ -152,6 +154,7 @@ def trainModel(model, trainData, validData, dataset, info):
         opt.start_iteration = 1
         ii = 1
 
+        total_loss = 0
         for i in range(startI, len(trainData)):
 
             batchIdx = batchOrder[i]
@@ -161,17 +164,18 @@ def trainModel(model, trainData, validData, dataset, info):
             batch = trainData[batchIdx]
 
             model.zero_grad()
-
-            outputs = model.forward(batch)
-            loss = criterion.forward(outputs, batch.getTargetOutput())
+            outputs = model(batch)
+            loss = criterion(outputs, batch[1])
+            total_loss += loss.data[0]
             loss.backward()
 
             # update the parameters
-            optim.step(model.params(), opt.max_grad_norm)
+            optim.step(model.parameters(), opt.max_grad_norm)
 
             if ii % opt.report_every == 0:
-                print("Done %d batches" % ii)
-                pass # FIXME
+                print("Done %d batches; avg loss: %g" %
+                      (ii, total_loss / opt.report_every))
+                total_loss = 0
 
             # if opt.save_every > 0 and ii % opt.save_every == 0:
             #     checkpoint.saveIteration(ii, epochState, batchOrder, not opt.json_log)
@@ -180,18 +184,11 @@ def trainModel(model, trainData, validData, dataset, info):
         return epochState
 
     validPpl = 0
-
     for epoch in range(opt.start_epoch, opt.epochs):
-        if not opt.json_log:
-            print('')
-
+        print('')
         epochState = trainEpoch(epoch, validPpl)
-
         validPpl = eval(model, criterion, validData)
-
-        if not opt.json_log:
-            print('Validation perplexity. ' + validPpl)
-
+        print('Validation perplexity. ' + validPpl)
         if opt.optim == 'sgd':
             optim.updateLearningRate(validPpl, epoch)
 
@@ -203,89 +200,61 @@ def main():
     # onmt.utils.Cuda.init(opt)
 
     checkpoint = {}
+    # if opt.train_from is not None:
+    #     assert os.path.exists(opt.train_from), 'checkpoint path invalid'
+    #
+    #     if not opt.json_log:
+    #       print('Loading checkpoint \'' + opt.train_from + '\'...')
+    #
+    #     checkpoint = torch.load(opt.train_from)
+    #
+    #     opt.layers = checkpoint.options.layers
+    #     opt.rnn_size = checkpoint.options.rnn_size
+    #     opt.brnn = checkpoint.options.brnn
+    #     opt.brnn_merge = checkpoint.options.brnn_merge
+    #     opt.input_feed = checkpoint.options.input_feed
+    #
+    #     # Resume training from checkpoint
+    #     if opt.cont:
+    #         opt.optim = checkpoint.options.optim
+    #         opt.learning_rate_decay = checkpoint.options.learning_rate_decay
+    #         opt.start_decay_at = checkpoint.options.start_decay_at
+    #         opt.epochs = checkpoint.options.epochs
+    #         opt.curriculum = checkpoint.options.curriculum
+    #
+    #         opt.learning_rate = checkpoint.info.learning_rate
+    #         opt.optim_states = checkpoint.info.optim_states
+    #         opt.start_epoch = checkpoint.info.epoch
+    #         opt.start_iteration = checkpoint.info.iteration
+    #     print('Resuming training from epoch %d at iteration %d...' % (opt.start_epoch, opt.start_iteration))
 
-    if opt.train_from is not None:
-        assert os.path.exists(opt.train_from), 'checkpoint path invalid'
-
-        if not opt.json_log:
-          print('Loading checkpoint \'' + opt.train_from + '\'...')
-
-        checkpoint = torch.load(opt.train_from)
-
-        opt.layers = checkpoint.options.layers
-        opt.rnn_size = checkpoint.options.rnn_size
-        opt.brnn = checkpoint.options.brnn
-        opt.brnn_merge = checkpoint.options.brnn_merge
-        opt.input_feed = checkpoint.options.input_feed
-
-        # Resume training from checkpoint
-        if opt.cont:
-            opt.optim = checkpoint.options.optim
-            opt.learning_rate_decay = checkpoint.options.learning_rate_decay
-            opt.start_decay_at = checkpoint.options.start_decay_at
-            opt.epochs = checkpoint.options.epochs
-            opt.curriculum = checkpoint.options.curriculum
-
-            opt.learning_rate = checkpoint.info.learning_rate
-            opt.optim_states = checkpoint.info.optim_states
-            opt.start_epoch = checkpoint.info.epoch
-            opt.start_iteration = checkpoint.info.iteration
-
-            if not opt.json_log:
-                print('Resuming training from epoch %d at iteration %d...' % (opt.start_epoch, opt.start_iteration))
-
-    # Create the data loader class.
-    if not opt.json_log:
-        print("Loading data from '%s'" % opt.data)
+    print("Loading data from '%s'" % opt.data)
 
     dataset = torch.load(opt.data)
 
-    trainData = onmt.data.Dataset(dataset.train.src, dataset.train.tgt, opt.max_batch_size)
-    validData = onmt.data.Dataset(dataset.valid.src, dataset.valid.tgt, opt.max_batch_size)
+    trainData = onmt.Dataset(dataset['train']['src'], dataset['train']['tgt'], opt.max_batch_size)
+    validData = onmt.Dataset(dataset['valid']['src'], dataset['valid']['tgt'], opt.max_batch_size)
 
-    if not opt.json_log:
-        print(' * vocabulary size. source = %d; target = %d' %
-                            (dataset.dicts.src.words.size(), dataset.dicts.tgt.words.size()))
-        print(' * additional features. source = %d; target = %d' %
-                            (len(dataset.dicts.src.features), len(dataset.dicts.tgt.features)))
-        # print(' * maximum sequence length. source = %d; target = %d' %
-        #                     (trainData.maxSourceLength, trainData.maxTargetLength))
-        print(' * number of training sentences. %d' % len(trainData))
-        print(' * maximum batch size. %d' % opt.max_batch_size * pool.count)
-    # else:
-    #     metadata = dict(
-    #         options=opt,
-    #         vocabSize=dict(
-    #             source=dataset.dicts.src.words.size(),
-    #             target=dataset.dicts.tgt.words.size()
-    #         ),
-    #         additionalFeatures=dict(
-    #             source=len(dataset.dicts.src.features),
-    #             target=len(dataset.dicts.tgt.features)
-    #         ),
-    #         sequenceLength=dict(
-    #             source=trainData.maxSourceLength,
-    #             target=trainData.maxTargetLength
-    #         ),
-    #         trainingSentences=len(trainData.src)
-    #     )
-    #
-    #     onmt.utils.Log.logJson(metadata)
+    print(' * vocabulary size. source = %d; target = %d' %
+            (dataset['dicts']['src']['words'].size(), dataset['dicts']['tgt']['words'].size()))
+    print(' * additional features. source = %d; target = %d' %
+            (len(dataset['dicts']['src']['features']), len(dataset['dicts']['tgt']['features'])))
+    # print(' * maximum sequence length. source = %d; target = %d' %
+    #                     (trainData.maxSourceLength, trainData.maxTargetLength))
+    print(' * number of training sentences. %d' % len(trainData))
+    print(' * maximum batch size. %d' % opt.max_batch_size)
 
-    if not opt.json_log:
-        print('Building model...')
 
-    model = {}
-    if checkpoint.models:
-        encoder = onmt.Models.loadEncoder(checkpoint.models.encoder, idx > 1)
-        decoder = onmt.Models.loadDecoder(checkpoint.models.decoder, idx > 1)
+    print('Building model...')
+
+    if 'model' in checkpoint:
+        model = checkpoint['model']
     else:
-        encoder = onmt.Models.buildEncoder(opt, dataset.dicts.src)
-        decoder = onmt.Models.buildDecoder(opt, dataset.dicts.tgt, not opt.json_log)
+        encoder = onmt.Models.Encoder(opt, dataset['dicts']['src'])
+        decoder = onmt.Models.Decoder(opt, dataset['dicts']['tgt'])
+        model = onmt.Models.Translator(encoder, decoder)
 
-    model = nn.Sequential(encoder, decoder)
-
-    trainModel(model, trainData, validData, dataset, checkpoint.info)
+    trainModel(model, trainData, validData, dataset)
 
 if __name__ == "__main__":
     main()

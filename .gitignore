@@ -1,2 +1,8 @@
 mnist/data
+dcgan/data
 *.pyc
+*.pt
+*.out
+*.log
+*.dict
+*/old

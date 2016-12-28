@@ -122,7 +122,7 @@ class Dict(object):
         if eosWord is not None:
             vec += [self.lookup(eosWord)]
 
-        return torch.IntTensor(vec)
+        return torch.LongTensor(vec)
 
 
     #" Convert `idx` to labels. If index `stop` is reached, convert it and return. "

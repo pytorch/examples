@@ -16,3 +16,6 @@
 # require('onmt.modules.FeaturesGenerator')
 #
 # return onmt
+
+from onmt.modules.GlobalAttention import GlobalAttention
+from onmt.modules.Generator import Generator

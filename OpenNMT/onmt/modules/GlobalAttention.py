@@ -27,7 +27,7 @@ class GlobalAttention(nn.Container):
     def __init__(self, dim):
         super(GlobalAttention, self).__init__(
             linear_in=nn.Linear(dim, dim, bias=False),
-            sm=nn.SoftMax(),
+            sm=nn.Softmax(),
             linear_out=nn.Linear(dim*2, dim, bias=False),
             tanh=nn.Tanh(),
         )
@@ -37,14 +37,16 @@ class GlobalAttention(nn.Container):
         input: batch x dim
         context: batch x sourceL x dim
         """
-        targetT = self.linear_in(input).unsqueeze(2) # batch x dim x 1
+        targetT = self.linear_in(input).unsqueeze(2)  # batch x dim x 1
 
         # Get attention
-        attn = torch.bmm(context, targetT).squeeze(2) # batch x sourceL
+        attn = torch.bmm(context, targetT).squeeze(2)  # batch x sourceL
+        attn = self.sm(attn)
+        attn = attn.view(attn.size(0), 1, attn.size(1))  # batch x 1 x sourceL
 
-        softmaxAttn = self.sm(attn)
-
-        softmaxAttn = softmaxAttn.view(attn.size(0), 1, attn.size(1)) # batch x 1 x sourceL
-        contextCombined = torch.bmm(attn, context).squeeze(1) # batch x 1 x dim
+        weightedContext = torch.bmm(attn, context).squeeze(1)  # batch x dim
+        contextCombined = torch.cat((weightedContext, input), 1)
 
         contextOutput = self.tanh(self.linear_out(contextCombined))
+
+        return contextOutput
