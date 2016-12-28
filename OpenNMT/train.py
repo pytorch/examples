@@ -71,7 +71,7 @@ parser.add_argument('-pre_word_vecs_dec', help="""If a valid path is specified, 
 ##
 
 # GPU
-parser.add_argument('-gpuid',     type=int, default=-1, help="Which gpu to use (1-indexed). < 1 = use CPU")
+parser.add_argument('-cuda', action='store_true', help="Use CUDA")
 # parser.add_argument('-nparallel', type=int, default=1,  help="""When using GPUs, how many batches to execute in parallel.
 #                             Note. this will technically change the final batch size to max_batch_size*nparallel.""")
 parser.add_argument('-no_nccl', action="store_true", help="Disable usage of nccl in parallel mode.")
@@ -87,6 +87,8 @@ parser.add_argument('-seed',         type=int, default=3435, help="Seed for rand
 
 opt = parser.parse_args()
 
+if torch.cuda.is_available() and not opt.cuda:
+    print("WARNING: You have a CUDA device, so you should probably run with -cuda")
 
 class NMTCriterion(nn.Container):
     def __init__(self, vocabSize, features):
@@ -96,7 +98,10 @@ class NMTCriterion(nn.Container):
         def makeOne(size):
             weight = torch.ones(vocabSize)
             weight[onmt.Constants.PAD] = 0
-            return nn.NLLLoss(weight)
+            crit = nn.NLLLoss(weight)
+            if opt.cuda:
+                crit.cuda()
+            return crit
 
         self.sub += [makeOne(vocabSize)]
         for feature in features:
@@ -232,8 +237,8 @@ def main():
 
     dataset = torch.load(opt.data)
 
-    trainData = onmt.Dataset(dataset['train']['src'], dataset['train']['tgt'], opt.max_batch_size)
-    validData = onmt.Dataset(dataset['valid']['src'], dataset['valid']['tgt'], opt.max_batch_size)
+    trainData = onmt.Dataset(dataset['train']['src'], dataset['train']['tgt'], opt.max_batch_size, opt.cuda)
+    validData = onmt.Dataset(dataset['valid']['src'], dataset['valid']['tgt'], opt.max_batch_size, opt.cuda)
 
     print(' * vocabulary size. source = %d; target = %d' %
             (dataset['dicts']['src']['words'].size(), dataset['dicts']['tgt']['words'].size()))
@@ -253,6 +258,9 @@ def main():
         encoder = onmt.Models.Encoder(opt, dataset['dicts']['src'])
         decoder = onmt.Models.Decoder(opt, dataset['dicts']['tgt'])
         model = onmt.Models.Translator(encoder, decoder)
+
+    if opt.cuda:
+        model.cuda()
 
     trainModel(model, trainData, validData, dataset)
 

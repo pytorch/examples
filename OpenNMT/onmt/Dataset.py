@@ -1,11 +1,13 @@
 import onmt
 from torch.autograd import Variable
 
+
 class Dataset(object):
     # FIXME: randomize
-    def __init__(self, srcData, tgtData, batchSize):
+    def __init__(self, srcData, tgtData, batchSize, cuda):
         self.src = srcData['words']
         self.tgt = tgtData['words']
+        self.cuda = cuda
         # FIXME
         # self.srcFeatures = srcData.features
         # self.tgtFeatures = tgtData.features
@@ -22,9 +24,17 @@ class Dataset(object):
 
     def __getitem__(self, index):
         srcBatch = self._batchify(
-            self.src[index*self.batchSize:(index+1)*self.batchSize]).t().contiguous()
+            self.src[index*self.batchSize:(index+1)*self.batchSize])
         tgtBatch = self._batchify(
-            self.tgt[index*self.batchSize:(index+1)*self.batchSize]).t().contiguous()
+            self.tgt[index*self.batchSize:(index+1)*self.batchSize])
+
+        if self.cuda:
+            srcBatch = srcBatch.cuda()
+            tgtBatch = tgtBatch.cuda()
+
+        # FIXME
+        srcBatch = srcBatch.t().contiguous()
+        tgtBatch = tgtBatch.t().contiguous()
 
         return srcBatch, tgtBatch
 

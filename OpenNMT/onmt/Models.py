@@ -107,7 +107,7 @@ class Decoder(nn.Container):
         hidden = (h_0, c_0)
 
         outputs = []
-        for emb_t in emb.chunk(batch_size):
+        for emb_t in emb.chunk(emb.size(0)):
             emb_t = emb_t.squeeze(0)
             if self.input_feed:
                 emb_t = torch.cat([emb_t, output], 1)
