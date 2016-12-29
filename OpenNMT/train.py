@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import math
+import time
 
 parser = argparse.ArgumentParser(description='train.lua')
 
@@ -33,7 +34,7 @@ parser.add_argument('-feat_vec_exponent', type=int, default=0.7, help="""When us
                                                                 then the embedding dimension will be set to N^exponent""")
 parser.add_argument('-feat_vec_size', type=int, default=20, help="When using sum, the common embedding size of the features")
 parser.add_argument('-input_feed', type=int,    default=1,  help="Feed the context vector at each time step as additional input (via concatenation with the word embeddings) to the decoder.")
-parser.add_argument('-residual',   action="store_true",     help="Add residual connections between RNN layers.")
+# parser.add_argument('-residual',   action="store_true",     help="Add residual connections between RNN layers.")
 parser.add_argument('-brnn',       action="store_true",     help="Use a bidirectional encoder")
 parser.add_argument('-brnn_merge', default='concat',        help="Merge action for the bidirectional hidden states: concat or sum")
 
@@ -45,7 +46,8 @@ parser.add_argument('-max_batch_size',  type=int, default=64,  help="Maximum bat
 parser.add_argument('-epochs',          type=int, default=13,  help="Number of training epochs")
 parser.add_argument('-start_epoch',     type=int, default=0,   help="If loading from a checkpoint, the epoch from which to start")
 parser.add_argument('-start_iteration', type=int, default=0,   help="If loading from a checkpoint, the iteration from which to start")
-parser.add_argument('-param_init',      type=int, default=0.1, help="Parameters are initialized over uniform distribution with support (-param_init, param_init)")
+# this gives really bad initialization; Xavier better
+# parser.add_argument('-param_init',      type=int, default=0.1, help="Parameters are initialized over uniform distribution with support (-param_init, param_init)")
 parser.add_argument('-optim', default='sgd', help="Optimization method. Possible options are: sgd, adagrad, adadelta, adam")
 parser.add_argument('-learning_rate', type=int, default=1, help="""Starting learning rate. If adagrad/adadelta/adam is used,
                                 then this is the global learning rate. Recommed settings. sgd =1,
@@ -74,15 +76,12 @@ parser.add_argument('-pre_word_vecs_dec', help="""If a valid path is specified, 
 parser.add_argument('-cuda', action='store_true', help="Use CUDA")
 # parser.add_argument('-nparallel', type=int, default=1,  help="""When using GPUs, how many batches to execute in parallel.
 #                             Note. this will technically change the final batch size to max_batch_size*nparallel.""")
-parser.add_argument('-no_nccl', action="store_true", help="Disable usage of nccl in parallel mode.")
-parser.add_argument('-disable_mem_optimization', action="store_true", help="""Disable sharing internal of internal buffers between clones - which is in general safe,
-                                                except if you want to look inside clones for visualization purpose for instance.""")
 
 # bookkeeping
-parser.add_argument('-save_every', type=int, default=0, help="""Save intermediate models every this many iterations within an epoch.
-                             If = 0, will not save models within an epoch. """)
+# parser.add_argument('-save_every', type=int, default=0, help="""Save intermediate models every this many iterations within an epoch.
+#                              If = 0, will not save models within an epoch. """)
 parser.add_argument('-report_every', type=int, default=50,   help="Print stats every this many iterations within an epoch.")
-parser.add_argument('-seed',         type=int, default=3435, help="Seed for random initialization")
+# parser.add_argument('-seed',         type=int, default=3435, help="Seed for random initialization")
 # parser.add_argument('-json_log', action="store_true", help="Outputs logs in JSON format.")
 
 opt = parser.parse_args()
@@ -98,7 +97,7 @@ class NMTCriterion(nn.Container):
         def makeOne(size):
             weight = torch.ones(vocabSize)
             weight[onmt.Constants.PAD] = 0
-            crit = nn.NLLLoss(weight)
+            crit = nn.NLLLoss(weight, size_average=False)
             if opt.cuda:
                 crit.cuda()
             return crit
@@ -120,22 +119,26 @@ class NMTCriterion(nn.Container):
 
 
 def eval(model, criterion, data):
-    loss = 0
+    total_loss = 0
+    total_words = 0
 
     model.eval()
-    for src, tgt in data:
-        outputs = model.forward(src)
-        loss = criterion.forward(outputs, tgt)
+    for i in range(len(data)):
+        batch = data[i]
+        outputs = model(batch)
+        loss = criterion(outputs, batch[1])
+        total_loss += loss.data[0]
+        total_words += batch[1].data.gt(onmt.Constants.EOS).sum()
 
     model.train()
-    return math.exp(loss / data.len)
+    return total_loss / total_words
 
 
 def trainModel(model, trainData, validData, dataset):
     print(model)
     model.train()
-    for p in model.parameters():
-        p.data.uniform_(-opt.param_init, opt.param_init)
+    # for p in model.parameters():
+    #     p.data.uniform_(-opt.param_init, opt.param_init)
 
     # define criterion of each GPU
     criterion = NMTCriterion(dataset['dicts']['tgt']['words'].size(),
@@ -149,7 +152,7 @@ def trainModel(model, trainData, validData, dataset):
 
     # checkpoint = onmt.train.Checkpoint.new(opt, model, optim, dataset)
 
-    def trainEpoch(epoch, lastValidPpl):
+    def trainEpoch(epoch):
 
         startI = opt.start_iteration
 
@@ -157,45 +160,48 @@ def trainModel(model, trainData, validData, dataset):
         batchOrder = torch.randperm(len(trainData))
 
         opt.start_iteration = 1
-        ii = 1
 
-        total_loss = 0
+        total_loss, report_loss = 0, 0
+        total_words, report_words = 0, 0
+        start = time.time()
         for i in range(startI, len(trainData)):
 
-            batchIdx = batchOrder[i]
-            if epoch <= opt.curriculum:
-                batchIdx = i
-
+            batchIdx = batchOrder[i] if epoch >= opt.curriculum else i
             batch = trainData[batchIdx]
 
             model.zero_grad()
             outputs = model(batch)
             loss = criterion(outputs, batch[1])
-            total_loss += loss.data[0]
+            torch.cuda.synchronize
             loss.backward()
 
             # update the parameters
             optim.step(model.parameters(), opt.max_grad_norm)
 
-            if ii % opt.report_every == 0:
-                print("Done %d batches; avg loss: %g" %
-                      (ii, total_loss / opt.report_every))
-                total_loss = 0
+            report_loss += loss.data[0]
+            total_loss += loss.data[0]
+            num_words = batch[1].data.gt(onmt.Constants.EOS).sum()
+            total_words += num_words
+            report_words += num_words
+            if i % opt.report_every == 0 and i > 0:
+                print("Done %d/%d batches; %d words; avg loss: %g; %.2g s/batch" %
+                      (i, len(trainData), report_words, report_loss / report_words, (time.time()-start)/i))
+                report_loss = report_words = 0
 
             # if opt.save_every > 0 and ii % opt.save_every == 0:
             #     checkpoint.saveIteration(ii, epochState, batchOrder, not opt.json_log)
 
-            ii += 1
-        return epochState
+        return total_loss / total_words
 
-    validPpl = 0
     for epoch in range(opt.start_epoch, opt.epochs):
         print('')
-        epochState = trainEpoch(epoch, validPpl)
-        validPpl = eval(model, criterion, validData)
-        print('Validation perplexity. ' + validPpl)
+        train_loss = trainEpoch(epoch)
+        print('Train loss: %g' % train_loss)
+        print('Train perplexity: %g' % math.exp(min(train_loss, 100)))
+        valid_loss = eval(model, criterion, validData)
+        print('Validation perplexity: %g' % math.exp(min(valid_loss, 100)))
         if opt.optim == 'sgd':
-            optim.updateLearningRate(validPpl, epoch)
+            optim.updateLearningRate(valid_loss, epoch)
 
         # checkpoint.saveEpoch(validPpl, epochState, not opt.json_log)
 
@@ -257,7 +263,7 @@ def main():
     else:
         encoder = onmt.Models.Encoder(opt, dataset['dicts']['src'])
         decoder = onmt.Models.Decoder(opt, dataset['dicts']['tgt'])
-        model = onmt.Models.Translator(encoder, decoder)
+        model = onmt.Models.NMTModel(encoder, decoder)
 
     if opt.cuda:
         model.cuda()

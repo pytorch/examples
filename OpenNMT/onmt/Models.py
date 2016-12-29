@@ -23,7 +23,9 @@ class Encoder(nn.Container):
             inputSize = inputSize + feat_lut.outputSize
 
         super(Encoder, self).__init__(
-            word_lut=nn.Embedding(dicts['words'].size(), opt.word_vec_size),
+            word_lut=nn.Embedding(dicts['words'].size(),
+                                  opt.word_vec_size,
+                                  padding_idx=onmt.Constants.PAD),
             rnn=nn.LSTM(inputSize, opt.rnnSize,
                         num_layers=opt.layers,
                         dropout=opt.dropout,
@@ -47,9 +49,11 @@ class Encoder(nn.Container):
             emb = self.word_lut(input)
 
         batch_size = emb.size(1)
-        h_0 = Variable(emb.data.new(self.layers, batch_size, self.hidden_size),
+        h_0 = Variable(emb.data.new(
+                           self.layers, batch_size, self.hidden_size).zero_(),
                        requires_grad=False)
-        c_0 = Variable(emb.data.new(self.layers, batch_size, self.hidden_size),
+        c_0 = Variable(emb.data.new(
+                           self.layers, batch_size, self.hidden_size).zero_(),
                        requires_grad=False)
         outputs, _ = self.rnn(emb, (h_0, c_0))
         return outputs
@@ -71,7 +75,9 @@ class Decoder(nn.Container):
             input_size = input_size + feat_lut.outputSize
 
         super(Decoder, self).__init__(
-            word_lut=nn.Embedding(dicts['words'].size(), opt.word_vec_size),
+            word_lut=nn.Embedding(dicts['words'].size(),
+                                  opt.word_vec_size,
+                                  padding_idx=onmt.Constants.PAD),
             rnn=nn.LSTMCell(input_size, opt.rnnSize),
             attn=onmt.modules.GlobalAttention(opt.rnnSize),
             dropout=nn.Dropout(opt.dropout),
@@ -100,9 +106,9 @@ class Decoder(nn.Container):
 
         output = Variable(emb.data.new(batch_size, self.hidden_size).zero_(),
                           requires_grad=False)
-        h_0 = Variable(emb.data.new(batch_size, self.hidden_size),
+        h_0 = Variable(emb.data.new(batch_size, self.hidden_size).zero_(),
                        requires_grad=False)
-        c_0 = Variable(emb.data.new(batch_size, self.hidden_size),
+        c_0 = Variable(emb.data.new(batch_size, self.hidden_size).zero_(),
                        requires_grad=False)
         hidden = (h_0, c_0)
 
@@ -124,10 +130,10 @@ class Decoder(nn.Container):
         return pred
 
 
-class Translator(nn.Container):
+class NMTModel(nn.Container):
 
     def __init__(self, enc, dec):
-        super(Translator, self).__init__(
+        super(NMTModel, self).__init__(
             enc=enc,
             dec=dec
         )

@@ -148,13 +148,12 @@ def makeData(srcFile, tgtFile, srcDicts, tgtDicts):
         srcTokens = srcF.readline().split()
         tgtTokens = tgtF.readline().split()
 
-        if srcTokens is None or tgtTokens is None:
-            if srcTokens is None and tgtTokens is not None or srcTokens is not None and tgtTokens is not None:
+        if not srcTokens or not tgtTokens:
+            if srcTokens and not tgtTokens or not srcTokens and tgtTokens:
                 print('WARNING. source and target do not have the same number of sentences')
             break
 
-        if (len(srcTokens) > 0 and len(srcTokens) <= opt.seq_length and
-            len(tgtTokens) > 0 and len(tgtTokens) <= opt.seq_length):
+        if len(srcTokens) <= opt.seq_length and len(tgtTokens) <= opt.seq_length:
 
             srcWords, srcFeats = onmt.utils.Features.extract(srcTokens)
             tgtWords, tgtFeats = onmt.utils.Features.extract(tgtTokens)

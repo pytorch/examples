@@ -4,6 +4,7 @@ import torch.optim as optim
 class Optim(object):
 
     def _makeOptimizer(self):
+        #print(list(self.params))
         if self.method == 'sgd':
             self.optimizer = optim.SGD(self.params, lr=self.lr)
         elif self.method == 'adagrad':
@@ -16,12 +17,13 @@ class Optim(object):
             raise RuntimeError("Invalid optim method: " + self.method)
 
     def __init__(self, params, method, lr, lr_decay=1, start_decay_at=None):
-        self.params = params
+        self.params = list(params)
         self.last_ppl = None
         self.lr = lr
         self.method = method
         self.lr_decay = lr_decay
         self.start_decay_at = start_decay_at
+        self.start_decay = False
 
         self._makeOptimizer()
 

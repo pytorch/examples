@@ -23,6 +23,7 @@ class Dataset(object):
         return Variable(out)
 
     def __getitem__(self, index):
+        assert index < self.numBatches, "%d > %d" % (index, self.numBatches)
         srcBatch = self._batchify(
             self.src[index*self.batchSize:(index+1)*self.batchSize])
         tgtBatch = self._batchify(
