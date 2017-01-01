@@ -139,6 +139,8 @@ class NMTModel(nn.Container):
         )
 
     def forward(self, input):
-        context = self.enc(input[0])
-        out = self.dec(input[1], context)
+        src = input[0]
+        tgt = input[1][:-1] # exclude </s> from target inputs
+        context = self.enc(src)
+        out = self.dec(tgt, context)
         return out

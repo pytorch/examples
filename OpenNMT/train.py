@@ -20,7 +20,7 @@ parser.add_argument('-data', help="Path to the training *-train.pt file from pre
 parser.add_argument('-save_model', help="""Model filename (the model will be saved as
                               <save_model>_epochN_PPL.pt where PPL is the validation perplexity""")
 parser.add_argument('-train_from', help="If training from a checkpoint then this is the path to the pretrained model.")
-parser.add_argument('-cont', action="store_true", help="If training from a checkpoint, whether to continue the training in the same configuration or not.")
+# parser.add_argument('-cont', action="store_true", help="If training from a checkpoint, whether to continue the training in the same configuration or not.")
 
 ##
 ## **Model options**
@@ -45,7 +45,7 @@ parser.add_argument('-brnn_merge', default='concat',        help="Merge action f
 parser.add_argument('-max_batch_size',  type=int, default=64,  help="Maximum batch size")
 parser.add_argument('-epochs',          type=int, default=13,  help="Number of training epochs")
 parser.add_argument('-start_epoch',     type=int, default=0,   help="If loading from a checkpoint, the epoch from which to start")
-parser.add_argument('-start_iteration', type=int, default=0,   help="If loading from a checkpoint, the iteration from which to start")
+# parser.add_argument('-start_iteration', type=int, default=0,   help="If loading from a checkpoint, the iteration from which to start")
 # this gives really bad initialization; Xavier better
 # parser.add_argument('-param_init',      type=int, default=0.1, help="Parameters are initialized over uniform distribution with support (-param_init, param_init)")
 parser.add_argument('-optim', default='sgd', help="Optimization method. Possible options are: sgd, adagrad, adadelta, adam")
@@ -57,7 +57,7 @@ parser.add_argument('-dropout',             type=int, default=0.3, help="Dropout
 parser.add_argument('-learning_rate_decay', type=int, default=0.5, help="""Decay learning rate by this much if (i) perplexity does not decrease
                                         on the validation set or (ii) epoch has gone past the start_decay_at_limit""")
 parser.add_argument('-start_decay_at', default=8, help="Start decay after this epoch")
-parser.add_argument('-curriculum', type=int, default=0, help="""For this many epochs, order the minibatches based on source
+parser.add_argument('-curriculum', action="store_true", help="""For this many epochs, order the minibatches based on source
                              sequence length. Sometimes setting this to 1 will increase convergence speed.""")
 parser.add_argument('-pre_word_vecs_enc', help="""If a valid path is specified, then this will load
                                      pretrained word embeddings on the encoder side.
@@ -107,11 +107,12 @@ class NMTCriterion(nn.Container):
             self.sub += [makeOne(features.size())]
 
     def forward(self, inputs, targets):
+        targets = targets[1:]  # don't predict BOS
         if len(self.sub) == 1:
             batch_size = targets.nelement()
             return self.sub[0](inputs.view(batch_size, -1), targets.view(batch_size))
         else:
-            assert(False)
+            assert False, "FIXME: features"
             loss = Variable(inputs.new(1).zero_())
             for sub, input, target in zip(self.sub, inputs, targets):
                 loss += sub(input, target)
@@ -145,7 +146,7 @@ def trainModel(model, trainData, validData, dataset):
                              dataset['dicts']['tgt']['features'])
 
     optim = onmt.Optim(
-        model.parameters(), opt.optim, opt.learning_rate,
+        model.parameters(), opt.optim, opt.learning_rate, opt.max_grad_norm,
         lr_decay=opt.learning_rate_decay,
         start_decay_at=opt.start_decay_at
     )
@@ -155,11 +156,10 @@ def trainModel(model, trainData, validData, dataset):
     def trainEpoch(epoch):
 
         startI = opt.start_iteration
-
-        # shuffle mini batch order
-        batchOrder = torch.randperm(len(trainData))
-
         opt.start_iteration = 1
+
+        #shuffle mini batch order
+        batchOrder = torch.randperm(len(trainData))
 
         total_loss, report_loss = 0, 0
         total_words, report_words = 0, 0
@@ -176,7 +176,7 @@ def trainModel(model, trainData, validData, dataset):
             loss.backward()
 
             # update the parameters
-            optim.step(model.parameters(), opt.max_grad_norm)
+            grad_norm = optim.step()
 
             report_loss += loss.data[0]
             total_loss += loss.data[0]
@@ -184,9 +184,10 @@ def trainModel(model, trainData, validData, dataset):
             total_words += num_words
             report_words += num_words
             if i % opt.report_every == 0 and i > 0:
-                print("Done %d/%d batches; %d words; avg loss: %g; %.2g s/batch" %
-                      (i, len(trainData), report_words, report_loss / report_words, (time.time()-start)/i))
+                print("Epoch %2d, %5d/%5d batches; grad norm: %4.4g; perplexity: %6.4g; %3.0f tokens/s" %
+                      (epoch, i, len(trainData), grad_norm / opt.report_every, math.exp(report_loss / report_words), report_words/(time.time()-start)))
                 report_loss = report_words = 0
+                start = time.time()
 
             # if opt.save_every > 0 and ii % opt.save_every == 0:
             #     checkpoint.saveIteration(ii, epochState, batchOrder, not opt.json_log)
@@ -243,9 +244,9 @@ def main():
 
     dataset = torch.load(opt.data)
 
+
     trainData = onmt.Dataset(dataset['train']['src'], dataset['train']['tgt'], opt.max_batch_size, opt.cuda)
     validData = onmt.Dataset(dataset['valid']['src'], dataset['valid']['tgt'], opt.max_batch_size, opt.cuda)
-
     print(' * vocabulary size. source = %d; target = %d' %
             (dataset['dicts']['src']['words'].size(), dataset['dicts']['tgt']['words'].size()))
     print(' * additional features. source = %d; target = %d' %

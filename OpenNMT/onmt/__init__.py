@@ -12,7 +12,7 @@
 
 import onmt.Constants
 import onmt.Models
-from onmt.Dataset import Dataset
+from onmt.Dataset import Dataset, collate_data
 from onmt.Optim import Optim
 
 # return onmt
