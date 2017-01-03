@@ -12,6 +12,7 @@ import torch.utils.data
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 
+import alexnet
 import resnet
 
 
@@ -50,10 +51,12 @@ def main():
     args = parser.parse_args()
 
     # create model
+    print("=> creating model '{}'".format(args.arch))
     if args.arch.startswith('resnet'):
-        print("=> creating model '{}'".format(args.arch))
         model = torch.nn.DataParallel(resnet.__dict__[args.arch]())
         model.cuda()
+    elif args.arch == 'alexnet':
+        model = alexnet.alexnet().cuda()
     else:
         parser.error('invalid architecture: {}'.format(args.arch))
 
