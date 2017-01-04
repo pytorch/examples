@@ -1,3 +1,5 @@
+# Not in use; it's for when Features are implemented
+
 class FeaturesEmbeddding(nn.Container):
 
     def __init__(self, dicts, dimExponent, dim, merge):
@@ -15,7 +17,7 @@ class FeaturesEmbeddding(nn.Container):
                 self.outputSize += embSize
 
             lut = nn.LookupTable(vocabSize, embSize)
-            self.luts += []
+            self.luts += [lut]
             self.add_module('lut_%d' % i, lut)
 
     def forward(self, input):

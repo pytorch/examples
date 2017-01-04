@@ -1,5 +1,4 @@
 import onmt
-import onmt.utils
 
 import argparse
 import os
@@ -34,28 +33,35 @@ parser.add_argument('-report_every', type=int, default=100000, help="Report stat
 
 opt = parser.parse_args()
 
-def hasFeatures(filename):
-    with open(filename) as f:
-        print(f.readline())
-        assert(False)
-        _, features = onmt.utils.Features.extract(f.readline())
-        return len(features) > 0
+
+def extract(tokens):
+    if isinstance(tokens, str):
+        tokens = tokens.split()
+    features = None
+    data = [token.split('\|') for token in tokens]
+    words = [d[0] for d in data if d[0] != '']
+    features = [d[1:] for d in data]
+    features = list(zip(*features))
+
+    return words, features
 
 
 def makeVocabulary(filename, size):
-    wordVocab = onmt.utils.Dict(
+    wordVocab = onmt.Dict(
             [onmt.Constants.PAD_WORD, onmt.Constants.UNK_WORD,
              onmt.Constants.BOS_WORD, onmt.Constants.EOS_WORD])
     featuresVocabs = []
 
     with open(filename) as f:
         for sent in f.readlines():
-            words, features = onmt.utils.Features.extract(sent)
+            words, features = extract(sent)
             numFeatures = len(features)
+            assert numFeatures == 0, "Features not implemented"
 
             if len(featuresVocabs) == 0 and numFeatures > 0:
+                error("Features not implemented")
                 for j in range(numFeatures):
-                    featuresVocabs[j] = onmt.utils.Dict(
+                    featuresVocabs[j] = onmt.Dict(
                             {onmt.Constants.PAD_WORD, onmt.Constants.UNK_WORD,
                              onmt.Constants.BOS_WORD, onmt.Constants.EOS_WORD})
             else:
@@ -83,7 +89,7 @@ def initVocabulary(name, dataFile, vocabFile, vocabSize, featuresVocabsFiles):
     if vocabFile is not None:
         # If given, load existing word dictionary.
         print('Reading ' + name + ' vocabulary from \'' + vocabFile + '\'...')
-        wordVocab = onmt.utils.Dict()
+        wordVocab = onmt.Dict()
         wordVocab.loadFile(vocabFile)
         print('Loaded ' + wordVocab.size() + ' ' + name + ' words')
 
@@ -98,7 +104,7 @@ def initVocabulary(name, dataFile, vocabFile, vocabSize, featuresVocabsFiles):
                 break
 
             print("Reading %s feature %d vocabulary from '%s'..." % (name, j, file))
-            featuresVocabs[j] = onmt.utils.Dict()
+            featuresVocabs[j] = onmt.Dict()
             featuresVocabs[j].loadFile(file)
             print('Loaded %d labels' % featuresVocabs[j].size())
 
@@ -155,18 +161,18 @@ def makeData(srcFile, tgtFile, srcDicts, tgtDicts):
 
         if len(srcTokens) <= opt.seq_length and len(tgtTokens) <= opt.seq_length:
 
-            srcWords, srcFeats = onmt.utils.Features.extract(srcTokens)
-            tgtWords, tgtFeats = onmt.utils.Features.extract(tgtTokens)
+            srcWords, srcFeats = extract(srcTokens)
+            tgtWords, tgtFeats = extract(tgtTokens)
 
             src += [srcDicts['words'].convertToIdx(srcWords, onmt.Constants.UNK_WORD)]
             tgt += [tgtDicts['words'].convertToIdx(tgtWords, onmt.Constants.UNK_WORD,
                         onmt.Constants.BOS_WORD, onmt.Constants.EOS_WORD)]
 
             if len(srcDicts['features']) > 0:
-                srcFeatures += [onmt.utils.Features.generateSource(srcDicts['features'], srcFeats)]
+                srcFeatures += [generateSourceFeatures(srcDicts['features'], srcFeats)]
 
             if len(tgtDicts['features']) > 0:
-               tgtFeatures += [onmt.utils.Features.generateTarget(tgtDicts['features'], tgtFeats)]
+               tgtFeatures += [generateTargetFeatures(tgtDicts['features'], tgtFeats)]
 
             sizes += [len(srcWords)]
         else:
@@ -219,7 +225,6 @@ def makeData(srcFile, tgtFile, srcDicts, tgtDicts):
 
 
 def main():
-    onmt.utils.Opt.initConfig(opt)
 
     dicts = {}
     dicts['src'] = initVocabulary('source', opt.train_src, opt.src_vocab,

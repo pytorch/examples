@@ -79,7 +79,8 @@ class Decoder(nn.Container):
             rnn=nn.LSTMCell(input_size, opt.rnn_size),
             attn=onmt.modules.GlobalAttention(opt.rnn_size),
             dropout=nn.Dropout(opt.dropout),
-            generator=onmt.modules.Generator(opt.rnn_size, dicts['words'].size())
+            decoder=nn.Linear(opt.rnn_size, dicts['words'].size()),
+            logsoftmax=nn.LogSoftmax(),
         )
 
         self.hidden_size = self.rnn.weight_hh.data.size(1)
@@ -122,7 +123,7 @@ class Decoder(nn.Container):
             outputs += [output]
 
         outputs = torch.cat(outputs)
-        pred = self.generator(outputs)
+        pred = self.logsoftmax(self.decoder(outputs))
         return pred
 
 

@@ -1,5 +1,4 @@
 import onmt
-import onmt.utils
 import argparse
 import os
 import torch
@@ -209,10 +208,9 @@ def trainModel(model, trainData, validData, dataset):
 
 
 def main():
-    onmt.utils.Opt.initConfig(opt)
-    # onmt.utils.Cuda.init(opt)
 
     checkpoint = {}
+    assert opt.train_from is None, "FIXME: Load from checkpoint"
     # if opt.train_from is not None:
     #     assert os.path.exists(opt.train_from), 'checkpoint path invalid'
     #
