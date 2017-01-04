@@ -27,7 +27,7 @@ parser.add_argument('-train_from', help="If training from a checkpoint then this
 ##
 
 parser.add_argument('-layers',        type=int, default=2,   help="Number of layers in the LSTM encoder/decoder")
-parser.add_argument('-rnnSize',       type=int, default=500, help="Size of LSTM hidden states")
+parser.add_argument('-rnn_size',       type=int, default=500, help="Size of LSTM hidden states")
 parser.add_argument('-word_vec_size', type=int, default=500, help="Word embedding sizes")
 parser.add_argument('-feat_merge', default='concat', help="Merge action for the features embeddings: concat or sum")
 parser.add_argument('-feat_vec_exponent', type=int, default=0.7, help="""When using concatenation, if the feature takes N values
@@ -45,14 +45,14 @@ parser.add_argument('-brnn_merge', default='concat',        help="Merge action f
 parser.add_argument('-max_batch_size',  type=int, default=64,  help="Maximum batch size")
 parser.add_argument('-epochs',          type=int, default=13,  help="Number of training epochs")
 parser.add_argument('-start_epoch',     type=int, default=0,   help="If loading from a checkpoint, the epoch from which to start")
-# parser.add_argument('-start_iteration', type=int, default=0,   help="If loading from a checkpoint, the iteration from which to start")
+parser.add_argument('-start_iteration', type=int, default=0,   help="If loading from a checkpoint, the iteration from which to start")
 # this gives really bad initialization; Xavier better
-# parser.add_argument('-param_init',      type=int, default=0.1, help="Parameters are initialized over uniform distribution with support (-param_init, param_init)")
+parser.add_argument('-param_init',      type=int, default=0.1, help="Parameters are initialized over uniform distribution with support (-param_init, param_init)")
 parser.add_argument('-optim', default='sgd', help="Optimization method. Possible options are: sgd, adagrad, adadelta, adam")
-parser.add_argument('-learning_rate', type=int, default=1, help="""Starting learning rate. If adagrad/adadelta/adam is used,
-                                then this is the global learning rate. Recommed settings. sgd =1,
-                                adagrad = 0.1, adadelta = 1, adam = 0.1""")
-parser.add_argument('-max_grad_norm',       type=int, default=5,   help="If the norm of the gradient vector exceeds this renormalize it to have the norm equal to max_grad_norm")
+parser.add_argument('-learning_rate', type=int, default=0.015, help="""Starting learning rate. If adagrad/adadelta/adam is used,
+                                then this is the global learning rate. Recommed settings. sgd = 1e-2,
+                                adagrad = 1e-3, adadelta = 1e-2, adam = 1e-3""")
+parser.add_argument('-max_grad_norm',       type=int, default=300,   help="If the norm of the gradient vector exceeds this renormalize it to have the norm equal to max_grad_norm")
 parser.add_argument('-dropout',             type=int, default=0.3, help="Dropout probability. Dropout is applied between vertical LSTM stacks.")
 parser.add_argument('-learning_rate_decay', type=int, default=0.5, help="""Decay learning rate by this much if (i) perplexity does not decrease
                                         on the validation set or (ii) epoch has gone past the start_decay_at_limit""")
@@ -85,6 +85,7 @@ parser.add_argument('-report_every', type=int, default=50,   help="Print stats e
 # parser.add_argument('-json_log', action="store_true", help="Outputs logs in JSON format.")
 
 opt = parser.parse_args()
+print(opt)
 
 if torch.cuda.is_available() and not opt.cuda:
     print("WARNING: You have a CUDA device, so you should probably run with -cuda")
@@ -109,8 +110,8 @@ class NMTCriterion(nn.Container):
     def forward(self, inputs, targets):
         targets = targets[1:]  # don't predict BOS
         if len(self.sub) == 1:
-            batch_size = targets.nelement()
-            return self.sub[0](inputs.view(batch_size, -1), targets.view(batch_size))
+            total_size = targets.nelement()
+            return self.sub[0](inputs.view(total_size, -1), targets.view(total_size))
         else:
             assert False, "FIXME: features"
             loss = Variable(inputs.new(1).zero_())
@@ -129,7 +130,7 @@ def eval(model, criterion, data):
         outputs = model(batch)
         loss = criterion(outputs, batch[1])
         total_loss += loss.data[0]
-        total_words += batch[1].data.gt(onmt.Constants.EOS).sum()
+        total_words += batch[1].data[1:].ne(onmt.Constants.PAD).sum()
 
     model.train()
     return total_loss / total_words
@@ -138,8 +139,8 @@ def eval(model, criterion, data):
 def trainModel(model, trainData, validData, dataset):
     print(model)
     model.train()
-    # for p in model.parameters():
-    #     p.data.uniform_(-opt.param_init, opt.param_init)
+    for p in model.parameters():
+        p.data.uniform_(-opt.param_init, opt.param_init)
 
     # define criterion of each GPU
     criterion = NMTCriterion(dataset['dicts']['tgt']['words'].size(),
@@ -158,7 +159,7 @@ def trainModel(model, trainData, validData, dataset):
         startI = opt.start_iteration
         opt.start_iteration = 1
 
-        #shuffle mini batch order
+        # shuffle mini batch order
         batchOrder = torch.randperm(len(trainData))
 
         total_loss, report_loss = 0, 0
@@ -172,7 +173,7 @@ def trainModel(model, trainData, validData, dataset):
             model.zero_grad()
             outputs = model(batch)
             loss = criterion(outputs, batch[1])
-            torch.cuda.synchronize
+
             loss.backward()
 
             # update the parameters
@@ -180,12 +181,12 @@ def trainModel(model, trainData, validData, dataset):
 
             report_loss += loss.data[0]
             total_loss += loss.data[0]
-            num_words = batch[1].data.gt(onmt.Constants.EOS).sum()
+            num_words = batch[1].data[1:].ne(onmt.Constants.PAD).sum()
             total_words += num_words
             report_words += num_words
             if i % opt.report_every == 0 and i > 0:
-                print("Epoch %2d, %5d/%5d batches; grad norm: %4.4g; perplexity: %6.4g; %3.0f tokens/s" %
-                      (epoch, i, len(trainData), grad_norm / opt.report_every, math.exp(report_loss / report_words), report_words/(time.time()-start)))
+                print("Epoch %2d, %5d/%5d batches; perplexity: %6.4g; %3.0f tokens/s" %
+                      (epoch, i, len(trainData), math.exp(report_loss / report_words), report_words/(time.time()-start)))
                 report_loss = report_words = 0
                 start = time.time()
 
@@ -244,18 +245,14 @@ def main():
 
     dataset = torch.load(opt.data)
 
-
     trainData = onmt.Dataset(dataset['train']['src'], dataset['train']['tgt'], opt.max_batch_size, opt.cuda)
     validData = onmt.Dataset(dataset['valid']['src'], dataset['valid']['tgt'], opt.max_batch_size, opt.cuda)
     print(' * vocabulary size. source = %d; target = %d' %
             (dataset['dicts']['src']['words'].size(), dataset['dicts']['tgt']['words'].size()))
     print(' * additional features. source = %d; target = %d' %
             (len(dataset['dicts']['src']['features']), len(dataset['dicts']['tgt']['features'])))
-    # print(' * maximum sequence length. source = %d; target = %d' %
-    #                     (trainData.maxSourceLength, trainData.maxTargetLength))
-    print(' * number of training sentences. %d' % len(trainData))
+    print(' * number of training sentences. %d' % len(dataset['train']['src']['words']))
     print(' * maximum batch size. %d' % opt.max_batch_size)
-
 
     print('Building model...')
 
@@ -268,6 +265,9 @@ def main():
 
     if opt.cuda:
         model.cuda()
+
+    nParams = sum([p.nelement() for p in model.parameters()])
+    print('* number of parameters: %d' % nParams)
 
     trainModel(model, trainData, validData, dataset)
 

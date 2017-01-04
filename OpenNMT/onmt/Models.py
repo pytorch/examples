@@ -14,19 +14,20 @@ class Encoder(nn.Container):
 
     def __init__(self, opt, dicts):
         self.layers = opt.layers
-        self.hidden_size = opt.rnnSize
+        self.num_directions = 2 if opt.brnn else 1
+        assert opt.rnn_size % self.num_directions == 0
+        self.hidden_size = opt.rnn_size // self.num_directions
         inputSize = opt.word_vec_size
         feat_lut = None
         # Sequences with features.
         if len(dicts['features']) > 0:
             feat_lut = _makeFeatEmbedder(opt, dicts)
             inputSize = inputSize + feat_lut.outputSize
-
         super(Encoder, self).__init__(
             word_lut=nn.Embedding(dicts['words'].size(),
                                   opt.word_vec_size,
                                   padding_idx=onmt.Constants.PAD),
-            rnn=nn.LSTM(inputSize, opt.rnnSize,
+            rnn=nn.LSTM(inputSize, self.hidden_size,
                         num_layers=opt.layers,
                         dropout=opt.dropout,
                         bidirectional=opt.brnn)
@@ -49,12 +50,9 @@ class Encoder(nn.Container):
             emb = self.word_lut(input)
 
         batch_size = emb.size(1)
-        h_0 = Variable(emb.data.new(
-                           self.layers, batch_size, self.hidden_size).zero_(),
-                       requires_grad=False)
-        c_0 = Variable(emb.data.new(
-                           self.layers, batch_size, self.hidden_size).zero_(),
-                       requires_grad=False)
+        h_size = (self.layers * self.num_directions, batch_size, self.hidden_size)
+        h_0 = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
+        c_0 = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
         outputs, _ = self.rnn(emb, (h_0, c_0))
         return outputs
 
@@ -66,7 +64,7 @@ class Decoder(nn.Container):
         self.input_feed = opt.input_feed
         input_size = opt.word_vec_size
         if self.input_feed:
-            input_size += opt.rnnSize
+            input_size += opt.rnn_size
 
         feat_lut = None
         # Sequences with features.
@@ -78,10 +76,10 @@ class Decoder(nn.Container):
             word_lut=nn.Embedding(dicts['words'].size(),
                                   opt.word_vec_size,
                                   padding_idx=onmt.Constants.PAD),
-            rnn=nn.LSTMCell(input_size, opt.rnnSize),
-            attn=onmt.modules.GlobalAttention(opt.rnnSize),
+            rnn=nn.LSTMCell(input_size, opt.rnn_size),
+            attn=onmt.modules.GlobalAttention(opt.rnn_size),
             dropout=nn.Dropout(opt.dropout),
-            generator=onmt.modules.Generator(opt.rnnSize, dicts['words'].size())
+            generator=onmt.modules.Generator(opt.rnn_size, dicts['words'].size())
         )
 
         self.hidden_size = self.rnn.weight_hh.data.size(1)
@@ -104,12 +102,10 @@ class Decoder(nn.Container):
 
         batch_size = input.size(1)
 
-        output = Variable(emb.data.new(batch_size, self.hidden_size).zero_(),
-                          requires_grad=False)
-        h_0 = Variable(emb.data.new(batch_size, self.hidden_size).zero_(),
-                       requires_grad=False)
-        c_0 = Variable(emb.data.new(batch_size, self.hidden_size).zero_(),
-                       requires_grad=False)
+        h_size = (batch_size, self.hidden_size)
+        output = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
+        h_0 = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
+        c_0 = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
         hidden = (h_0, c_0)
 
         outputs = []
@@ -140,7 +136,7 @@ class NMTModel(nn.Container):
 
     def forward(self, input):
         src = input[0]
-        tgt = input[1][:-1] # exclude </s> from target inputs
+        tgt = input[1][:-1] # exclude last target from inputs
         context = self.enc(src)
         out = self.dec(tgt, context)
         return out
