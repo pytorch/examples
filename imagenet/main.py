@@ -11,9 +11,7 @@ import torch.optim
 import torch.utils.data
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
-
-import alexnet
-import resnet
+import torchvision.models as models
 
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
@@ -40,8 +38,10 @@ parser.add_argument('--print-freq', '-p', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
-parser.add_argument('-e', '--evaluate', type=str, metavar='FILE',
-                    help='evaluate model FILE on validation set')
+parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
+                    help='evaluate model on validation set')
+parser.add_argument('--pretrained', dest='pretrained', action='store_true',
+                    help='use pre-trained model')
 
 best_prec1 = 0
 
@@ -50,25 +50,25 @@ def main():
     global args, best_prec1
     args = parser.parse_args()
 
-    # create model
-    print("=> creating model '{}'".format(args.arch))
-    if args.arch.startswith('resnet'):
-        model = torch.nn.DataParallel(resnet.__dict__[args.arch]())
-        model.cuda()
-    elif args.arch == 'alexnet':
-        model = alexnet.alexnet().cuda()
-    else:
+    if args.arch not in models.__dict__:
         parser.error('invalid architecture: {}'.format(args.arch))
 
+    # create model
+    if args.pretrained:
+        print("=> using pre-trained model '{}'".format(args.arch))
+        model = models.__dict__[args.arch](pretrained=True)
+    else:
+        print("=> creating model '{}'".format(args.arch))
+        model = models.__dict__[args.arch]()
+
+    if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
+        model.features = torch.nn.DataParallel(model.features)
+        model.cuda()
+    else:
+        model = torch.nn.DataParallel(model).cuda()
+
     # optionally resume from a checkpoint
-    if args.evaluate:
-        if not os.path.isfile(args.evaluate):
-            parser.error('invalid checkpoint: {}'.format(args.evaluate))
-        checkpoint = torch.load(args.evaluate)
-        model.load_state_dict(checkpoint['state_dict'])
-        print("=> loaded checkpoint '{}' (epoch {})"
-              .format(args.evaluate, checkpoint['epoch']))
-    elif args.resume:
+    if args.resume:
         if os.path.isfile(args.resume):
             print("=> loading checkpoint '{}'".format(args.resume))
             checkpoint = torch.load(args.resume)
