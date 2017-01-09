@@ -23,6 +23,7 @@ class Encoder(nn.Container):
         if len(dicts['features']) > 0:
             feat_lut = _makeFeatEmbedder(opt, dicts)
             inputSize = inputSize + feat_lut.outputSize
+
         super(Encoder, self).__init__(
             word_lut=nn.Embedding(dicts['words'].size(),
                                   opt.word_vec_size,
@@ -32,6 +33,9 @@ class Encoder(nn.Container):
                         dropout=opt.dropout,
                         bidirectional=opt.brnn)
         )
+
+        # self.rnn.bias_ih_l0.data.div_(2)
+        # self.rnn.bias_hh_l0.data.copy_(self.rnn.bias_ih_l0.data)
 
         if opt.pre_word_vecs_enc is not None:
             pretrained = torch.load(opt.pre_word_vecs_enc)
@@ -53,8 +57,9 @@ class Encoder(nn.Container):
         h_size = (self.layers * self.num_directions, batch_size, self.hidden_size)
         h_0 = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
         c_0 = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
-        outputs, _ = self.rnn(emb, (h_0, c_0))
-        return outputs
+        hidden_0 = (h_0, c_0)
+        outputs, hidden_t = self.rnn(emb, hidden_0)
+        return hidden_t, outputs
 
 
 class Decoder(nn.Container):
@@ -83,6 +88,9 @@ class Decoder(nn.Container):
             logsoftmax=nn.LogSoftmax(),
         )
 
+        # self.rnn.bias_ih.data.div_(2)
+        # self.rnn.bias_hh.data.copy_(self.rnn.bias_ih.data)
+
         self.hidden_size = self.rnn.weight_hh.data.size(1)
 
         if opt.pre_word_vecs_enc is not None:
@@ -93,7 +101,7 @@ class Decoder(nn.Container):
         if self.has_features:
             self.add_module('feat_lut', feat_lut)
 
-    def forward(self, input, context):
+    def forward(self, input, enc_hidden, context):
         if self.has_features:
             word_emb = self.word_lut(input[0])
             feat_emb = self.feat_lut(input[1])
@@ -105,11 +113,13 @@ class Decoder(nn.Container):
 
         h_size = (batch_size, self.hidden_size)
         output = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
-        h_0 = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
-        c_0 = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
-        hidden = (h_0, c_0)
+        # h_0 = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
+        # c_0 = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
+        # hidden = (h_0, c_0)
+        hidden = enc_hidden
 
         outputs = []
+        hidden = (hidden[0].squeeze(0), hidden[1].squeeze(0))
         for emb_t in emb.chunk(emb.size(0)):
             emb_t = emb_t.squeeze(0)
             if self.input_feed:
@@ -138,6 +148,6 @@ class NMTModel(nn.Container):
     def forward(self, input):
         src = input[0]
         tgt = input[1][:-1] # exclude last target from inputs
-        context = self.enc(src)
-        out = self.dec(tgt, context)
+        enc_hidden, context = self.enc(src)
+        out = self.dec(tgt, enc_hidden, context)
         return out

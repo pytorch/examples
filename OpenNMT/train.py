@@ -29,7 +29,7 @@ parser.add_argument('-layers',        type=int, default=2,   help="Number of lay
 parser.add_argument('-rnn_size',       type=int, default=500, help="Size of LSTM hidden states")
 parser.add_argument('-word_vec_size', type=int, default=500, help="Word embedding sizes")
 parser.add_argument('-feat_merge', default='concat', help="Merge action for the features embeddings: concat or sum")
-parser.add_argument('-feat_vec_exponent', type=int, default=0.7, help="""When using concatenation, if the feature takes N values
+parser.add_argument('-feat_vec_exponent', type=float, default=0.7, help="""When using concatenation, if the feature takes N values
                                                                 then the embedding dimension will be set to N^exponent""")
 parser.add_argument('-feat_vec_size', type=int, default=20, help="When using sum, the common embedding size of the features")
 parser.add_argument('-input_feed', type=int,    default=1,  help="Feed the context vector at each time step as additional input (via concatenation with the word embeddings) to the decoder.")
@@ -46,14 +46,14 @@ parser.add_argument('-epochs',          type=int, default=13,  help="Number of t
 parser.add_argument('-start_epoch',     type=int, default=0,   help="If loading from a checkpoint, the epoch from which to start")
 parser.add_argument('-start_iteration', type=int, default=0,   help="If loading from a checkpoint, the iteration from which to start")
 # this gives really bad initialization; Xavier better
-parser.add_argument('-param_init',      type=int, default=0.1, help="Parameters are initialized over uniform distribution with support (-param_init, param_init)")
+parser.add_argument('-param_init',      type=float, default=0.1, help="Parameters are initialized over uniform distribution with support (-param_init, param_init)")
 parser.add_argument('-optim', default='sgd', help="Optimization method. Possible options are: sgd, adagrad, adadelta, adam")
-parser.add_argument('-learning_rate', type=int, default=0.015, help="""Starting learning rate. If adagrad/adadelta/adam is used,
-                                then this is the global learning rate. Recommed settings. sgd = 1e-2,
-                                adagrad = 1e-3, adadelta = 1e-2, adam = 1e-3""")
-parser.add_argument('-max_grad_norm',       type=int, default=300,   help="If the norm of the gradient vector exceeds this renormalize it to have the norm equal to max_grad_norm")
-parser.add_argument('-dropout',             type=int, default=0.3, help="Dropout probability. Dropout is applied between vertical LSTM stacks.")
-parser.add_argument('-learning_rate_decay', type=int, default=0.5, help="""Decay learning rate by this much if (i) perplexity does not decrease
+parser.add_argument('-learning_rate', type=float, default=1, help="""Starting learning rate. If adagrad/adadelta/adam is used,
+                                then this is the global learning rate. Recommed settings. sgd = 1,
+                                adagrad = 0.1, adadelta = 1, adam = 0.1""")
+parser.add_argument('-max_grad_norm',       type=float, default=5,   help="If the norm of the gradient vector exceeds this renormalize it to have the norm equal to max_grad_norm")
+parser.add_argument('-dropout',             type=float, default=0.3, help="Dropout probability. Dropout is applied between vertical LSTM stacks.")
+parser.add_argument('-learning_rate_decay', type=float, default=0.5, help="""Decay learning rate by this much if (i) perplexity does not decrease
                                         on the validation set or (ii) epoch has gone past the start_decay_at_limit""")
 parser.add_argument('-start_decay_at', default=8, help="Start decay after this epoch")
 parser.add_argument('-curriculum', action="store_true", help="""For this many epochs, order the minibatches based on source
@@ -110,7 +110,8 @@ class NMTCriterion(nn.Container):
         targets = targets[1:]  # don't predict BOS
         if len(self.sub) == 1:
             total_size = targets.nelement()
-            return self.sub[0](inputs.view(total_size, -1), targets.view(total_size))
+            loss = self.sub[0](inputs.view(total_size, -1), targets.view(total_size))
+            return loss
         else:
             assert False, "FIXME: features"
             loss = Variable(inputs.new(1).zero_())
@@ -168,12 +169,35 @@ def trainModel(model, trainData, validData, dataset):
 
             batchIdx = batchOrder[i] if epoch >= opt.curriculum else i
             batch = trainData[batchIdx]
+            # srcData, tgtData = batch
+            # srcDict = dataset['dicts']['src']['words']
+            # tgtDict = dataset['dicts']['tgt']['words']
+            # print(srcData)
+            # for i in range(srcData.size(1)):
+            #     print(' '.join(srcDict.convertToLabels(srcData.data[:,i], onmt.Constants.EOS)))
+            #     print(' '.join(tgtDict.convertToLabels(tgtData.data[:,i], onmt.Constants.EOS)))
+            #     print()
+            # for n, p in model.state_dict().items():
+            #     if n not in norms:
+            #         norms[n] = []
+            #     norms[n] += [p.data.abs().norm()]
+            #     print(n, p.data.abs().norm())
 
             model.zero_grad()
             outputs = model(batch)
             loss = criterion(outputs, batch[1])
 
-            loss.backward()
+            loss.div(batch[1].size(1)).backward()
+
+            # for module in model.modules():
+            #     params = list(module.parameters())
+            #     if not isinstance(module, nn.Container) and len(params) > 0:
+            #         print(module)
+            #         for p in params:
+            #             print('p', p.data.nelement(), p.data.norm())
+            #             print('gp', p.grad.nelement(), p.grad.norm())
+            # assert False
+
 
             # update the parameters
             grad_norm = optim.step()
@@ -184,10 +208,12 @@ def trainModel(model, trainData, validData, dataset):
             total_words += num_words
             report_words += num_words
             if i % opt.report_every == 0 and i > 0:
-                print("Epoch %2d, %5d/%5d batches; perplexity: %6.4g; %3.0f tokens/s" %
+                print("Epoch %2d, %5d/%5d batches; perplexity: %6.2f; %3.0f tokens/s" %
                       (epoch, i, len(trainData), math.exp(report_loss / report_words), report_words/(time.time()-start)))
                 report_loss = report_words = 0
                 start = time.time()
+                # for k,v in norms.items():
+                #     print(k,v)
 
             # if opt.save_every > 0 and ii % opt.save_every == 0:
             #     checkpoint.saveIteration(ii, epochState, batchOrder, not opt.json_log)
