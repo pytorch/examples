@@ -84,8 +84,6 @@ class Decoder(nn.Container):
             rnn=nn.LSTMCell(input_size, opt.rnn_size),
             attn=onmt.modules.GlobalAttention(opt.rnn_size),
             dropout=nn.Dropout(opt.dropout),
-            decoder=nn.Linear(opt.rnn_size, dicts['words'].size()),
-            logsoftmax=nn.LogSoftmax(),
         )
 
         # self.rnn.bias_ih.data.div_(2)
@@ -132,22 +130,29 @@ class Decoder(nn.Container):
             output = self.dropout(output)
             outputs += [output]
 
-        outputs = torch.cat(outputs)
-        pred = self.logsoftmax(self.decoder(outputs))
-        return pred
+        outputs = torch.cat([x.unsqueeze(0) for x in outputs])
+        return outputs
 
 
 class NMTModel(nn.Container):
 
-    def __init__(self, enc, dec):
+    def __init__(self, encoder, decoder, generator):
         super(NMTModel, self).__init__(
-            enc=enc,
-            dec=dec
+            encoder=encoder,
+            decoder=decoder,
+            generator=generator
         )
+        self.generate = False
+
+    def set_generate(self, enabled):
+        self.generate = enabled
 
     def forward(self, input):
         src = input[0]
-        tgt = input[1][:-1] # exclude last target from inputs
-        enc_hidden, context = self.enc(src)
-        out = self.dec(tgt, enc_hidden, context)
+        tgt = input[1][:-1]  # exclude last target from inputs
+        enc_hidden, context = self.encoder(src)
+        out = self.decoder(tgt, enc_hidden, context)
+        if self.generate:
+            out = self.generator(out)
+
         return out

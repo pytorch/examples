@@ -42,6 +42,8 @@ parser.add_argument('-brnn_merge', default='concat',        help="Merge action f
 ##
 
 parser.add_argument('-max_batch_size',  type=int, default=64,  help="Maximum batch size")
+parser.add_argument('-max_generator_batches', type=int, default=16, help="""Maximum batches of words in a sequence to run the generator on in parallel.
+                                                                           Higher is faster, but uses more memory.""")
 parser.add_argument('-epochs',          type=int, default=13,  help="Number of training epochs")
 parser.add_argument('-start_epoch',     type=int, default=0,   help="If loading from a checkpoint, the epoch from which to start")
 parser.add_argument('-start_iteration', type=int, default=0,   help="If loading from a checkpoint, the iteration from which to start")
@@ -107,7 +109,6 @@ class NMTCriterion(nn.Container):
             self.sub += [makeOne(features.size())]
 
     def forward(self, inputs, targets):
-        targets = targets[1:]  # don't predict BOS
         if len(self.sub) == 1:
             total_size = targets.nelement()
             loss = self.sub[0](inputs.view(total_size, -1), targets.view(total_size))
@@ -120,6 +121,26 @@ class NMTCriterion(nn.Container):
             return loss
 
 
+def memoryEfficientLoss(outputs, targets, generator, crit, eval=False):
+    # compute generations one piece at a time
+    loss = 0
+    outputs_rewrapped = Variable(outputs.data, requires_grad=(not eval), volatile=eval)
+
+    batch_size = outputs.size(1)
+    chunks = int(math.ceil(targets.size(0) / opt.max_generator_batches))
+    outputs_chunked = torch.chunk(outputs_rewrapped, chunks)
+    targets_chunked = torch.chunk(targets, chunks)
+    for out_t, targ_t in zip(outputs_chunked, targets_chunked):
+        out_t = out_t.view(-1, out_t.size(2))
+        pred_t = generator(out_t)
+        loss_t = crit(pred_t, targ_t)
+        loss += loss_t.data[0]
+        if not eval:
+            loss_t.div(batch_size).backward()
+
+    return loss, outputs_rewrapped.grad
+
+
 def eval(model, criterion, data):
     total_loss = 0
     total_words = 0
@@ -128,9 +149,10 @@ def eval(model, criterion, data):
     for i in range(len(data)):
         batch = data[i]
         outputs = model(batch)
-        loss = criterion(outputs, batch[1])
-        total_loss += loss.data[0]
-        total_words += batch[1].data[1:].ne(onmt.Constants.PAD).sum()
+        targets = batch[1][1:]  # exclude <s> from targets
+        loss, _ = memoryEfficientLoss(outputs, targets, model.generator, criterion, eval=True)
+        total_loss += loss
+        total_words += targets.data.ne(onmt.Constants.PAD).sum()
 
     model.train()
     return total_loss / total_words
@@ -185,9 +207,10 @@ def trainModel(model, trainData, validData, dataset):
 
             model.zero_grad()
             outputs = model(batch)
-            loss = criterion(outputs, batch[1])
+            targets = batch[1][1:]  # exclude <s> from targets
+            loss, gradOutput = memoryEfficientLoss(outputs, targets, model.generator, criterion)
 
-            loss.div(batch[1].size(1)).backward()
+            outputs.backward(gradOutput)
 
             # for module in model.modules():
             #     params = list(module.parameters())
@@ -202,14 +225,14 @@ def trainModel(model, trainData, validData, dataset):
             # update the parameters
             grad_norm = optim.step()
 
-            report_loss += loss.data[0]
-            total_loss += loss.data[0]
-            num_words = batch[1].data[1:].ne(onmt.Constants.PAD).sum()
+            report_loss += loss
+            total_loss += loss
+            num_words = targets.data.ne(onmt.Constants.PAD).sum()
             total_words += num_words
             report_words += num_words
             if i % opt.report_every == 0 and i > 0:
                 print("Epoch %2d, %5d/%5d batches; perplexity: %6.2f; %3.0f tokens/s" %
-                      (epoch, i, len(trainData), math.exp(report_loss / report_words), report_words/(time.time()-start)))
+                      (epoch+1, i, len(trainData), math.exp(report_loss / report_words), report_words/(time.time()-start)))
                 report_loss = report_words = 0
                 start = time.time()
                 # for k,v in norms.items():
@@ -285,7 +308,10 @@ def main():
     else:
         encoder = onmt.Models.Encoder(opt, dataset['dicts']['src'])
         decoder = onmt.Models.Decoder(opt, dataset['dicts']['tgt'])
-        model = onmt.Models.NMTModel(encoder, decoder)
+        generator = nn.Sequential(
+            nn.Linear(opt.rnn_size, dataset['dicts']['tgt']['words'].size()),
+            nn.LogSoftmax())
+        model = onmt.Models.NMTModel(encoder, decoder, generator)
 
     if opt.cuda:
         model.cuda()
