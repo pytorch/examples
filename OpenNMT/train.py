@@ -124,13 +124,12 @@ class NMTCriterion(nn.Container):
 def memoryEfficientLoss(outputs, targets, generator, crit, eval=False):
     # compute generations one piece at a time
     loss = 0
-    outputs_rewrapped = Variable(outputs.data, requires_grad=(not eval), volatile=eval)
+    outputs= Variable(outputs.data, requires_grad=(not eval), volatile=eval)
 
     batch_size = outputs.size(1)
-    chunks = int(math.ceil(targets.size(0) / opt.max_generator_batches))
-    outputs_chunked = torch.chunk(outputs_rewrapped, chunks)
-    targets_chunked = torch.chunk(targets, chunks)
-    for out_t, targ_t in zip(outputs_chunked, targets_chunked):
+    outputs_split = torch.split(outputs, opt.max_generator_batches)
+    targets_split = torch.split(targets, opt.max_generator_batches)
+    for out_t, targ_t in zip(outputs_split, targets_split):
         out_t = out_t.view(-1, out_t.size(2))
         pred_t = generator(out_t)
         loss_t = crit(pred_t, targ_t)
@@ -138,7 +137,7 @@ def memoryEfficientLoss(outputs, targets, generator, crit, eval=False):
         if not eval:
             loss_t.div(batch_size).backward()
 
-    return loss, outputs_rewrapped.grad
+    return loss, outputs.grad
 
 
 def eval(model, criterion, data):
