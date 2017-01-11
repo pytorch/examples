@@ -2,7 +2,7 @@ import torch
 
 
 class Dict(object):
-    def __init__(self, data):
+    def __init__(self, data=None):
         self.idxToLabel = {}
         self.labelToIdx = {}
         self.frequencies = {}
@@ -84,7 +84,9 @@ class Dict(object):
             return self
 
         # Only keep the `size` most frequent entries.
-        freq = torch.Tensor(self.frequencies)
+
+        freq = torch.Tensor(
+            [self.frequencies[i] for i in range(len(self.frequencies))])
         _, idx = torch.sort(freq, 0, True)
 
         newDict = Dict()

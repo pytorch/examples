@@ -144,94 +144,94 @@ def eval(model, criterion, data):
     total_loss = 0
     total_words = 0
 
-    model.eval()
-    for i in range(len(data)):
-        batch = data[i]
-        outputs = model(batch)
-        targets = batch[1][1:]  # exclude <s> from targets
-        loss, _ = memoryEfficientLoss(outputs, targets, model.generator, criterion, eval=True)
-        total_loss += loss
-        total_words += targets.data.ne(onmt.Constants.PAD).sum()
+model.eval()
+for i in range(len(data)):
+    batch = data[i]
+    outputs = model(batch)
+    targets = batch[1][1:]  # exclude <s> from targets
+    loss, _ = memoryEfficientLoss(outputs, targets, model.generator, criterion, eval=True)
+    total_loss += loss
+    total_words += targets.data.ne(onmt.Constants.PAD).sum()
 
-    model.train()
-    return total_loss / total_words
+model.train()
+return total_loss / total_words
 
 
 def trainModel(model, trainData, validData, dataset):
-    print(model)
-    model.train()
-    for p in model.parameters():
-        p.data.uniform_(-opt.param_init, opt.param_init)
+print(model)
+model.train()
+for p in model.parameters():
+    p.data.uniform_(-opt.param_init, opt.param_init)
 
-    # define criterion of each GPU
-    criterion = NMTCriterion(dataset['dicts']['tgt']['words'].size(),
-                             dataset['dicts']['tgt']['features'])
+# define criterion of each GPU
+criterion = NMTCriterion(dataset['dicts']['tgt']['words'].size(),
+                         dataset['dicts']['tgt']['features'])
 
-    optim = onmt.Optim(
-        model.parameters(), opt.optim, opt.learning_rate, opt.max_grad_norm,
-        lr_decay=opt.learning_rate_decay,
-        start_decay_at=opt.start_decay_at
-    )
+optim = onmt.Optim(
+    model.parameters(), opt.optim, opt.learning_rate, opt.max_grad_norm,
+    lr_decay=opt.learning_rate_decay,
+    start_decay_at=opt.start_decay_at
+)
 
-    # checkpoint = onmt.train.Checkpoint.new(opt, model, optim, dataset)
+# checkpoint = onmt.train.Checkpoint.new(opt, model, optim, dataset)
 
-    def trainEpoch(epoch):
+def trainEpoch(epoch):
 
-        startI = opt.start_iteration
-        opt.start_iteration = 1
+    startI = opt.start_iteration
+    opt.start_iteration = 1
 
-        # shuffle mini batch order
-        batchOrder = torch.randperm(len(trainData))
+    # shuffle mini batch order
+    batchOrder = torch.randperm(len(trainData))
 
-        total_loss, report_loss = 0, 0
-        total_words, report_words = 0, 0
-        start = time.time()
-        for i in range(startI, len(trainData)):
+    total_loss, report_loss = 0, 0
+    total_words, report_words = 0, 0
+    start = time.time()
+    for i in range(startI, len(trainData)):
 
-            batchIdx = batchOrder[i] if epoch >= opt.curriculum else i
-            batch = trainData[batchIdx]
-            # srcData, tgtData = batch
-            # srcDict = dataset['dicts']['src']['words']
-            # tgtDict = dataset['dicts']['tgt']['words']
-            # print(srcData)
-            # for i in range(srcData.size(1)):
-            #     print(' '.join(srcDict.convertToLabels(srcData.data[:,i], onmt.Constants.EOS)))
-            #     print(' '.join(tgtDict.convertToLabels(tgtData.data[:,i], onmt.Constants.EOS)))
-            #     print()
-            # for n, p in model.state_dict().items():
-            #     if n not in norms:
-            #         norms[n] = []
-            #     norms[n] += [p.data.abs().norm()]
-            #     print(n, p.data.abs().norm())
+        batchIdx = batchOrder[i] if epoch >= opt.curriculum else i
+        batch = trainData[batchIdx]
+        # srcData, tgtData = batch
+        # srcDict = dataset['dicts']['src']['words']
+        # tgtDict = dataset['dicts']['tgt']['words']
+        # print(srcData)
+        # for i in range(srcData.size(1)):
+        #     print(' '.join(srcDict.convertToLabels(srcData.data[:,i], onmt.Constants.EOS)))
+        #     print(' '.join(tgtDict.convertToLabels(tgtData.data[:,i], onmt.Constants.EOS)))
+        #     print()
+        # for n, p in model.state_dict().items():
+        #     if n not in norms:
+        #         norms[n] = []
+        #     norms[n] += [p.data.abs().norm()]
+        #     print(n, p.data.abs().norm())
 
-            model.zero_grad()
-            outputs = model(batch)
-            targets = batch[1][1:]  # exclude <s> from targets
-            loss, gradOutput = memoryEfficientLoss(outputs, targets, model.generator, criterion)
+        model.zero_grad()
+        outputs = model(batch)
+        targets = batch[1][1:]  # exclude <s> from targets
+        loss, gradOutput = memoryEfficientLoss(outputs, targets, model.generator, criterion)
 
-            outputs.backward(gradOutput)
+        outputs.backward(gradOutput)
 
-            # for module in model.modules():
-            #     params = list(module.parameters())
-            #     if not isinstance(module, nn.Container) and len(params) > 0:
-            #         print(module)
-            #         for p in params:
-            #             print('p', p.data.nelement(), p.data.norm())
-            #             print('gp', p.grad.nelement(), p.grad.norm())
-            # assert False
+        # for module in model.modules():
+        #     params = list(module.parameters())
+        #     if not isinstance(module, nn.Container) and len(params) > 0:
+        #         print(module)
+        #         for p in params:
+        #             print('p', p.data.nelement(), p.data.norm())
+        #             print('gp', p.grad.nelement(), p.grad.norm())
+        # assert False
 
 
-            # update the parameters
-            grad_norm = optim.step()
+        # update the parameters
+        grad_norm = optim.step()
 
-            report_loss += loss
-            total_loss += loss
-            num_words = targets.data.ne(onmt.Constants.PAD).sum()
-            total_words += num_words
-            report_words += num_words
-            if i % opt.report_every == 0 and i > 0:
-                print("Epoch %2d, %5d/%5d batches; perplexity: %6.2f; %3.0f tokens/s" %
-                      (epoch+1, i, len(trainData), math.exp(report_loss / report_words), report_words/(time.time()-start)))
+        report_loss += loss
+        total_loss += loss
+        num_words = targets.data.ne(onmt.Constants.PAD).sum()
+        total_words += num_words
+        report_words += num_words
+        if i % opt.report_every == 0 and i > 0:
+                print("Epoch %2d ; Iteration %5d/%5d ; %3.0f tokens/s ; perplexity: %6.2f" %
+                      (epoch+1, i, len(trainData), report_words/(time.time()-start), math.exp(report_loss / report_words)))
                 report_loss = report_words = 0
                 start = time.time()
                 # for k,v in norms.items():
