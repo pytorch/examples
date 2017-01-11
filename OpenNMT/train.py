@@ -42,7 +42,7 @@ parser.add_argument('-brnn_merge', default='concat',        help="Merge action f
 ##
 
 parser.add_argument('-max_batch_size',  type=int, default=64,  help="Maximum batch size")
-parser.add_argument('-max_generator_batches', type=int, default=16, help="""Maximum batches of words in a sequence to run the generator on in parallel.
+parser.add_argument('-max_generator_batches', type=int, default=32, help="""Maximum batches of words in a sequence to run the generator on in parallel.
                                                                            Higher is faster, but uses more memory.""")
 parser.add_argument('-epochs',          type=int, default=13,  help="Number of training epochs")
 parser.add_argument('-start_epoch',     type=int, default=0,   help="If loading from a checkpoint, the epoch from which to start")

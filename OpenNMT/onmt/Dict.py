@@ -53,7 +53,7 @@ class Dict(object):
         idx = self.add(label, idx)
         self.special += [idx]
 
-    #Mark all labels in `labels` as specials (i.e. will not be pruned).
+    # Mark all labels in `labels` as specials (i.e. will not be pruned).
     def addSpecials(self, labels):
         for label in labels:
             self.addSpecial(label)

@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 import onmt.modules
 
+
 def _makeFeatEmbedder(opt, dicts):
     return onmt.FeaturesEmbedding(dicts['features'],
                                   opt.feat_vec_exponent,
@@ -62,6 +63,36 @@ class Encoder(nn.Container):
         return hidden_t, outputs
 
 
+class StackedLSTM(nn.Container):
+    def __init__(self, num_layers, input_size, rnn_size, dropout):
+        super(StackedLSTM, self).__init__(
+            dropout=nn.Dropout(dropout),
+        )
+
+        self.layers = []
+        for i in range(num_layers):
+            layer = nn.LSTMCell(input_size, rnn_size)
+            self.add_module('layer_%d' % i, layer)
+            self.layers += [layer]
+            input_size = rnn_size
+
+    def forward(self, input, hidden):
+        h_0, c_0 = hidden
+        h_1, c_1 = [], []
+        for i, layer in enumerate(self.layers):
+            h_1_i, c_1_i = layer(input, (h_0[i], c_0[i]))
+            input = h_1_i
+            if i != len(self.layers):
+                input = self.dropout(input)
+            h_1 += [h_1_i]
+            c_1 += [c_1_i]
+
+        h_1 = torch.stack(h_1)
+        c_1 = torch.stack(c_1)
+
+        return input, (h_1, c_1)
+
+
 class Decoder(nn.Container):
 
     def __init__(self, opt, dicts):
@@ -81,7 +112,7 @@ class Decoder(nn.Container):
             word_lut=nn.Embedding(dicts['words'].size(),
                                   opt.word_vec_size,
                                   padding_idx=onmt.Constants.PAD),
-            rnn=nn.LSTMCell(input_size, opt.rnn_size),
+            rnn=StackedLSTM(opt.layers, input_size, opt.rnn_size, opt.dropout),
             attn=onmt.modules.GlobalAttention(opt.rnn_size),
             dropout=nn.Dropout(opt.dropout),
         )
@@ -89,7 +120,7 @@ class Decoder(nn.Container):
         # self.rnn.bias_ih.data.div_(2)
         # self.rnn.bias_hh.data.copy_(self.rnn.bias_ih.data)
 
-        self.hidden_size = self.rnn.weight_hh.data.size(1)
+        self.hidden_size = opt.rnn_size
 
         if opt.pre_word_vecs_enc is not None:
             pretrained = torch.load(opt.pre_word_vecs_dec)
@@ -99,7 +130,7 @@ class Decoder(nn.Container):
         if self.has_features:
             self.add_module('feat_lut', feat_lut)
 
-    def forward(self, input, enc_hidden, context):
+    def forward(self, input, hidden, context):
         if self.has_features:
             word_emb = self.word_lut(input[0])
             feat_emb = self.feat_lut(input[1])
@@ -111,26 +142,19 @@ class Decoder(nn.Container):
 
         h_size = (batch_size, self.hidden_size)
         output = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
-        # h_0 = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
-        # c_0 = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
-        # hidden = (h_0, c_0)
-        hidden = enc_hidden
 
         outputs = []
-        hidden = (hidden[0].squeeze(0), hidden[1].squeeze(0))
         for emb_t in emb.chunk(emb.size(0)):
             emb_t = emb_t.squeeze(0)
             if self.input_feed:
                 emb_t = torch.cat([emb_t, output], 1)
 
-            # FIXME: multilayer
-            hidden = self.rnn(emb_t, hidden)
-            output = hidden[0]
+            output, hidden = self.rnn(emb_t, hidden)
             output = self.attn(output, context.t())
             output = self.dropout(output)
             outputs += [output]
 
-        outputs = torch.cat([x.unsqueeze(0) for x in outputs])
+        outputs = torch.stack(outputs)
         return outputs
 
 
