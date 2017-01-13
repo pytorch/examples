@@ -6,3 +6,4 @@ A repository showcasing examples of using pytorch
 - Imagenet-12 training with Residual Networks
 - Generative Adversarial Networks (DCGAN)
 - Variational Auto-Encoders
+- Superresolution using an efficient sub-pixel convolutional neural network
