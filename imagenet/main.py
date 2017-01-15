@@ -14,12 +14,18 @@ import torchvision.datasets as datasets
 import torchvision.models as models
 
 
+model_names = sorted(name for name in models.__dict__
+    if name.islower() and not name.startswith("__"))
+
+
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
 parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet18',
-                    help='model architecture: resnet18 | resnet34 | ... '
-                         '(default: resnet18)')
+                    choices=model_names,
+                    help='model architecture: ' +
+                        ' | '.join(model_names) +
+                        ' (default: resnet18)')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=90, type=int, metavar='N',
@@ -49,9 +55,6 @@ best_prec1 = 0
 def main():
     global args, best_prec1
     args = parser.parse_args()
-
-    if args.arch not in models.__dict__:
-        parser.error('invalid architecture: {}'.format(args.arch))
 
     # create model
     if args.pretrained:
