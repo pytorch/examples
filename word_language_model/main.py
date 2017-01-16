@@ -101,7 +101,7 @@ def evaluate(model, data, criterion, bsz):
 def clipGradient(model, clip):
     totalnorm = 0
     for p in model.parameters():
-        modulenorm = p.grad.norm()
+        modulenorm = p.grad.data.norm()
         totalnorm += modulenorm ** 2
     totalnorm = math.sqrt(totalnorm)
     return min(1, args.clip / (totalnorm + 1e-6))
@@ -140,7 +140,7 @@ for epoch in range(1, args.maxepoch+1):
         clipped_lr = lr * clipGradient(model, args.clip)
 
         for p in model.parameters():
-            p.data.sub_(p.grad.mul(clipped_lr))
+            p.data.sub_(p.grad.data.mul(clipped_lr))
 
         hidden = repackageHidden(hidden)
         model.zero_grad()
