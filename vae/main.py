@@ -1,51 +1,40 @@
 from __future__ import print_function
-import os
+import argparse
 import torch
 import torch.utils.data
 import torch.nn as nn
 import torch.optim as optim
 from torch.autograd import Variable
+from torchvision import datasets, transforms
 
-# Training settings
-BATCH_SIZE = 150
-TEST_BATCH_SIZE = 1000
-NUM_EPOCHS = 2
+parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
+parser.add_argument('--batch-size', type=int, default=128, metavar='N',
+                    help='input batch size for training (default: 64)')
+parser.add_argument('--epochs', type=int, default=10, metavar='N',
+                    help='number of epochs to train (default: 2)')
+parser.add_argument('--no-cuda', action='store_true', default=False,
+                    help='enables CUDA training')
+parser.add_argument('--seed', type=int, default=1, metavar='S',
+                    help='random seed (default: 1)')
+parser.add_argument('--log-interval', type=int, default=10, metavar='N',
+                    help='how many batches to wait before logging training status')
+args = parser.parse_args()
+args.cuda = not args.no_cuda and torch.cuda.is_available()
 
 
-cuda = torch.cuda.is_available()
+torch.manual_seed(args.seed)
+if args.cuda:
+    torch.cuda.manual_seed(args.seed)
 
-print('====> Running with CUDA: {0}'.format(cuda))
 
-
-assert os.path.exists('data/processed/training.pt'), \
-    "Please run python ../mnist/data.py before starting the VAE."
-
-# Data
-print('====> Loading data')
-with open('data/processed/training.pt', 'rb') as f:
-    training_set = torch.load(f)
-with open('data/processed/test.pt', 'rb') as f:
-    test_set = torch.load(f)
-
-training_data = training_set[0].view(-1, 784).div(255)
-test_data = test_set[0].view(-1, 784).div(255)
-
-del training_set
-del test_set
-
-if cuda:
-    training_data.cuda()
-    test_data.cuda()
-
-train_loader = torch.utils.data.DataLoader(training_data,
-                                           batch_size=BATCH_SIZE,
-                                           shuffle=True)
-
-test_loader = torch.utils.data.DataLoader(test_data,
-                                          batch_size=TEST_BATCH_SIZE)
-
-# Model
-print('====> Building model')
+kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
+train_loader = torch.utils.data.DataLoader(
+    datasets.MNIST('../data', train=True, download=True,
+                   transform=transforms.ToTensor()),
+    batch_size=args.batch_size, shuffle=True, **kwargs)
+test_loader = torch.utils.data.DataLoader(
+    datasets.MNIST('../data', train=False, transform=transforms.ToTensor()),
+    batch_size=args.batch_size, shuffle=True, **kwargs)
 
 
 class VAE(nn.Module):
@@ -75,13 +64,13 @@ class VAE(nn.Module):
         return self.sigmoid(self.fc4(h3))
 
     def forward(self, x):
-        mu, logvar = self.encode(x)
+        mu, logvar = self.encode(x.view(-1, 784))
         z = self.reparametrize(mu, logvar)
         return self.decode(z), mu, logvar
 
 
 model = VAE()
-if cuda is True:
+if args.cuda:
     model.cuda()
 
 reconstruction_function = nn.BCELoss()
@@ -104,34 +93,36 @@ optimizer = optim.Adam(model.parameters(), lr=1e-3)
 def train(epoch):
     model.train()
     train_loss = 0
-    for batch in train_loader:
-        batch = Variable(batch)
-
+    for batch_idx, (data, _) in enumerate(train_loader):
+        data = Variable(data)
         optimizer.zero_grad()
-        recon_batch, mu, logvar = model(batch)
-        loss = loss_function(recon_batch, batch, mu, logvar)
+        recon_batch, mu, logvar = model(data)
+        loss = loss_function(recon_batch, data, mu, logvar)
         loss.backward()
-        train_loss += loss
+        train_loss += loss.data[0]
         optimizer.step()
+        if batch_idx % args.log_interval == 0:
+            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                epoch, batch_idx * len(data), len(train_loader.dataset),
+                100. * batch_idx / len(train_loader),
+                loss.data[0] / len(data)))
 
-    print('====> Epoch: {} Loss: {:.4f}'.format(
-          epoch,
-          train_loss.data[0] / training_data.size(0)))
+    print('====> Epoch: {} Average loss: {:.4f}'.format(
+          epoch, train_loss / len(train_loader.dataset)))
 
 
 def test(epoch):
     model.eval()
     test_loss = 0
-    for batch in test_loader:
-        batch = Variable(batch)
+    for data, _ in test_loader:
+        data = Variable(data, volatile=True)
+        recon_batch, mu, logvar = model(data)
+        test_loss += loss_function(recon_batch, data, mu, logvar).data[0]
 
-        recon_batch, mu, logvar = model(batch)
-        test_loss += loss_function(recon_batch, batch, mu, logvar)
-
-    test_loss = test_loss.data[0] / test_data.size(0)
-    print('====> Test set results: {:.4f}'.format(test_loss))
+    test_loss /= len(test_loader.dataset)
+    print('====> Test set loss: {:.4f}'.format(test_loss))
 
 
-for epoch in range(1, NUM_EPOCHS + 1):
+for epoch in range(1, args.epochs + 1):
     train(epoch)
     test(epoch)
