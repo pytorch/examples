@@ -13,7 +13,7 @@ from torch.autograd import Variable
 import torchvision.transforms as T
 
 
-parser = argparse.ArgumentParser(description='PyTorch REINFORCE example')
+parser = argparse.ArgumentParser(description='PyTorch actor-critic example')
 parser.add_argument('--gamma', type=int, default=0.999, metavar='G',
                     help='discount factor (default: 0.999)')
 parser.add_argument('--seed', type=int, default=543, metavar='N',
