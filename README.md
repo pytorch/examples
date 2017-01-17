@@ -10,6 +10,7 @@ Basic examples:
 - Variational Auto-Encoders
 - Superresolution using an efficient sub-pixel convolutional neural network
 - Hogwild training of shared ConvNets across multiple processes on MNIST
+- Training a CartPole to balance in OpenAI Gym using REINFORCE
 
 Larger examples / whole projects:
 - OpenNMT: A PyTorch port of [OpenNMT](https://gitter.im/OpenNMT/openmt), a sequence to sequence model for Neural Translation
