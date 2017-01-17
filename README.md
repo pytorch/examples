@@ -5,3 +5,5 @@ A repository showcasing examples of using pytorch
 - Word level Language Modeling using LSTM RNNs
 - Imagenet-12 training with Residual Networks
 - Generative Adversarial Networks (DCGAN)
+- Variational Auto-Encoders
+- Superresolution using an efficient sub-pixel convolutional neural network

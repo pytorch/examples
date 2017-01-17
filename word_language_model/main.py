@@ -5,10 +5,7 @@
 # test set.
 ###############################################################################
 
-import argparse
-import time
-import math
-
+import argparse, time, math
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -16,7 +13,7 @@ from torch.autograd import Variable
 import data
 import model
 
-parser = argparse.ArgumentParser(description='PyTorch PTB Language Model')
+parser = argparse.ArgumentParser(description='PyTorch PennTreeBank RNN/LSTM Language Model')
 
 # Data parameters
 parser.add_argument('-data'      , type=str, default='./data/penn', help='Location of the data corpus'              )
@@ -41,8 +38,7 @@ args = parser.parse_args()
 
 # Set the random seed manually for reproducibility.
 torch.manual_seed(args.seed)
-# If the GPU is enabled, do some plumbing.
-
+# If the GPU is enabled, warn the user to use it
 if torch.cuda.is_available() and not args.cuda:
     print("WARNING: You have a CUDA device, so you should probably run with -cuda")
 
@@ -105,7 +101,7 @@ def evaluate(model, data, criterion, bsz):
 def clipGradient(model, clip):
     totalnorm = 0
     for p in model.parameters():
-        modulenorm = p.grad.norm()
+        modulenorm = p.grad.data.norm()
         totalnorm += modulenorm ** 2
     totalnorm = math.sqrt(totalnorm)
     return min(1, args.clip / (totalnorm + 1e-6))
@@ -144,7 +140,7 @@ for epoch in range(1, args.maxepoch+1):
         clipped_lr = lr * clipGradient(model, args.clip)
 
         for p in model.parameters():
-            p.data.sub_(p.grad.mul(clipped_lr))
+            p.data.sub_(p.grad.data.mul(clipped_lr))
 
         hidden = repackageHidden(hidden)
         model.zero_grad()
