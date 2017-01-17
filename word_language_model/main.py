@@ -1,11 +1,6 @@
-###############################################################################
-# Language Modeling on Penn Tree Bank
-#
-# With the default parameters, this should achieve ~116 perplexity on the
-# test set.
-###############################################################################
-
-import argparse, time, math
+import argparse
+import time
+import math
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -14,91 +9,80 @@ import data
 import model
 
 parser = argparse.ArgumentParser(description='PyTorch PennTreeBank RNN/LSTM Language Model')
-
-# Data parameters
-parser.add_argument('-data'      , type=str, default='./data/penn', help='Location of the data corpus'              )
-# Model parameters.
-parser.add_argument('-model'     , type=str, default='LSTM'       , help='Type of recurrent net. RNN_TANH, RNN_RELU, LSTM, or GRU.')
-parser.add_argument('-emsize'    , type=int, default=200          , help='Size of word embeddings'                  )
-parser.add_argument('-nhid'      , type=int, default=200          , help='Number of hidden units per layer.'        )
-parser.add_argument('-nlayers'   , type=int, default=2            , help='Number of layers.'                        )
-# Optimization parameters.
-parser.add_argument('-lr'        , type=float, default=20          , help='Initial learning rate.'                   )
-parser.add_argument('-clip'      , type=float, default=0.5        , help='Gradient clipping.'                       )
-parser.add_argument('-maxepoch'  , type=int,   default=6          , help='Upper epoch limit.'                       )
-parser.add_argument('-batchsize' , type=int,   default=20         , help='Batch size.'                              )
-parser.add_argument('-bptt'      , type=int,   default=20         , help='Sequence length.'                         )
-# Device parameters.
-parser.add_argument('-seed'      , type=int,   default=1111       , help='Random seed.'                             )
-parser.add_argument('-cuda'      , action='store_true'            , help='Use CUDA.'                                )
-# Misc parameters.
-parser.add_argument('-reportint' , type=int,   default=200        , help='Report interval.'                         )
-parser.add_argument('-save'      , type=str,   default='model.pt' , help='Path to save the final model.'            )
+parser.add_argument('--data', type=str, default='./data/penn',
+                    help='location of the data corpus')
+parser.add_argument('--model', type=str, default='LSTM',
+                    help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
+parser.add_argument('--emsize', type=int, default=200,
+                    help='size of word embeddings')
+parser.add_argument('--nhid', type=int, default=200,
+                    help='humber of hidden units per layer')
+parser.add_argument('--nlayers', type=int, default=2,
+                    help='number of layers')
+parser.add_argument('--lr', type=float, default=20,
+                    help='initial learning rate')
+parser.add_argument('--clip', type=float, default=0.5,
+                    help='gradient clipping')
+parser.add_argument('--epochs', type=int, default=6,
+                    help='upper epoch limit')
+parser.add_argument('--batch-size', type=int, default=20, metavar='N',
+                    help='batch size')
+parser.add_argument('--bptt', type=int, default=20,
+                    help='sequence length')
+parser.add_argument('--seed', type=int, default=1111,
+                    help='random seed')
+parser.add_argument('--cuda', action='store_true',
+                    help='use CUDA')
+parser.add_argument('--log-interval', type=int, default=200, metavar='N',
+                    help='report interval')
+parser.add_argument('--save', type=str,  default='model.pt',
+                    help='path to save the final model')
 args = parser.parse_args()
 
 # Set the random seed manually for reproducibility.
 torch.manual_seed(args.seed)
-# If the GPU is enabled, warn the user to use it
-if torch.cuda.is_available() and not args.cuda:
-    print("WARNING: You have a CUDA device, so you should probably run with -cuda")
+if torch.cuda.is_available():
+    if not args.cuda:
+        print("WARNING: You have a CUDA device, so you should probably run with --cuda")
+    else:
+        torch.cuda.manual_seed(args.seed)
 
 ###############################################################################
-## LOAD DATA
+# Load data
 ###############################################################################
 
 corpus = data.Corpus(args.data)
 
 def batchify(data, bsz):
-    nbatch = int(math.floor(data.size(0) / bsz))
+    nbatch = data.size(0) // bsz
     data = data.narrow(0, 0, nbatch * bsz)
     data = data.view(bsz, -1).t().contiguous()
     if args.cuda:
         data = data.cuda()
     return data
 
-eval_bsz = 10
-train = batchify(corpus.train, args.batchsize)
-valid = batchify(corpus.valid, eval_bsz)
-test  = batchify(corpus.test,  eval_bsz)
-bptt  = args.bptt
-bsz   = args.batchsize
+eval_batch_size = 10
+train_data = batchify(corpus.train, args.batch_size)
+val_data = batchify(corpus.valid, eval_batch_size)
+test_data = batchify(corpus.test, eval_batch_size)
 
 ###############################################################################
-# MAKE MODEL
+# Build the model
 ###############################################################################
 
-ntokens = corpus.dic.ntokens()
+ntokens = len(corpus.dictionary)
 model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers)
 if args.cuda:
     model.cuda()
 
 criterion = nn.CrossEntropyLoss()
 
-########################################
-# TRAINING
-########################################
+###############################################################################
+# Training code
+###############################################################################
 
-lr   = args.lr
-clip = args.clip
-reportinterval = args.reportint
-
-
-# Perform the forward pass only.
-def evaluate(model, data, criterion, bsz):
-    loss = 0
-    hidden = model.initHidden(bsz)
-    # Loop over validation data.
-    for i in range(0, data.size(0) - 1, bptt):
-        seq_len = min(bptt, data.size(0) - 1 - i)
-        output, hidden = model(Variable(data[i:i+seq_len], requires_grad=False), hidden)
-        targets = data[i+1:i+seq_len+1].view(-1)
-        loss += bptt * criterion(output.view(seq_len*bsz, -1), Variable(targets, requires_grad=False)).data
-        hidden = repackageHidden(hidden)
-
-    return loss[0] / data.size(0)
-
-# simple gradient clipping, using the total norm of the gradient
-def clipGradient(model, clip):
+def clip_gradient(model, clip):
+    """Computes a gradient clipping coefficient based on gradient norm."""
     totalnorm = 0
     for p in model.parameters():
         modulenorm = p.grad.data.norm()
@@ -106,79 +90,89 @@ def clipGradient(model, clip):
     totalnorm = math.sqrt(totalnorm)
     return min(1, args.clip / (totalnorm + 1e-6))
 
-# Between bptt intervals, we want to maintain the hidden state data
-# but don't want to backprop gradients across bptt intervals.
-# So we have to rewrap the hidden state in a fresh Variable.
-def repackageHidden(h):
+
+def repackage_hidden(h):
+    """Wraps hidden states in new Variables, to detach them from their history."""
     if type(h) == Variable:
         return Variable(h.data)
     else:
-        return tuple(repackageHidden(v) for v in h)
+        return tuple(repackage_hidden(v) for v in h)
 
-# Loop over epochs.
-prev_loss = None
-for epoch in range(1, args.maxepoch+1):
-    total_loss = 0
-    epoch_start_time = time.time()
-    # Start with an initial hidden state.
-    hidden = model.initHidden(bsz)
 
-    loss = 0
-    i = 0
-    model.zero_grad()
+def get_batch(source, i, evaluation=False):
+    seq_len = min(args.bptt, len(source) - 1 - i)
+    data = Variable(source[i:i+seq_len], volatile=evaluation)
+    target = Variable(source[i+1:i+1+seq_len].view(-1))
+    return data, target
+
+
+def evaluate(data_source):
     total_loss = 0
-    start_time = epoch_start_time = time.time()
-    ntokens = corpus.dic.ntokens()
-    # Loop over the training data.
-    for batch, i in enumerate(range(0, train.size(0) - 1, bptt)):
-        seq_len = min(bptt, train.size(0) - 1 - i)
-        output, hidden = model(Variable(train[i:i+seq_len], requires_grad=False), hidden)
-        targets = train[i+1:i+seq_len+1].view(-1)
-        loss = criterion(output.view(-1, ntokens), Variable(targets, requires_grad=False))
+    ntokens = len(corpus.dictionary)
+    hidden = model.init_hidden(eval_batch_size)
+    for i in range(0, data_source.size(0) - 1, args.bptt):
+        data, targets = get_batch(data_source, i, evaluation=True)
+        output, hidden = model(data, hidden)
+        output_flat = output.view(-1, ntokens)
+        total_loss += len(data) * criterion(output_flat, targets).data
+        hidden = repackage_hidden(hidden)
+    return total_loss[0] / len(data_source)
+
+
+def train():
+    total_loss = 0
+    start_time = time.time()
+    ntokens = len(corpus.dictionary)
+    hidden = model.init_hidden(args.batch_size)
+    for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
+        data, targets = get_batch(train_data, i)
+        hidden = repackage_hidden(hidden)
+        model.zero_grad()
+        output, hidden = model(data, hidden)
+        loss = criterion(output.view(-1, ntokens), targets)
         loss.backward()
 
-        clipped_lr = lr * clipGradient(model, args.clip)
-
+        clipped_lr = lr * clip_gradient(model, args.clip)
         for p in model.parameters():
-            p.data.sub_(p.grad.data.mul(clipped_lr))
+            p.data.add_(-clipped_lr, p.grad.data)
 
-        hidden = repackageHidden(hidden)
-        model.zero_grad()
         total_loss += loss.data
-        loss = 0
 
-        if batch % reportinterval == 0 and batch > 0:
-            cur_loss = total_loss[0] / reportinterval
+        if batch % args.log_interval == 0 and batch > 0:
+            cur_loss = total_loss[0] / args.log_interval
             elapsed = time.time() - start_time
-            print(
-                    ('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.6f} | ms/batch {:5.2f} | '
-                    + 'train loss {:5.2f} | train ppl {:8.2f}').format(
-                epoch, batch, train.size(0) // bptt, lr, elapsed * 1000 / reportinterval,
-                cur_loss, math.exp(cur_loss)
-            ))
+            print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | '
+                    'loss {:5.2f} | ppl {:8.2f}'.format(
+                epoch, batch, len(train_data) // args.bptt, lr,
+                elapsed * 1000 / args.log_interval, cur_loss, math.exp(cur_loss)))
             total_loss = 0
             start_time = time.time()
 
-    val_loss = evaluate(model, valid, criterion, eval_bsz)
 
-    print(
-        '| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | valid ppl {:8.2f}'.format(
-        epoch, (time.time() - epoch_start_time), val_loss, math.exp(val_loss)
-    ))
+# Loop over epochs.
+lr = args.lr
+prev_val_loss = None
+for epoch in range(1, args.epochs+1):
+    epoch_start_time = time.time()
+    train()
+    val_loss = evaluate(val_data)
+    print('-' * 89)
+    print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
+            'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
+                                       val_loss, math.exp(val_loss)))
+    print('-' * 89)
+    # Anneal the learning rate.
+    if prev_val_loss and val_loss > prev_val_loss:
+        lr /= 4
+    prev_val_loss = val_loss
 
-    # The annealing schedule.
-    if prev_loss and val_loss > prev_loss:
-        lr = lr / 4
 
-    prev_loss = val_loss
-
-# Run on test data.
-test_loss = evaluate(model, test, criterion, eval_bsz)
-print(
-    '| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
-    test_loss, math.exp(test_loss)
-))
-
-if args.save != '' :
+# Run on test data and save the model.
+test_loss = evaluate(test_data)
+print('=' * 89)
+print('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
+    test_loss, math.exp(test_loss)))
+print('=' * 89)
+if args.save != '':
     with open(args.save, 'wb') as f:
         torch.save(model, f)
