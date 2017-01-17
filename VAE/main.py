@@ -48,7 +48,7 @@ test_loader = torch.utils.data.DataLoader(test_data,
 print('====> Building model')
 
 
-class VAE(nn.Container):
+class VAE(nn.Module):
     def __init__(self):
         super(VAE, self).__init__()
 

@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
-class RNNModel(nn.Container):
+class RNNModel(nn.Module):
     """A container module with an encoder, an RNN (one of several flavors),
     and a decoder. Runs one RNN step at a time.
     """

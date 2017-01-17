@@ -17,7 +17,7 @@ def _get_orthogonal_init_weights(weights):
         return torch.Tensor(v.reshape(weights.size()))
 
 
-class Net(nn.Container):
+class Net(nn.Module):
     def __init__(self, upscale_factor):
         super(Net, self).__init__()
 

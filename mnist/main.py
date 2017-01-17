@@ -43,7 +43,7 @@ del training_set
 del test_set
 
 print('===> Building model')
-class Net(nn.Container):
+class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         self.conv1 = nn.Conv2d(1, 10, 5)

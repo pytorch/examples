@@ -86,7 +86,7 @@ def weights_init(m):
         m.weight.data.normal_(1.0, 0.02)
         m.bias.data.fill_(0)
 
-class _netG(nn.Container):
+class _netG(nn.Module):
     def __init__(self, ngpu):
         super(_netG, self).__init__()
         self.ngpu = ngpu
@@ -124,7 +124,7 @@ if opt.netG != '':
     netG.load_state_dict(torch.load(opt.netG))
 print(netG)
 
-class _netD(nn.Container):
+class _netD(nn.Module):
     def __init__(self, ngpu):
         super(_netD, self).__init__()
         self.ngpu = ngpu
