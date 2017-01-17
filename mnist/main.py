@@ -1,126 +1,114 @@
 from __future__ import print_function
-import os, argparse
+import argparse
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
+from torchvision import datasets, transforms
 from torch.autograd import Variable
-
-cuda = torch.cuda.is_available()
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
-parser.add_argument('--batchSize', type=int, default=64, metavar='input batch size')
-parser.add_argument('--testBatchSize', type=int, default=1000, metavar='input batch size for testing')
-parser.add_argument('--trainSize', type=int, default=1000, metavar='Train dataset size (max=60000). Default: 1000')
-parser.add_argument('--nEpochs', type=int, default=2, metavar='number of epochs to train')
-parser.add_argument('--lr', type=float, default=0.01, metavar='Learning Rate. Default=0.01')
-parser.add_argument('--momentum', type=float, default=0.5, metavar='Default=0.5')
-parser.add_argument('--seed', type=int, default=123, metavar='Random Seed to use. Default=123')
-opt = parser.parse_args()
-print(opt)
+parser.add_argument('--batch-size', type=int, default=64, metavar='N',
+                    help='input batch size for training (default: 64)')
+parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
+                    help='input batch size for testing (default: 1000)')
+parser.add_argument('--epochs', type=int, default=10, metavar='N',
+                    help='number of epochs to train (default: 2)')
+parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
+                    help='learning rate (default: 0.01)')
+parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
+                    help='SGD momentum (default: 0.5)')
+parser.add_argument('--no-cuda', action='store_true', default=False,
+                    help='enables CUDA training')
+parser.add_argument('--seed', type=int, default=1, metavar='S',
+                    help='random seed (default: 1)')
+parser.add_argument('--log-interval', type=int, default=10, metavar='N',
+                    help='how many batches to wait before logging training status')
+args = parser.parse_args()
+args.cuda = not args.no_cuda and torch.cuda.is_available()
 
-torch.manual_seed(opt.seed)
-if cuda == True:
-    torch.cuda.manual_seed(opt.seed)
+torch.manual_seed(args.seed)
+if args.cuda:
+    torch.cuda.manual_seed(args.seed)
 
-if not os.path.exists('data/processed/training.pt'):
-    import data
 
-# Data
-print('===> Loading data')
-with open('data/processed/training.pt', 'rb') as f:
-    training_set = torch.load(f)
-with open('data/processed/test.pt', 'rb') as f:
-    test_set = torch.load(f)
+kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
+train_loader = torch.utils.data.DataLoader(
+    datasets.MNIST('../data', train=True, download=True,
+                   transform=transforms.Compose([
+                       transforms.ToTensor(),
+                       transforms.Normalize((0.1307,), (0.3081,))
+                   ])),
+    batch_size=args.batch_size, shuffle=True, **kwargs)
+test_loader = torch.utils.data.DataLoader(
+    datasets.MNIST('../data', train=False, transform=transforms.Compose([
+                       transforms.ToTensor(),
+                       transforms.Normalize((0.1307,), (0.3081,))
+                   ])),
+    batch_size=args.batch_size, shuffle=True, **kwargs)
 
-training_data = training_set[0].view(-1, 1, 28, 28).div(255)
-training_data = training_data[:opt.trainSize]
-training_labels = training_set[1]
-test_data = test_set[0].view(-1, 1, 28, 28).div(255)
-test_labels = test_set[1]
 
-del training_set
-del test_set
-
-print('===> Building model')
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(1, 10, 5)
-        self.pool1 = nn.MaxPool2d(2,2)
-        self.conv2 = nn.Conv2d(10, 20, 5)
-        self.pool2 = nn.MaxPool2d(2, 2)
-        self.fc1   = nn.Linear(320, 50)
-        self.fc2   = nn.Linear(50, 10)
-        self.relu  = nn.ReLU()
-        self.softmax = nn.LogSoftmax()
+        self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
+        self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
+        self.conv2_drop = nn.Dropout2d()
+        self.fc1 = nn.Linear(320, 50)
+        self.fc2 = nn.Linear(50, 10)
 
     def forward(self, x):
-        x = self.relu(self.pool1(self.conv1(x)))
-        x = self.relu(self.pool2(self.conv2(x)))
+        x = F.relu(F.max_pool2d(self.conv1(x), 2))
+        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
         x = x.view(-1, 320)
-        x = self.relu(self.fc1(x))
-        x = self.relu(self.fc2(x))
-        return self.softmax(x)
+        x = F.relu(self.fc1(x))
+        x = F.dropout(x)
+        x = F.relu(self.fc2(x))
+        return F.log_softmax(x)
 
 model = Net()
-if cuda == True:
+if args.cuda:
     model.cuda()
 
-criterion = nn.NLLLoss()
-optimizer = optim.SGD(model.parameters(), lr=opt.lr, momentum=opt.momentum)
+optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
 
 def train(epoch):
-    # create buffers for mini-batch
-    batch_data = torch.FloatTensor(opt.batchSize, 1, 28, 28)
-    batch_targets = torch.LongTensor(opt.batchSize)
-    if cuda:
-        batch_data, batch_targets = batch_data.cuda(), batch_targets.cuda()
-
-    # create autograd Variables over these buffers
-    batch_data, batch_targets = Variable(batch_data), Variable(batch_targets)
-
-    for i in range(0, training_data.size(0)-opt.batchSize+1, opt.batchSize):
-        start, end = i, i+opt.batchSize
+    model.train()
+    for batch_idx, (data, target) in enumerate(train_loader):
+        if args.cuda:
+            data, target = data.cuda(), target.cuda()
+        data, target = Variable(data), Variable(target)
         optimizer.zero_grad()
-        batch_data.data[:] = training_data[start:end]
-        batch_targets.data[:] = training_labels[start:end]
-        output = model(batch_data)
-        loss = criterion(output, batch_targets)
+        output = model(data)
+        loss = F.nll_loss(output, target)
         loss.backward()
-        loss = loss.data[0]
         optimizer.step()
-        print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.4f}'
-              .format(epoch, end, opt.trainSize, float(end)/opt.trainSize*100, loss))
+        if batch_idx % args.log_interval == 0:
+            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                epoch, batch_idx * len(data), len(train_loader.dataset),
+                100. * batch_idx / len(train_loader), loss.data[0]))
 
 def test(epoch):
-    # create buffers for mini-batch
-    batch_data = torch.FloatTensor(opt.testBatchSize, 1, 28, 28)
-    batch_targets = torch.LongTensor(opt.testBatchSize)
-    if cuda:
-        batch_data, batch_targets = batch_data.cuda(), batch_targets.cuda()
-
-    # create autograd Variables over these buffers
-    batch_data = Variable(batch_data, volatile=True)
-    batch_targets = Variable(batch_targets, volatile=True)
-
+    model.eval()
     test_loss = 0
     correct = 0
-
-    for i in range(0, test_data.size(0), opt.testBatchSize):
-        batch_data.data[:] = test_data[i:i+opt.testBatchSize]
-        batch_targets.data[:] = test_labels[i:i+opt.testBatchSize]
-        output = model(batch_data)
-        test_loss += criterion(output, batch_targets)
+    for data, target in test_loader:
+        if args.cuda:
+            data, target = data.cuda(), target.cuda()
+        data, target = Variable(data, volatile=True), Variable(target)
+        output = model(data)
+        test_loss += F.nll_loss(output, target).data[0]
         pred = output.data.max(1)[1] # get the index of the max log-probability
-        correct += pred.long().eq(batch_targets.data.long()).cpu().sum()
+        correct += pred.eq(target.data).cpu().sum()
 
-    test_loss = test_loss.data[0]
-    test_loss /= (test_data.size(0) / opt.testBatchSize) # criterion averages over batch size
-    print('\nTest Set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-        test_loss, correct, test_data.size(0),
-        float(correct)/test_data.size(0)*100))
+    test_loss = test_loss
+    test_loss /= len(test_loader) # loss function already averages over batch size
+    print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+        test_loss, correct, len(test_loader.dataset),
+        100. * correct / len(test_loader.dataset)))
 
-for epoch in range(1, opt.nEpochs+1):
+
+for epoch in range(1, args.epochs + 1):
     train(epoch)
     test(epoch)

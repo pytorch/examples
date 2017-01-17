@@ -1,4 +1,3 @@
-mnist/data
 dcgan/data
-VAE/data
+data
 *.pyc
