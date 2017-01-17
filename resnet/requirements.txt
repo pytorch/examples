@@ -1,0 +1,5 @@
+numpy
+torch
+nested_dict
+torchnet
+tqdm
