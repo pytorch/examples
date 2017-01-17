@@ -1,3 +1,4 @@
 mnist/data
+dcgan/data
 VAE/data
 *.pyc
