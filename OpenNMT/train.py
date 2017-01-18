@@ -120,7 +120,8 @@ def memoryEfficientLoss(outputs, targets, generator, crit, eval=False):
         if not eval:
             loss_t.div(batch_size).backward()
 
-    return loss, outputs.grad
+    grad_output = None if outputs.grad is None else outputs.grad.data
+    return loss, grad_output
 
 
 def eval(model, criterion, data):
