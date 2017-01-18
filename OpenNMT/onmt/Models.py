@@ -11,7 +11,7 @@ def _makeFeatEmbedder(opt, dicts):
                                   opt.feat_merge)
 
 
-class Encoder(nn.Container):
+class Encoder(nn.Module):
 
     def __init__(self, opt, dicts):
         self.layers = opt.layers
@@ -25,15 +25,15 @@ class Encoder(nn.Container):
             feat_lut = _makeFeatEmbedder(opt, dicts)
             inputSize = inputSize + feat_lut.outputSize
 
-        super(Encoder, self).__init__(
-            word_lut=nn.Embedding(dicts['words'].size(),
+        super(Encoder, self).__init__()
+        self.word_lut = nn.Embedding(dicts['words'].size(),
                                   opt.word_vec_size,
-                                  padding_idx=onmt.Constants.PAD),
-            rnn=nn.LSTM(inputSize, self.hidden_size,
+                                  padding_idx=onmt.Constants.PAD)
+        self.rnn = nn.LSTM(inputSize, self.hidden_size,
                         num_layers=opt.layers,
                         dropout=opt.dropout,
                         bidirectional=opt.brnn)
-        )
+
 
         # self.rnn.bias_ih_l0.data.div_(2)
         # self.rnn.bias_hh_l0.data.copy_(self.rnn.bias_ih_l0.data)
@@ -63,11 +63,11 @@ class Encoder(nn.Container):
         return hidden_t, outputs
 
 
-class StackedLSTM(nn.Container):
+class StackedLSTM(nn.Module):
     def __init__(self, num_layers, input_size, rnn_size, dropout):
-        super(StackedLSTM, self).__init__(
-            dropout=nn.Dropout(dropout),
-        )
+        super(StackedLSTM, self).__init__()
+        self.dropout = nn.Dropout(dropout)
+
 
         self.layers = []
         for i in range(num_layers):
@@ -93,7 +93,7 @@ class StackedLSTM(nn.Container):
         return input, (h_1, c_1)
 
 
-class Decoder(nn.Container):
+class Decoder(nn.Module):
 
     def __init__(self, opt, dicts):
         self.layers = opt.layers
@@ -108,14 +108,13 @@ class Decoder(nn.Container):
             feat_lut = _makeFeatEmbedder(opt, dicts)
             input_size = input_size + feat_lut.outputSize
 
-        super(Decoder, self).__init__(
-            word_lut=nn.Embedding(dicts['words'].size(),
+        super(Decoder, self).__init__()
+        self.word_lut = nn.Embedding(dicts['words'].size(),
                                   opt.word_vec_size,
-                                  padding_idx=onmt.Constants.PAD),
-            rnn=StackedLSTM(opt.layers, input_size, opt.rnn_size, opt.dropout),
-            attn=onmt.modules.GlobalAttention(opt.rnn_size),
-            dropout=nn.Dropout(opt.dropout),
-        )
+                                  padding_idx=onmt.Constants.PAD)
+        self.rnn = StackedLSTM(opt.layers, input_size, opt.rnn_size, opt.dropout)
+        self.attn = onmt.modules.GlobalAttention(opt.rnn_size)
+        self.dropout = nn.Dropout(opt.dropout)
 
         # self.rnn.bias_ih.data.div_(2)
         # self.rnn.bias_hh.data.copy_(self.rnn.bias_ih.data)
@@ -158,14 +157,13 @@ class Decoder(nn.Container):
         return outputs
 
 
-class NMTModel(nn.Container):
+class NMTModel(nn.Module):
 
     def __init__(self, encoder, decoder, generator):
-        super(NMTModel, self).__init__(
-            encoder=encoder,
-            decoder=decoder,
-            generator=generator
-        )
+        super(NMTModel, self).__init__()
+        self.encoder = encoder
+        self.decoder = decoder
+        self.generator = generator
         self.generate = False
 
     def set_generate(self, enabled):

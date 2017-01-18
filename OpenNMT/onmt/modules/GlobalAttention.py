@@ -23,14 +23,13 @@ Constructs a unit mapping.
 import torch
 import torch.nn as nn
 
-class GlobalAttention(nn.Container):
+class GlobalAttention(nn.Module):
     def __init__(self, dim):
-        super(GlobalAttention, self).__init__(
-            linear_in=nn.Linear(dim, dim, bias=False),
-            sm=nn.Softmax(),
-            linear_out=nn.Linear(dim*2, dim, bias=False),
-            tanh=nn.Tanh(),
-        )
+        super(GlobalAttention, self).__init__()
+        self.linear_in = nn.Linear(dim, dim, bias=False)
+        self.sm = nn.Softmax()
+        self.linear_out = nn.Linear(dim*2, dim, bias=False)
+        self.tanh = nn.Tanh()
 
     def forward(self, input, context):
         """

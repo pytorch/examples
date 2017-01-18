@@ -31,14 +31,14 @@ class Optim(object):
         # Compute gradients norm.
         grad_norm = 0
         for param in self.params:
-            grad_norm += math.pow(param.grad.norm(), 2)
+            grad_norm += math.pow(param.grad.data.norm(), 2)
 
         grad_norm = math.sqrt(grad_norm)
         shrinkage = self.max_grad_norm / grad_norm
 
         for param in self.params:
             if shrinkage < 1:
-                param.grad.mul_(shrinkage)
+                param.grad.data.mul_(shrinkage)
 
         self.optimizer.step()
         return grad_norm
