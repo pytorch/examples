@@ -23,7 +23,7 @@ Constructs a unit mapping.
 import torch
 import torch.nn as nn
 
-class GlobalAttention(nn.Container):
+class GlobalAttention(nn.Module):
     def __init__(self, dim):
         super(GlobalAttention, self).__init__(
             linear_in=nn.Linear(dim, dim, bias=False),

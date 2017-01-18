@@ -1,6 +1,6 @@
 # Not in use; it's for when Features are implemented
 
-class FeaturesEmbeddding(nn.Container):
+class FeaturesEmbeddding(nn.Module):
 
     def __init__(self, dicts, dimExponent, dim, merge):
         super(FeaturesEmbedding, self).__init__():
