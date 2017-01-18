@@ -230,7 +230,7 @@ def resnet(depth, width, num_classes, dropout):
         y = F.conv2d(o1, params[base+'.conv0'], stride=stride, padding=1)
         o2 = activation(y, params, stats, base+'.bn1', mode)
         if opt.dropout > 0:
-            o2 = F.dropout(o2, p=0.5, training=mode)
+            o2 = F.dropout(o2, p=dropout, training=mode)
         z = F.conv2d(o2, params[base+'.conv1'], stride=1, padding=1)
         if base + '.convdim' in params:
             return z + F.conv2d(o1, params[base+'.convdim'], stride=stride)
