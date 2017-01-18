@@ -26,10 +26,10 @@ import torch.nn as nn
 class GlobalAttention(nn.Module):
     def __init__(self, dim):
         super(GlobalAttention, self).__init__()
-        linear_in=nn.Linear(dim, dim, bias=False)
-        sm=nn.Softmax()
-        linear_out=nn.Linear(dim*2, dim, bias=False)
-        tanh=nn.Tanh()
+        linear_in = nn.Linear(dim, dim, bias=False)
+        sm = nn.Softmax()
+        linear_out = nn.Linear(dim*2, dim, bias=False)
+        tanh = nn.Tanh()
 
     def forward(self, input, context):
         """
