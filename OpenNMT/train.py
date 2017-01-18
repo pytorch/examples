@@ -164,15 +164,6 @@ def trainModel(model, trainData, validData, dataset):
         # shuffle mini batch order
         batchOrder = torch.randperm(len(trainData))
 
-        # for module in model.modules():
-        #     params = list(module.parameters())
-        #     if not isinstance(module, nn.Module) and len(params) > 0:
-        #         print(module)
-        #         for p in params:
-        #             print('p', p.data.nelement(), p.data.norm())
-        #             print('gp', p.grad.nelement(), p.grad.norm())
-        # assert False
-
         total_loss, report_loss = 0, 0
         total_words, report_words = 0, 0
         start = time.time()
