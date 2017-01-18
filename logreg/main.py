@@ -54,7 +54,7 @@ if __name__ == '__main__':
 
         # Reset gradients
         for param in fc.parameters():
-            param.grad.zero_()
+            param.grad.data.zero_()
 
         # Forward pass
         output = l1(fc(batch_x), batch_y)
@@ -65,7 +65,7 @@ if __name__ == '__main__':
 
         # Apply gradients
         for param in fc.parameters():
-            param.data.add_(-1 * param.grad)
+            param.data.add_(-1 * param.grad.data)
 
         # Stop criterion
         if loss < 0.1:
