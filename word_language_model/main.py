@@ -1,11 +1,14 @@
 import argparse
+import os
 import time
 import math
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
-import data
+from torchtext import data
+from torchtext import datasets
+
 import model
 
 parser = argparse.ArgumentParser(description='PyTorch PennTreeBank RNN/LSTM Language Model')
@@ -29,7 +32,7 @@ parser.add_argument('--batch-size', type=int, default=20, metavar='N',
                     help='batch size')
 parser.add_argument('--bptt', type=int, default=20,
                     help='sequence length')
-parser.add_argument('--seed', type=int, default=1111,
+parser.add_argument('--seed', type=int, default=104123,
                     help='random seed')
 parser.add_argument('--cuda', action='store_true',
                     help='use CUDA')
@@ -51,26 +54,20 @@ if torch.cuda.is_available():
 # Load data
 ###############################################################################
 
-corpus = data.Corpus(args.data)
-
-def batchify(data, bsz):
-    nbatch = data.size(0) // bsz
-    data = data.narrow(0, 0, nbatch * bsz)
-    data = data.view(bsz, -1).t().contiguous()
-    if args.cuda:
-        data = data.cuda()
-    return data
-
+TEXT = data.Field(time_series=True)
+train, dev, test = datasets.LanguageModelingDataset.splits(
+    os.path.join(args.data, ''), 'train.txt', 'valid.txt', 'test.txt', fields=TEXT)
+TEXT.build_vocab(train)
 eval_batch_size = 10
-train_data = batchify(corpus.train, args.batch_size)
-val_data = batchify(corpus.valid, eval_batch_size)
-test_data = batchify(corpus.test, eval_batch_size)
+train_iter, dev_iter, test_iter = data.BPTTIterator.splits(
+    (train, dev, test), batch_sizes=(args.batch_size, eval_batch_size, eval_batch_size),
+    bptt_len=args.bptt, device=(0 if args.cuda else -1), repeat=False)
 
 ###############################################################################
 # Build the model
 ###############################################################################
 
-ntokens = len(corpus.dictionary)
+ntokens = len(TEXT.vocab)
 model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers)
 if args.cuda:
     model.cuda()
@@ -99,33 +96,27 @@ def repackage_hidden(h):
         return tuple(repackage_hidden(v) for v in h)
 
 
-def get_batch(source, i, evaluation=False):
-    seq_len = min(args.bptt, len(source) - 1 - i)
-    data = Variable(source[i:i+seq_len], volatile=evaluation)
-    target = Variable(source[i+1:i+1+seq_len].view(-1))
-    return data, target
-
-
 def evaluate(data_source):
-    total_loss = 0
-    ntokens = len(corpus.dictionary)
+    total_loss, total_len = 0, 0
+    ntokens = len(TEXT.vocab)
     hidden = model.init_hidden(eval_batch_size)
-    for i in range(0, data_source.size(0) - 1, args.bptt):
-        data, targets = get_batch(data_source, i, evaluation=True)
+    for batch in data_source:
+        data, targets = batch.text, batch.target.view(-1)
         output, hidden = model(data, hidden)
         output_flat = output.view(-1, ntokens)
         total_loss += len(data) * criterion(output_flat, targets).data
+        total_len += len(data)
         hidden = repackage_hidden(hidden)
-    return total_loss[0] / len(data_source)
+    return total_loss[0] / total_len
 
 
 def train():
     total_loss = 0
     start_time = time.time()
-    ntokens = len(corpus.dictionary)
+    ntokens = len(TEXT.vocab)
     hidden = model.init_hidden(args.batch_size)
-    for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
-        data, targets = get_batch(train_data, i)
+    for i, batch in enumerate(train_iter):
+        data, targets = batch.text, batch.target.view(-1)
         hidden = repackage_hidden(hidden)
         model.zero_grad()
         output, hidden = model(data, hidden)
@@ -138,12 +129,12 @@ def train():
 
         total_loss += loss.data
 
-        if batch % args.log_interval == 0 and batch > 0:
+        if i % args.log_interval == 0 and i > 0:
             cur_loss = total_loss[0] / args.log_interval
             elapsed = time.time() - start_time
             print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | '
                     'loss {:5.2f} | ppl {:8.2f}'.format(
-                epoch, batch, len(train_data) // args.bptt, lr,
+                epoch, i, len(train_iter), lr,
                 elapsed * 1000 / args.log_interval, cur_loss, math.exp(cur_loss)))
             total_loss = 0
             start_time = time.time()
@@ -155,7 +146,7 @@ prev_val_loss = None
 for epoch in range(1, args.epochs+1):
     epoch_start_time = time.time()
     train()
-    val_loss = evaluate(val_data)
+    val_loss = evaluate(dev_iter)
     print('-' * 89)
     print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
             'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
@@ -168,7 +159,7 @@ for epoch in range(1, args.epochs+1):
 
 
 # Run on test data and save the model.
-test_loss = evaluate(test_data)
+test_loss = evaluate(test_iter)
 print('=' * 89)
 print('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
     test_loss, math.exp(test_loss)))
