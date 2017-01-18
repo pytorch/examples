@@ -45,7 +45,8 @@ class Net(nn.Module):
         return F.log_softmax(x)
 
 if __name__ == '__main__':
-    mp.set_start_method('spawn')
+    if sys.version_info.major == 3:
+        mp.set_start_method('spawn')
     args = parser.parse_args()
 
     torch.manual_seed(args.seed)
