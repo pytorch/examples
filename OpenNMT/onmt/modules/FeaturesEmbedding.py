@@ -1,9 +1,12 @@
 # Not in use; it's for when Features are implemented
+import torch
+import torch.nn as nn
+import math
 
-class FeaturesEmbeddding(nn.Container):
+class FeaturesEmbedding(nn.Module):
 
     def __init__(self, dicts, dimExponent, dim, merge):
-        super(FeaturesEmbedding, self).__init__():
+        super(FeaturesEmbedding, self).__init__()
 
         self.merge = merge
         self.luts = []

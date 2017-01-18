@@ -1,6 +1,5 @@
 import onmt
 import argparse
-import os
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -75,7 +74,7 @@ print(opt)
 if torch.cuda.is_available() and not opt.cuda:
     print("WARNING: You have a CUDA device, so you should probably run with -cuda")
 
-class NMTCriterion(nn.Container):
+class NMTCriterion(nn.Module):
     def __init__(self, vocabSize, features):
         self.sub = []
         super(NMTCriterion, self).__init__()
@@ -121,7 +120,8 @@ def memoryEfficientLoss(outputs, targets, generator, crit, eval=False):
         if not eval:
             loss_t.div(batch_size).backward()
 
-    return loss, outputs.grad
+    grad_output = None if outputs.grad is None else outputs.grad.data
+    return loss, grad_output
 
 
 def eval(model, criterion, data):
