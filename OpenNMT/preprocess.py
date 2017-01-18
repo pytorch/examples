@@ -12,24 +12,38 @@ parser = argparse.ArgumentParser(description='preprocess.lua')
 
 parser.add_argument('-config',    help="Read options from this file")
 
-parser.add_argument('-train_src', required=True, help="Path to the training source data")
-parser.add_argument('-train_tgt', required=True, help="Path to the training target data")
-parser.add_argument('-valid_src', required=True, help="Path to the validation source data")
-parser.add_argument('-valid_tgt', required=True, help="Path to the validation target data")
+parser.add_argument('-train_src', required=True,
+                    help="Path to the training source data")
+parser.add_argument('-train_tgt', required=True,
+                    help="Path to the training target data")
+parser.add_argument('-valid_src', required=True,
+                    help="Path to the validation source data")
+parser.add_argument('-valid_tgt', required=True,
+                     help="Path to the validation target data")
 
-parser.add_argument('-save_data', required=True, help="Output file for the prepared data")
+parser.add_argument('-save_data', required=True,
+                    help="Output file for the prepared data")
 
-parser.add_argument('-src_vocab_size', type=int, default=50000, help="Size of the source vocabulary")
-parser.add_argument('-tgt_vocab_size', type=int, default=50000, help="Size of the target vocabulary")
-parser.add_argument('-src_vocab', help="Path to an existing source vocabulary")
-parser.add_argument('-tgt_vocab', help="Path to an existing target vocabulary")
-parser.add_argument('-features_vocabs_prefix', help="Path prefix to existing features vocabularies")
+parser.add_argument('-src_vocab_size', type=int, default=50000,
+                    help="Size of the source vocabulary")
+parser.add_argument('-tgt_vocab_size', type=int, default=50000,
+                    help="Size of the target vocabulary")
+parser.add_argument('-src_vocab',
+                    help="Path to an existing source vocabulary")
+parser.add_argument('-tgt_vocab',
+                    help="Path to an existing target vocabulary")
+parser.add_argument('-features_vocabs_prefix',
+                    help="Path prefix to existing features vocabularies")
 
-parser.add_argument('-seq_length', type=int, default=50,   help="Maximum sequence length")
-parser.add_argument('-shuffle',    type=int, default=1,    help="Shuffle data")
-parser.add_argument('-seed',       type=int, default=3435, help="Random seed")
+parser.add_argument('-seq_length', type=int, default=50,
+                    help="Maximum sequence length")
+parser.add_argument('-shuffle',    type=int, default=1,
+                    help="Shuffle data")
+parser.add_argument('-seed',       type=int, default=3435,
+                    help="Random seed")
 
-parser.add_argument('-report_every', type=int, default=100000, help="Report status every this many sentences")
+parser.add_argument('-report_every', type=int, default=100000,
+                    help="Report status every this many sentences")
 
 opt = parser.parse_args()
 
@@ -59,14 +73,14 @@ def makeVocabulary(filename, size):
             assert numFeatures == 0, "Features not implemented"
 
             if len(featuresVocabs) == 0 and numFeatures > 0:
-                error("Features not implemented")
+                raise RuntimeError("Features not implemented")
                 for j in range(numFeatures):
                     featuresVocabs[j] = onmt.Dict(
                             {onmt.Constants.PAD_WORD, onmt.Constants.UNK_WORD,
                              onmt.Constants.BOS_WORD, onmt.Constants.EOS_WORD})
             else:
                 assert len(featuresVocabs) == numFeatures, (
-                    'all sentences must have the same numbers of additional features')
+                    'all sentences must have the same numbers of features')
 
             for i in range(len(words)):
                 wordVocab.add(words[i])
@@ -135,9 +149,9 @@ def saveVocabulary(name, vocab, file):
 
 def saveFeaturesVocabularies(name, vocabs, prefix):
     for j in range(len(vocabs)):
-         file = "%s.%s_feature_%d.dict" % (prefix, name, j)
-         print("Saving %s feature %d vocabulary to '%s'..." %(name, j, file))
-         vocabs[j].writeFile(file)
+        file = "%s.%s_feature_%d.dict" % (prefix, name, j)
+        print("Saving %s feature %d vocabulary to '%s'..." %(name, j, file))
+        vocabs[j].writeFile(file)
 
 
 def makeData(srcFile, tgtFile, srcDicts, tgtDicts):
@@ -156,7 +170,7 @@ def makeData(srcFile, tgtFile, srcDicts, tgtDicts):
 
         if not srcTokens or not tgtTokens:
             if srcTokens and not tgtTokens or not srcTokens and tgtTokens:
-                print('WARNING. source and target do not have the same number of sentences')
+                print('WARNING: source and target do not have the same number of sentences')
             break
 
         if len(srcTokens) <= opt.seq_length and len(tgtTokens) <= opt.seq_length:
@@ -164,15 +178,20 @@ def makeData(srcFile, tgtFile, srcDicts, tgtDicts):
             srcWords, srcFeats = extract(srcTokens)
             tgtWords, tgtFeats = extract(tgtTokens)
 
-            src += [srcDicts['words'].convertToIdx(srcWords, onmt.Constants.UNK_WORD)]
-            tgt += [tgtDicts['words'].convertToIdx(tgtWords, onmt.Constants.UNK_WORD,
-                        onmt.Constants.BOS_WORD, onmt.Constants.EOS_WORD)]
+            src += [srcDicts['words'].convertToIdx(srcWords,
+                                                   onmt.Constants.UNK_WORD)]
+            tgt += [tgtDicts['words'].convertToIdx(tgtWords,
+                                                   onmt.Constants.UNK_WORD,
+                                                   onmt.Constants.BOS_WORD,
+                                                   onmt.Constants.EOS_WORD)]
 
             if len(srcDicts['features']) > 0:
-                srcFeatures += [generateSourceFeatures(srcDicts['features'], srcFeats)]
+                srcFeatures += [generateSourceFeatures(
+                    srcDicts['features'], srcFeats)]
 
             if len(tgtDicts['features']) > 0:
-               tgtFeatures += [generateTargetFeatures(tgtDicts['features'], tgtFeats)]
+               tgtFeatures += [generateTargetFeatures(
+                   tgtDicts['features'], tgtFeats)]
 
             sizes += [len(srcWords)]
         else:

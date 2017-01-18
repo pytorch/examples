@@ -8,71 +8,105 @@ import time
 
 parser = argparse.ArgumentParser(description='train.py')
 
-parser.add_argument('-config', help="Read options from this file")
+## Data options
 
-## **Data options**
+parser.add_argument('-data', required=True,
+                    help='Path to the *-train.pt file from preprocess.py')
+parser.add_argument('-save_model', default='model',
+                    help="""Model filename (the model will be saved as
+                    <save_model>_epochN_PPL.pt where PPL is the
+                    validation perplexity""")
+parser.add_argument('-train_from',
+                    help="""If training from a checkpoint then this is the
+                    path to the pretrained model.""")
 
-parser.add_argument('-data', help="Path to the training *-train.pt file from preprocess.lua")
-parser.add_argument('-save_model', help="""Model filename (the model will be saved as
-                              <save_model>_epochN_PPL.pt where PPL is the validation perplexity""")
-parser.add_argument('-train_from', help="If training from a checkpoint then this is the path to the pretrained model.")
+## Model options
 
-## **Model options**
+parser.add_argument('-layers', type=int, default=2,
+                    help='Number of layers in the LSTM encoder/decoder')
+parser.add_argument('-rnn_size', type=int, default=500,
+                    help='Size of LSTM hidden states')
+parser.add_argument('-word_vec_size', type=int, default=500,
+                    help='Word embedding sizes')
+parser.add_argument('-feat_merge', default='concat',
+                    help='Merge action for feature embeddings: [concat|sum]')
+parser.add_argument('-feat_vec_exponent', type=float, default=0.7,
+                    help="""When using concatenation, if the feature takes N
+                    values, the embedding dimension will be set to N^exp""")
+parser.add_argument('-feat_vec_size', type=int, default=20,
+                    help='When using sum, the embedding size of the features')
+parser.add_argument('-input_feed', type=int, default=1,
+                    help="""Feed the context vector at each time step as
+                    additional input (via concatenation with the word
+                    embeddings) to the decoder.""")
+# parser.add_argument('-residual',   action="store_true",
+#                     help="Add residual connections between RNN layers.")
+parser.add_argument('-brnn', action='store_true',
+                    help='Use a bidirectional encoder')
+parser.add_argument('-brnn_merge', default='concat',
+                    help="""Merge action for the bidirectional hidden states:
+                    [concat|sum]""")
 
-parser.add_argument('-layers',        type=int, default=2,   help="Number of layers in the LSTM encoder/decoder")
-parser.add_argument('-rnn_size',       type=int, default=500, help="Size of LSTM hidden states")
-parser.add_argument('-word_vec_size', type=int, default=500, help="Word embedding sizes")
-parser.add_argument('-feat_merge', default='concat', help="Merge action for the features embeddings: concat or sum")
-parser.add_argument('-feat_vec_exponent', type=float, default=0.7, help="""When using concatenation, if the feature takes N values
-                                                                then the embedding dimension will be set to N^exponent""")
-parser.add_argument('-feat_vec_size', type=int, default=20, help="When using sum, the common embedding size of the features")
-parser.add_argument('-input_feed', type=int,    default=1,  help="Feed the context vector at each time step as additional input (via concatenation with the word embeddings) to the decoder.")
-# parser.add_argument('-residual',   action="store_true",     help="Add residual connections between RNN layers.")
-parser.add_argument('-brnn',       action="store_true",     help="Use a bidirectional encoder")
-parser.add_argument('-brnn_merge', default='concat',        help="Merge action for the bidirectional hidden states: concat or sum")
+## Optimization options
 
-## **Optimization options**
-
-parser.add_argument('-max_batch_size',  type=int, default=64,  help="Maximum batch size")
-parser.add_argument('-max_generator_batches', type=int, default=32, help="""Maximum batches of words in a sequence to run the generator on in parallel.
-                                                                           Higher is faster, but uses more memory.""")
-parser.add_argument('-epochs',          type=int, default=13,  help="Number of training epochs")
-parser.add_argument('-start_epoch',     type=int, default=1,   help="If loading from a checkpoint, the epoch from which to start")
-parser.add_argument('-start_iteration', type=int, default=0,   help="If loading from a checkpoint, the iteration from which to start")
-# this gives really bad initialization; Xavier better
-parser.add_argument('-param_init',      type=float, default=0.1, help="Parameters are initialized over uniform distribution with support (-param_init, param_init)")
-parser.add_argument('-optim', default='sgd', help="Optimization method. Possible options are: sgd, adagrad, adadelta, adam")
-parser.add_argument('-learning_rate', type=float, default=1, help="""Starting learning rate. If adagrad/adadelta/adam is used,
-                                then this is the global learning rate. Recommed settings. sgd = 1,
-                                adagrad = 0.1, adadelta = 1, adam = 0.1""")
-parser.add_argument('-max_grad_norm',       type=float, default=5,   help="If the norm of the gradient vector exceeds this renormalize it to have the norm equal to max_grad_norm")
-parser.add_argument('-dropout',             type=float, default=0.3, help="Dropout probability. Dropout is applied between vertical LSTM stacks.")
-parser.add_argument('-learning_rate_decay', type=float, default=0.5, help="""Decay learning rate by this much if (i) perplexity does not decrease
-                                        on the validation set or (ii) epoch has gone past the start_decay_at_limit""")
-parser.add_argument('-start_decay_at', default=8, help="Start decay after this epoch")
-parser.add_argument('-curriculum', action="store_true", help="""For this many epochs, order the minibatches based on source
-                             sequence length. Sometimes setting this to 1 will increase convergence speed.""")
-parser.add_argument('-pre_word_vecs_enc', help="""If a valid path is specified, then this will load
-                                     pretrained word embeddings on the encoder side.
-                                     See README for specific formatting instructions.""")
-parser.add_argument('-pre_word_vecs_dec', help="""If a valid path is specified, then this will load
-                                     pretrained word embeddings on the decoder side.
-                                     See README for specific formatting instructions.""")
-
-## **Other options**
+parser.add_argument('-batch_size', type=int, default=64,
+                    help='Maximum batch size')
+parser.add_argument('-max_generator_batches', type=int, default=32,
+                    help="""Maximum batches of words in a sequence to run
+                    the generator on in parallel. Higher is faster, but uses
+                    more memory.""")
+parser.add_argument('-epochs', type=int, default=13,
+                    help='Number of training epochs')
+parser.add_argument('-start_epoch', type=int, default=1,
+                    help='The epoch from which to start')
+parser.add_argument('-param_init', type=float, default=0.1,
+                    help="""Parameters are initialized over uniform distribution
+                    with support (-param_init, param_init)""")
+parser.add_argument('-optim', default='sgd',
+                    help="Optimization method. [sgd|adagrad|adadelta|adam]")
+parser.add_argument('-learning_rate', type=float, default=1,
+                    help="""Starting learning rate. If adagrad/adadelta/adam is
+                    used, then this is the global learning rate. Recommended
+                    settings: sgd = 1, adagrad = 0.1, adadelta = 1, adam = 0.1""")
+parser.add_argument('-max_grad_norm', type=float, default=5,
+                    help="""If the norm of the gradient vector exceeds this,
+                    renormalize it to have the norm equal to max_grad_norm""")
+parser.add_argument('-dropout', type=float, default=0.3,
+                    help='Dropout probability; applied between LSTM stacks.')
+parser.add_argument('-learning_rate_decay', type=float, default=0.5,
+                    help="""Decay learning rate by this much if (i) perplexity
+                    does not decrease on the validation set or (ii) epoch has
+                    gone past the start_decay_at_limit""")
+parser.add_argument('-start_decay_at', default=8,
+                    help="Start decay after this epoch")
+parser.add_argument('-curriculum', action="store_true",
+                    help="""For this many epochs, order the minibatches based
+                    on source sequence length. Sometimes setting this to 1 will
+                    increase convergence speed.""")
+parser.add_argument('-pre_word_vecs_enc',
+                    help="""If a valid path is specified, then this will load
+                    pretrained word embeddings on the encoder side.
+                    See README for specific formatting instructions.""")
+parser.add_argument('-pre_word_vecs_dec',
+                    help="""If a valid path is specified, then this will load
+                    pretrained word embeddings on the decoder side.
+                    See README for specific formatting instructions.""")
 
 # GPU
-parser.add_argument('-cuda', action='store_true', help="Use CUDA")
+parser.add_argument('-cuda', action='store_true',
+                    help="Use CUDA")
 
-# bookkeeping
-parser.add_argument('-report_every', type=int, default=50,   help="Print stats every this many iterations within an epoch.")
-# parser.add_argument('-seed',         type=int, default=3435, help="Seed for random initialization")
+parser.add_argument('-log_interval', type=int, default=50,
+                    help="Print stats at this interval.")
+# parser.add_argument('-seed', type=int, default=3435,
+#                     help="Seed for random initialization")
 
 opt = parser.parse_args()
 print(opt)
 
 if torch.cuda.is_available() and not opt.cuda:
     print("WARNING: You have a CUDA device, so you should probably run with -cuda")
+
 
 class NMTCriterion(nn.Module):
     def __init__(self, vocabSize, features):
@@ -94,7 +128,8 @@ class NMTCriterion(nn.Module):
     def forward(self, inputs, targets):
         if len(self.sub) == 1:
             total_size = targets.nelement()
-            loss = self.sub[0](inputs.view(total_size, -1), targets.view(total_size))
+            loss = self.sub[0](
+                inputs.view(total_size, -1), targets.view(total_size))
             return loss
         else:
             assert False, "FIXME: features"
@@ -131,9 +166,10 @@ def eval(model, criterion, data):
     model.eval()
     for i in range(len(data)):
         batch = data[i]
-        outputs = model(batch) # FIXME volatile
+        outputs = model(batch)  # FIXME volatile
         targets = batch[1][1:]  # exclude <s> from targets
-        loss, _ = memoryEfficientLoss(outputs, targets, model.generator, criterion, eval=True)
+        loss, _ = memoryEfficientLoss(
+                outputs, targets, model.generator, criterion, eval=True)
         total_loss += loss
         total_words += targets.data.ne(onmt.Constants.PAD).sum()
 
@@ -159,16 +195,13 @@ def trainModel(model, trainData, validData, dataset):
 
     def trainEpoch(epoch):
 
-        startI = opt.start_iteration
-        opt.start_iteration = 1
-
         # shuffle mini batch order
         batchOrder = torch.randperm(len(trainData))
 
         total_loss, report_loss = 0, 0
         total_words, report_words = 0, 0
         start = time.time()
-        for i in range(startI, len(trainData)):
+        for i in range(len(trainData)):
 
             batchIdx = batchOrder[i] if epoch >= opt.curriculum else i
             batch = trainData[batchIdx]
@@ -176,7 +209,8 @@ def trainModel(model, trainData, validData, dataset):
             model.zero_grad()
             outputs = model(batch)
             targets = batch[1][1:]  # exclude <s> from targets
-            loss, gradOutput = memoryEfficientLoss(outputs, targets, model.generator, criterion)
+            loss, gradOutput = memoryEfficientLoss(
+                    outputs, targets, model.generator, criterion)
 
             outputs.backward(gradOutput)
 
@@ -188,9 +222,12 @@ def trainModel(model, trainData, validData, dataset):
             num_words = targets.data.ne(onmt.Constants.PAD).sum()
             total_words += num_words
             report_words += num_words
-            if i % opt.report_every == 0 and i > 0:
+            if i % opt.log_interval == 0 and i > 0:
                 print("Epoch %2d, %5d/%5d batches; perplexity: %6.2f; %3.0f tokens/s" %
-                      (epoch, i, len(trainData), math.exp(report_loss / report_words), report_words/(time.time()-start)))
+                      (epoch, i, len(trainData),
+                      math.exp(report_loss / report_words),
+                      report_words/(time.time()-start)))
+
                 report_loss = report_words = 0
                 start = time.time()
 
@@ -211,7 +248,8 @@ def trainModel(model, trainData, validData, dataset):
             'dicts': dataset['dicts'],
             'opt': opt,
         }
-        torch.save(checkpoint, 'model_e%d_%.2f.pt' % (epoch, valid_ppl))
+        torch.save(checkpoint,
+                   '%s_e%d_%.2f.pt' % (opt.save_model, epoch, valid_ppl))
 
 
 def main():
@@ -223,16 +261,19 @@ def main():
 
     dataset = torch.load(opt.data)
 
-    trainData = onmt.Dataset(dataset['train']['src'], dataset['train']['tgt'], opt.max_batch_size, opt.cuda)
-    validData = onmt.Dataset(dataset['valid']['src'], dataset['valid']['tgt'], opt.max_batch_size, opt.cuda)
+    trainData = onmt.Dataset(dataset['train']['src'],
+                             dataset['train']['tgt'], opt.batch_size, opt.cuda)
+    validData = onmt.Dataset(dataset['valid']['src'],
+                             dataset['valid']['tgt'], opt.batch_size, opt.cuda)
 
     dicts = dataset['dicts']
     print(' * vocabulary size. source = %d; target = %d' %
-            (dicts['src']['words'].size(), dicts['tgt']['words'].size()))
+          (dicts['src']['words'].size(), dicts['tgt']['words'].size()))
     print(' * additional features. source = %d; target = %d' %
-            (len(dicts['src']['features']), len(dicts['tgt']['features'])))
-    print(' * number of training sentences. %d' % len(dataset['train']['src']['words']))
-    print(' * maximum batch size. %d' % opt.max_batch_size)
+          (len(dicts['src']['features']), len(dicts['tgt']['features'])))
+    print(' * number of training sentences. %d' %
+          len(dataset['train']['src']['words']))
+    print(' * maximum batch size. %d' % opt.batch_size)
 
     print('Building model...')
 

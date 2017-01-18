@@ -46,7 +46,7 @@ class Encoder(nn.Module):
         if self.has_features:
             self.add_module('feat_lut', feat_lut)
 
-    def forward(self, input):
+    def forward(self, input, hidden=None):
         if self.has_features:
             word_emb = self.word_lut(input[0])
             feat_emb = self.feat_lut(input[1])
@@ -54,12 +54,14 @@ class Encoder(nn.Module):
         else:
             emb = self.word_lut(input)
 
-        batch_size = emb.size(1)
-        h_size = (self.layers * self.num_directions, batch_size, self.hidden_size)
-        h_0 = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
-        c_0 = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
-        hidden_0 = (h_0, c_0)
-        outputs, hidden_t = self.rnn(emb, hidden_0)
+        if hidden is None:
+            batch_size = emb.size(1)
+            h_size = (self.layers * self.num_directions, batch_size, self.hidden_size)
+            h_0 = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
+            c_0 = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
+            hidden = (h_0, c_0)
+
+        outputs, hidden_t = self.rnn(emb, hidden)
         return hidden_t, outputs
 
 
@@ -129,7 +131,7 @@ class Decoder(nn.Module):
         if self.has_features:
             self.add_module('feat_lut', feat_lut)
 
-    def forward(self, input, hidden, context):
+    def forward(self, input, hidden, context, init_output):
         if self.has_features:
             word_emb = self.word_lut(input[0])
             feat_emb = self.feat_lut(input[1])
@@ -142,19 +144,23 @@ class Decoder(nn.Module):
         h_size = (batch_size, self.hidden_size)
         output = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
 
+        # n.b. you can increase performance if you compute W_ih * x for all
+        # iterations in parallel, but that's only possible if
+        # self.input_feed=False
         outputs = []
+        output = init_output
         for emb_t in emb.chunk(emb.size(0)):
             emb_t = emb_t.squeeze(0)
             if self.input_feed:
                 emb_t = torch.cat([emb_t, output], 1)
 
             output, hidden = self.rnn(emb_t, hidden)
-            output = self.attn(output, context.t())
+            output, attn = self.attn(output, context.t())
             output = self.dropout(output)
             outputs += [output]
 
         outputs = torch.stack(outputs)
-        return outputs
+        return outputs, hidden, attn
 
 
 class NMTModel(nn.Module):
@@ -169,11 +175,17 @@ class NMTModel(nn.Module):
     def set_generate(self, enabled):
         self.generate = enabled
 
+    def make_init_decoder_output(self, context):
+        batch_size = context.size(1)
+        h_size = (batch_size, self.decoder.hidden_size)
+        return Variable(context.data.new(*h_size).zero_(), requires_grad=False)
+
     def forward(self, input):
         src = input[0]
         tgt = input[1][:-1]  # exclude last target from inputs
         enc_hidden, context = self.encoder(src)
-        out = self.decoder(tgt, enc_hidden, context)
+        init_output = self.make_init_decoder_output(context)
+        out, dec_hidden, _attn = self.decoder(tgt, enc_hidden, context, init_output)
         if self.generate:
             out = self.generator(out)
 
