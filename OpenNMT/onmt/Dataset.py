@@ -6,12 +6,15 @@ class Dataset(object):
     # FIXME: randomize
     def __init__(self, srcData, tgtData, batchSize, cuda):
         self.src = srcData['words']
-        self.tgt = tgtData['words']
+        if tgtData:
+            self.tgt = tgtData['words']
+            assert(len(self.src) == len(self.tgt))
+        else:
+            self.tgt = None
         self.cuda = cuda
         # FIXME
         # self.srcFeatures = srcData.features
         # self.tgtFeatures = tgtData.features
-        assert(len(self.src) == len(self.tgt))
         self.batchSize = batchSize
         self.numBatches = len(self.src) // batchSize
 
@@ -22,22 +25,23 @@ class Dataset(object):
             data_length = data[i].size(0)
             offset = max_length - data_length if align_right else 0
             out[i].narrow(0, offset, data_length).copy_(data[i])
-        return Variable(out)
+
+        v = Variable(out)
+        if self.cuda:
+            v = v.cuda()
+        v = v.t().contiguous()  # FIXME
+        return v
 
     def __getitem__(self, index):
         assert index < self.numBatches, "%d > %d" % (index, self.numBatches)
         srcBatch = self._batchify(
             self.src[index*self.batchSize:(index+1)*self.batchSize], align_right=True)
-        tgtBatch = self._batchify(
-            self.tgt[index*self.batchSize:(index+1)*self.batchSize])
 
-        if self.cuda:
-            srcBatch = srcBatch.cuda()
-            tgtBatch = tgtBatch.cuda()
-
-        # FIXME
-        srcBatch = srcBatch.t().contiguous()
-        tgtBatch = tgtBatch.t().contiguous()
+        if self.tgt:
+            tgtBatch = self._batchify(
+                self.tgt[index*self.batchSize:(index+1)*self.batchSize])
+        else:
+            tgtBatch = None
 
         return srcBatch, tgtBatch
 

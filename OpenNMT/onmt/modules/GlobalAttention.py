@@ -22,6 +22,7 @@ Constructs a unit mapping.
 
 import torch
 import torch.nn as nn
+import math
 
 class GlobalAttention(nn.Module):
     def __init__(self, dim):
@@ -30,6 +31,10 @@ class GlobalAttention(nn.Module):
         self.sm = nn.Softmax()
         self.linear_out = nn.Linear(dim*2, dim, bias=False)
         self.tanh = nn.Tanh()
+        self.mask = None
+
+    def applyMask(self, mask):
+        self.mask = mask
 
     def forward(self, input, context):
         """
@@ -40,12 +45,14 @@ class GlobalAttention(nn.Module):
 
         # Get attention
         attn = torch.bmm(context, targetT).squeeze(2)  # batch x sourceL
+        if self.mask is not None:
+            attn.data.masked_fill_(self.mask, -math.inf)
         attn = self.sm(attn)
-        attn = attn.view(attn.size(0), 1, attn.size(1))  # batch x 1 x sourceL
+        attn3 = attn.view(attn.size(0), 1, attn.size(1))  # batch x 1 x sourceL
 
-        weightedContext = torch.bmm(attn, context).squeeze(1)  # batch x dim
+        weightedContext = torch.bmm(attn3, context).squeeze(1)  # batch x dim
         contextCombined = torch.cat((weightedContext, input), 1)
 
         contextOutput = self.tanh(self.linear_out(contextCombined))
 
-        return contextOutput
+        return contextOutput, attn

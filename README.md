@@ -11,3 +11,4 @@ A repository showcasing examples of using pytorch
 - Hogwild training of shared ConvNets across multiple processes on MNIST
 - Training a CartPole to balance in OpenAI Gym with actor-critic
 - Natural Language Inference (SNLI) with GloVe vectors, LSTMs, and torchtext
+- Neural Machine Translation using sequence-to-sequence RNN with attention (OpenNMT)
