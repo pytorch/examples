@@ -1,3 +1,4 @@
 torch
 tqdm
 six
+pillow
