@@ -1,7 +1,6 @@
 from __future__ import print_function
 import os, argparse
 import torch
-import sys
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.multiprocessing as mp
@@ -46,8 +45,6 @@ class Net(nn.Module):
         return F.log_softmax(x)
 
 if __name__ == '__main__':
-    if sys.version_info.major == 3:
-        mp.set_start_method('spawn')
     args = parser.parse_args()
 
     torch.manual_seed(args.seed)
