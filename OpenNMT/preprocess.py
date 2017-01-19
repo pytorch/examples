@@ -32,8 +32,7 @@ parser.add_argument('-src_vocab',
                     help="Path to an existing source vocabulary")
 parser.add_argument('-tgt_vocab',
                     help="Path to an existing target vocabulary")
-parser.add_argument('-features_vocabs_prefix',
-                    help="Path prefix to existing features vocabularies")
+
 
 parser.add_argument('-seq_length', type=int, default=50,
                     help="Maximum sequence length")
@@ -48,98 +47,42 @@ parser.add_argument('-report_every', type=int, default=100000,
 opt = parser.parse_args()
 
 
-def extract(tokens):
-    if isinstance(tokens, str):
-        tokens = tokens.split()
-    features = None
-    data = [token.split('\|') for token in tokens]
-    words = [d[0] for d in data if d[0] != '']
-    features = [d[1:] for d in data]
-    features = list(zip(*features))
-
-    return words, features
-
-
 def makeVocabulary(filename, size):
-    wordVocab = onmt.Dict(
-            [onmt.Constants.PAD_WORD, onmt.Constants.UNK_WORD,
-             onmt.Constants.BOS_WORD, onmt.Constants.EOS_WORD])
-    featuresVocabs = []
+    vocab = onmt.Dict([onmt.Constants.PAD_WORD, onmt.Constants.UNK_WORD,
+                       onmt.Constants.BOS_WORD, onmt.Constants.EOS_WORD])
 
     with open(filename) as f:
         for sent in f.readlines():
-            words, features = extract(sent)
-            numFeatures = len(features)
-            assert numFeatures == 0, "Features not implemented"
+            for word in sent.split():
+                vocab.add(word)
 
-            if len(featuresVocabs) == 0 and numFeatures > 0:
-                raise RuntimeError("Features not implemented")
-                for j in range(numFeatures):
-                    featuresVocabs[j] = onmt.Dict(
-                            {onmt.Constants.PAD_WORD, onmt.Constants.UNK_WORD,
-                             onmt.Constants.BOS_WORD, onmt.Constants.EOS_WORD})
-            else:
-                assert len(featuresVocabs) == numFeatures, (
-                    'all sentences must have the same numbers of features')
-
-            for i in range(len(words)):
-                wordVocab.add(words[i])
-
-                for j in range(numFeatures):
-                    featuresVocabs[j].add(features[j][i])
-
-    originalSize = wordVocab.size()
-    wordVocab = wordVocab.prune(size)
+    originalSize = vocab.size()
+    vocab = vocab.prune(size)
     print('Created dictionary of size %d (pruned from %d)' %
-          (wordVocab.size(), originalSize))
+          (vocab.size(), originalSize))
 
-    return wordVocab, featuresVocabs
+    return vocab
 
 
-def initVocabulary(name, dataFile, vocabFile, vocabSize, featuresVocabsFiles):
-    featuresVocabs = []
+def initVocabulary(name, dataFile, vocabFile, vocabSize):
 
-    wordVocab = None
+    vocab = None
     if vocabFile is not None:
         # If given, load existing word dictionary.
         print('Reading ' + name + ' vocabulary from \'' + vocabFile + '\'...')
-        wordVocab = onmt.Dict()
-        wordVocab.loadFile(vocabFile)
-        print('Loaded ' + wordVocab.size() + ' ' + name + ' words')
+        vocab = onmt.Dict()
+        vocab.loadFile(vocabFile)
+        print('Loaded ' + vocab.size() + ' ' + name + ' words')
 
-    if featuresVocabsFiles is not None:
-        # If given, discover existing features dictionaries.
-        j = 1
-
-        while True:
-            file = featuresVocabsFiles + '.' + name + '_feature_' + j + '.dict'
-
-            if not os.path.exists(file):
-                break
-
-            print("Reading %s feature %d vocabulary from '%s'..." % (name, j, file))
-            featuresVocabs[j] = onmt.Dict()
-            featuresVocabs[j].loadFile(file)
-            print('Loaded %d labels' % featuresVocabs[j].size())
-
-            j += 1
-
-    if wordVocab is None or (len(featuresVocabs) == 0 and hasFeatures(dataFile)):
+    if vocab is None:
         # If a dictionary is still missing, generate it.
         print('Building ' + name + ' vocabulary...')
-        genWordVocab, genFeaturesVocabs = makeVocabulary(dataFile, vocabSize)
+        genWordVocab = makeVocabulary(dataFile, vocabSize)
 
-        if wordVocab is None:
-            wordVocab = genWordVocab
-
-        if len(featuresVocabs) == 0:
-            featuresVocabs = genFeaturesVocabs
+        vocab = genWordVocab
 
     print()
-    return {
-        'words': wordVocab,
-        'features': featuresVocabs
-    }
+    return vocab
 
 
 def saveVocabulary(name, vocab, file):
@@ -147,16 +90,8 @@ def saveVocabulary(name, vocab, file):
     vocab.writeFile(file)
 
 
-def saveFeaturesVocabularies(name, vocabs, prefix):
-    for j in range(len(vocabs)):
-        file = "%s.%s_feature_%d.dict" % (prefix, name, j)
-        print("Saving %s feature %d vocabulary to '%s'..." %(name, j, file))
-        vocabs[j].writeFile(file)
-
-
 def makeData(srcFile, tgtFile, srcDicts, tgtDicts):
-    src, srcFeatures = [], []
-    tgt, tgtFeatures = [], []
+    src, tgt = [], []
     sizes = []
     count, ignored = 0, 0
 
@@ -165,33 +100,22 @@ def makeData(srcFile, tgtFile, srcDicts, tgtDicts):
     tgtF = open(tgtFile)
 
     while True:
-        srcTokens = srcF.readline().split()
-        tgtTokens = tgtF.readline().split()
+        srcWords = srcF.readline().split()
+        tgtWords = tgtF.readline().split()
 
-        if not srcTokens or not tgtTokens:
-            if srcTokens and not tgtTokens or not srcTokens and tgtTokens:
+        if not srcWords or not tgtWords:
+            if srcWords and not tgtWords or not srcWords and tgtWords:
                 print('WARNING: source and target do not have the same number of sentences')
             break
 
-        if len(srcTokens) <= opt.seq_length and len(tgtTokens) <= opt.seq_length:
+        if len(srcWords) <= opt.seq_length and len(tgtWords) <= opt.seq_length:
 
-            srcWords, srcFeats = extract(srcTokens)
-            tgtWords, tgtFeats = extract(tgtTokens)
-
-            src += [srcDicts['words'].convertToIdx(srcWords,
-                                                   onmt.Constants.UNK_WORD)]
-            tgt += [tgtDicts['words'].convertToIdx(tgtWords,
-                                                   onmt.Constants.UNK_WORD,
-                                                   onmt.Constants.BOS_WORD,
-                                                   onmt.Constants.EOS_WORD)]
-
-            if len(srcDicts['features']) > 0:
-                srcFeatures += [generateSourceFeatures(
-                    srcDicts['features'], srcFeats)]
-
-            if len(tgtDicts['features']) > 0:
-               tgtFeatures += [generateTargetFeatures(
-                   tgtDicts['features'], tgtFeats)]
+            src += [srcDicts.convertToIdx(srcWords,
+                                          onmt.Constants.UNK_WORD)]
+            tgt += [tgtDicts.convertToIdx(tgtWords,
+                                          onmt.Constants.UNK_WORD,
+                                          onmt.Constants.BOS_WORD,
+                                          onmt.Constants.EOS_WORD)]
 
             sizes += [len(srcWords)]
         else:
@@ -212,44 +136,24 @@ def makeData(srcFile, tgtFile, srcDicts, tgtDicts):
         tgt = [tgt[idx] for idx in perm]
         sizes = [sizes[idx] for idx in perm]
 
-        if len(srcDicts['features']) > 0:
-            srcFeatures = [srcFeatures[idx] for idx in perm]
-        if len(tgtDicts['features']) > 0:
-            tgtFeatures = [tgtFeatures[idx] for idx in perm]
-
     print('... sorting sentences by size')
     _, perm = torch.sort(torch.Tensor(sizes))
     src = [src[idx] for idx in perm]
     tgt = [tgt[idx] for idx in perm]
 
-    if len(srcDicts['features']) > 0:
-        srcFeatures = [srcFeatures[idx] for idx in perm]
-    if len(tgtDicts['features']) > 0:
-        tgtFeatures = [tgtFeatures[idx] for idx in perm]
-
     print('Prepared %d sentences (%d ignored due to length == 0 or > %d)' %
           (len(src), ignored, opt.seq_length))
 
-    srcData = {
-        'words': src,
-        'features': srcFeatures
-    }
-
-    tgtData = {
-        'words': tgt,
-        'features': tgtFeatures
-    }
-
-    return srcData, tgtData
+    return src, tgt
 
 
 def main():
 
     dicts = {}
     dicts['src'] = initVocabulary('source', opt.train_src, opt.src_vocab,
-                                  opt.src_vocab_size, opt.features_vocabs_prefix)
+                                  opt.src_vocab_size)
     dicts['tgt'] = initVocabulary('target', opt.train_tgt, opt.tgt_vocab,
-                                  opt.tgt_vocab_size, opt.features_vocabs_prefix)
+                                  opt.tgt_vocab_size)
 
     print('Preparing training ...')
     train = {}
@@ -262,13 +166,9 @@ def main():
                                     dicts['src'], dicts['tgt'])
 
     if opt.src_vocab is None:
-        saveVocabulary('source', dicts['src']['words'], opt.save_data + '.src.dict')
+        saveVocabulary('source', dicts['src'], opt.save_data + '.src.dict')
     if opt.tgt_vocab is None:
-        saveVocabulary('target', dicts['tgt']['words'], opt.save_data + '.tgt.dict')
-
-    if opt.features_vocabs_prefix is None:
-        saveFeaturesVocabularies('source', dicts['src']['features'], opt.save_data)
-        saveFeaturesVocabularies('target', dicts['tgt']['features'], opt.save_data)
+        saveVocabulary('target', dicts['tgt'], opt.save_data + '.tgt.dict')
 
 
     print('Saving data to \'' + opt.save_data + '-train.pt\'...')

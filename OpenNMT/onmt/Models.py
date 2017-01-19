@@ -3,14 +3,6 @@ import torch.nn as nn
 from torch.autograd import Variable
 import onmt.modules
 
-
-def _makeFeatEmbedder(opt, dicts):
-    return onmt.FeaturesEmbedding(dicts['features'],
-                                  opt.feat_vec_exponent,
-                                  opt.feat_vec_size,
-                                  opt.feat_merge)
-
-
 class Encoder(nn.Module):
 
     def __init__(self, opt, dicts):
@@ -19,21 +11,15 @@ class Encoder(nn.Module):
         assert opt.rnn_size % self.num_directions == 0
         self.hidden_size = opt.rnn_size // self.num_directions
         inputSize = opt.word_vec_size
-        feat_lut = None
-        # Sequences with features.
-        if len(dicts['features']) > 0:
-            feat_lut = _makeFeatEmbedder(opt, dicts)
-            inputSize = inputSize + feat_lut.outputSize
 
         super(Encoder, self).__init__()
-        self.word_lut = nn.Embedding(dicts['words'].size(),
+        self.word_lut = nn.Embedding(dicts.size(),
                                   opt.word_vec_size,
                                   padding_idx=onmt.Constants.PAD)
         self.rnn = nn.LSTM(inputSize, self.hidden_size,
                         num_layers=opt.layers,
                         dropout=opt.dropout,
                         bidirectional=opt.brnn)
-
 
         # self.rnn.bias_ih_l0.data.div_(2)
         # self.rnn.bias_hh_l0.data.copy_(self.rnn.bias_ih_l0.data)
@@ -42,17 +28,8 @@ class Encoder(nn.Module):
             pretrained = torch.load(opt.pre_word_vecs_enc)
             self.word_lut.weight.copy_(pretrained)
 
-        self.has_features = feat_lut is not None
-        if self.has_features:
-            self.add_module('feat_lut', feat_lut)
-
     def forward(self, input, hidden=None):
-        if self.has_features:
-            word_emb = self.word_lut(input[0])
-            feat_emb = self.feat_lut(input[1])
-            emb = torch.cat([word_emb, feat_emb], 1)
-        else:
-            emb = self.word_lut(input)
+        emb = self.word_lut(input)
 
         if hidden is None:
             batch_size = emb.size(1)
@@ -69,7 +46,6 @@ class StackedLSTM(nn.Module):
     def __init__(self, num_layers, input_size, rnn_size, dropout):
         super(StackedLSTM, self).__init__()
         self.dropout = nn.Dropout(dropout)
-
 
         self.layers = []
         for i in range(num_layers):
@@ -104,14 +80,8 @@ class Decoder(nn.Module):
         if self.input_feed:
             input_size += opt.rnn_size
 
-        feat_lut = None
-        # Sequences with features.
-        if len(dicts['features']) > 0:
-            feat_lut = _makeFeatEmbedder(opt, dicts)
-            input_size = input_size + feat_lut.outputSize
-
         super(Decoder, self).__init__()
-        self.word_lut = nn.Embedding(dicts['words'].size(),
+        self.word_lut = nn.Embedding(dicts.size(),
                                   opt.word_vec_size,
                                   padding_idx=onmt.Constants.PAD)
         self.rnn = StackedLSTM(opt.layers, input_size, opt.rnn_size, opt.dropout)
@@ -127,17 +97,9 @@ class Decoder(nn.Module):
             pretrained = torch.load(opt.pre_word_vecs_dec)
             self.word_lut.weight.copy_(pretrained)
 
-        self.has_features = feat_lut is not None
-        if self.has_features:
-            self.add_module('feat_lut', feat_lut)
 
     def forward(self, input, hidden, context, init_output):
-        if self.has_features:
-            word_emb = self.word_lut(input[0])
-            feat_emb = self.feat_lut(input[1])
-            emb = torch.cat([word_emb, feat_emb], 1)
-        else:
-            emb = self.word_lut(input)
+        emb = self.word_lut(input)
 
         batch_size = input.size(1)
 

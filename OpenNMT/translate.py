@@ -55,15 +55,12 @@ def main():
 
     predScoreTotal, predWordsTotal, goldScoreTotal, goldWordsTotal = 0, 0, 0, 0
 
-    start = time.time()
-
     srcBatch, tgtBatch = [], []
 
     count = 0
     tgtF = open(opt.tgt) if opt.tgt else None
     for line in open(opt.src):
 
-        # FIXME: features? need to use extract from preprocess.py
         srcTokens = line.split()
         srcBatch += [srcTokens]
         if tgtF:
