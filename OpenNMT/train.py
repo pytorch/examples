@@ -148,7 +148,7 @@ def eval(model, criterion, data):
     return total_loss / total_words
 
 
-def trainModel(model, trainData, validData, dataset):
+def trainModel(model, trainData, validData, dataset, optim):
     print(model)
     model.train()
     for p in model.parameters():
@@ -156,12 +156,6 @@ def trainModel(model, trainData, validData, dataset):
 
     # define criterion of each GPU
     criterion = NMTCriterion(dataset['dicts']['tgt'].size())
-
-    optim = onmt.Optim(
-        model.parameters(), opt.optim, opt.learning_rate, opt.max_grad_norm,
-        lr_decay=opt.learning_rate_decay,
-        start_decay_at=opt.start_decay_at
-    )
 
     def trainEpoch(epoch):
 
@@ -205,27 +199,33 @@ def trainModel(model, trainData, validData, dataset):
 
     for epoch in range(opt.start_epoch, opt.epochs + 1):
         print('')
+
+        #  (1) train for one epoch on the training set
         train_loss = trainEpoch(epoch)
         print('Train perplexity: %g' % math.exp(min(train_loss, 100)))
+
+        #  (2) evaluate on the validation set
         valid_loss = eval(model, criterion, validData)
         valid_ppl = math.exp(min(valid_loss, 100))
         print('Validation perplexity: %g' % valid_ppl)
+
+        #  (3) maybe update the learning rate
         if opt.optim == 'sgd':
             optim.updateLearningRate(valid_loss, epoch)
 
+        #  (4) drop a checkpoint
         checkpoint = {
             'model': model,
             'dicts': dataset['dicts'],
             'opt': opt,
+            'epoch': epoch,
+            'optim': optim,
         }
         torch.save(checkpoint,
                    '%s_e%d_%.2f.pt' % (opt.save_model, epoch, valid_ppl))
 
 
 def main():
-
-    checkpoint = {}
-    assert opt.train_from is None, "FIXME: Load from checkpoint"
 
     print("Loading data from '%s'" % opt.data)
 
@@ -245,23 +245,34 @@ def main():
 
     print('Building model...')
 
-    if 'model' in checkpoint:
-        model = checkpoint['model']
-    else:
+    if opt.train_from is None:
         encoder = onmt.Models.Encoder(opt, dicts['src'])
         decoder = onmt.Models.Decoder(opt, dicts['tgt'])
         generator = nn.Sequential(
             nn.Linear(opt.rnn_size, dicts['tgt'].size()),
             nn.LogSoftmax())
         model = onmt.Models.NMTModel(encoder, decoder, generator)
+        
+        optim = onmt.Optim(
+            model.parameters(), opt.optim, opt.learning_rate, opt.max_grad_norm,
+            lr_decay=opt.learning_rate_decay,
+            start_decay_at=opt.start_decay_at
+        )
+    else:
+        checkpoint = torch.load(opt.train_from)
+        model = checkpoint['model']
+        optim = checkpoint['optim']
+        opt.start_epoch = checkpoint['epoch']
 
     if opt.cuda:
         model.cuda()
+    else:
+        model.cpu()
 
     nParams = sum([p.nelement() for p in model.parameters()])
     print('* number of parameters: %d' % nParams)
 
-    trainModel(model, trainData, validData, dataset)
+    trainModel(model, trainData, validData, dataset, optim)
 
 
 if __name__ == "__main__":
