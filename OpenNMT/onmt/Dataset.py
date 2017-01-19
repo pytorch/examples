@@ -3,18 +3,16 @@ from torch.autograd import Variable
 
 
 class Dataset(object):
-    # FIXME: randomize
+
     def __init__(self, srcData, tgtData, batchSize, cuda):
-        self.src = srcData['words']
+        self.src = srcData
         if tgtData:
-            self.tgt = tgtData['words']
+            self.tgt = tgtData
             assert(len(self.src) == len(self.tgt))
         else:
             self.tgt = None
         self.cuda = cuda
-        # FIXME
-        # self.srcFeatures = srcData.features
-        # self.tgtFeatures = tgtData.features
+
         self.batchSize = batchSize
         self.numBatches = len(self.src) // batchSize
 

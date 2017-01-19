@@ -28,13 +28,6 @@ parser.add_argument('-rnn_size', type=int, default=500,
                     help='Size of LSTM hidden states')
 parser.add_argument('-word_vec_size', type=int, default=500,
                     help='Word embedding sizes')
-parser.add_argument('-feat_merge', default='concat',
-                    help='Merge action for feature embeddings: [concat|sum]')
-parser.add_argument('-feat_vec_exponent', type=float, default=0.7,
-                    help="""When using concatenation, if the feature takes N
-                    values, the embedding dimension will be set to N^exp""")
-parser.add_argument('-feat_vec_size', type=int, default=20,
-                    help='When using sum, the embedding size of the features')
 parser.add_argument('-input_feed', type=int, default=1,
                     help="""Feed the context vector at each time step as
                     additional input (via concatenation with the word
@@ -108,35 +101,13 @@ if torch.cuda.is_available() and not opt.cuda:
     print("WARNING: You have a CUDA device, so you should probably run with -cuda")
 
 
-class NMTCriterion(nn.Module):
-    def __init__(self, vocabSize, features):
-        self.sub = []
-        super(NMTCriterion, self).__init__()
-
-        def makeOne(size):
-            weight = torch.ones(vocabSize)
-            weight[onmt.Constants.PAD] = 0
-            crit = nn.NLLLoss(weight, size_average=False)
-            if opt.cuda:
-                crit.cuda()
-            return crit
-
-        self.sub += [makeOne(vocabSize)]
-        for feature in features:
-            self.sub += [makeOne(features.size())]
-
-    def forward(self, inputs, targets):
-        if len(self.sub) == 1:
-            total_size = targets.nelement()
-            loss = self.sub[0](
-                inputs.view(total_size, -1), targets.view(total_size))
-            return loss
-        else:
-            assert False, "FIXME: features"
-            loss = Variable(inputs.new(1).zero_())
-            for sub, input, target in zip(self.sub, inputs, targets):
-                loss += sub(input, target)
-            return loss
+def NMTCriterion(vocabSize):
+    weight = torch.ones(vocabSize)
+    weight[onmt.Constants.PAD] = 0
+    crit = nn.NLLLoss(weight, size_average=False)
+    if opt.cuda:
+        crit.cuda()
+    return crit
 
 
 def memoryEfficientLoss(outputs, targets, generator, crit, eval=False):
@@ -150,7 +121,7 @@ def memoryEfficientLoss(outputs, targets, generator, crit, eval=False):
     for out_t, targ_t in zip(outputs_split, targets_split):
         out_t = out_t.view(-1, out_t.size(2))
         pred_t = generator(out_t)
-        loss_t = crit(pred_t, targ_t)
+        loss_t = crit(pred_t, targ_t.view(-1))
         loss += loss_t.data[0]
         if not eval:
             loss_t.div(batch_size).backward()
@@ -184,8 +155,7 @@ def trainModel(model, trainData, validData, dataset):
         p.data.uniform_(-opt.param_init, opt.param_init)
 
     # define criterion of each GPU
-    criterion = NMTCriterion(dataset['dicts']['tgt']['words'].size(),
-                             dataset['dicts']['tgt']['features'])
+    criterion = NMTCriterion(dataset['dicts']['tgt'].size())
 
     optim = onmt.Optim(
         model.parameters(), opt.optim, opt.learning_rate, opt.max_grad_norm,
@@ -268,11 +238,9 @@ def main():
 
     dicts = dataset['dicts']
     print(' * vocabulary size. source = %d; target = %d' %
-          (dicts['src']['words'].size(), dicts['tgt']['words'].size()))
-    print(' * additional features. source = %d; target = %d' %
-          (len(dicts['src']['features']), len(dicts['tgt']['features'])))
+          (dicts['src'].size(), dicts['tgt'].size()))
     print(' * number of training sentences. %d' %
-          len(dataset['train']['src']['words']))
+          len(dataset['train']['src']))
     print(' * maximum batch size. %d' % opt.batch_size)
 
     print('Building model...')
@@ -283,7 +251,7 @@ def main():
         encoder = onmt.Models.Encoder(opt, dicts['src'])
         decoder = onmt.Models.Decoder(opt, dicts['tgt'])
         generator = nn.Sequential(
-            nn.Linear(opt.rnn_size, dicts['tgt']['words'].size()),
+            nn.Linear(opt.rnn_size, dicts['tgt'].size()),
             nn.LogSoftmax())
         model = onmt.Models.NMTModel(encoder, decoder, generator)
 

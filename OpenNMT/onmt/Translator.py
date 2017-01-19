@@ -18,11 +18,8 @@ class Translator(object):
         else:
             self.model.cpu()
 
-        self.src_dict = checkpoint['dicts']['src']['words']
-        self.tgt_dict = checkpoint['dicts']['tgt']['words']
-
-        # if opt.phrase_table.len() > 0:
-        #     phraseTable = onmt.translate.PhraseTable.new(opt.phrase_table)
+        self.src_dict = checkpoint['dicts']['src']
+        self.tgt_dict = checkpoint['dicts']['tgt']
 
     def buildData(self, srcBatch, goldBatch):
         srcData = [self.src_dict.convertToIdx(b,
@@ -34,9 +31,7 @@ class Translator(object):
                        onmt.Constants.BOS_WORD,
                        onmt.Constants.EOS_WORD) for b in goldBatch]
 
-        return onmt.Dataset(
-            {'words': srcData},
-            {'words': tgtData} if tgtData else None,
+        return onmt.Dataset(srcData, tgtData,
             self.opt.batch_size, self.opt.cuda)
 
     def buildTargetTokens(self, pred, src, attn):
@@ -53,7 +48,6 @@ class Translator(object):
 
     def translateBatch(self, batch):
         srcBatch, tgtBatch = batch
-        sourceLength = srcBatch.size(0)
         batchSize = srcBatch.size(1)
         beamSize = self.opt.beam_size
 
@@ -179,7 +173,6 @@ class Translator(object):
 
     def translate(self, srcBatch, goldBatch):
         dataset = self.buildData(srcBatch, goldBatch)
-        assert(len(dataset) == 1)  # FIXME
         batch = dataset[0]
 
         pred, predScore, attn, goldScore = self.translateBatch(batch)
