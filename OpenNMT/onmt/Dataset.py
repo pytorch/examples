@@ -24,10 +24,11 @@ class Dataset(object):
             offset = max_length - data_length if align_right else 0
             out[i].narrow(0, offset, data_length).copy_(data[i])
 
-        v = Variable(out)
+        out = out.t().contiguous()
         if self.cuda:
-            v = v.cuda()
-        v = v.t().contiguous()  # FIXME
+            out = out.cuda()
+
+        v = Variable(out)
         return v
 
     def __getitem__(self, index):

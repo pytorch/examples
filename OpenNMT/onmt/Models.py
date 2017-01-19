@@ -142,11 +142,25 @@ class NMTModel(nn.Module):
         h_size = (batch_size, self.decoder.hidden_size)
         return Variable(context.data.new(*h_size).zero_(), requires_grad=False)
 
+    def _fix_enc_hidden(self, h):
+        #  the encoder hidden is  (layers*directions) x batch x dim
+        #  we need to convert it to layers x batch x (directions*dim)
+        if self.encoder.num_directions == 2:
+            return h.view(h.size(0) // 2, 2, h.size(1), h.size(2)) \
+                    .transpose(1, 2).contiguous() \
+                    .view(h.size(0) // 2, h.size(1), h.size(2) * 2)
+        else:
+            return h
+
     def forward(self, input):
         src = input[0]
         tgt = input[1][:-1]  # exclude last target from inputs
         enc_hidden, context = self.encoder(src)
         init_output = self.make_init_decoder_output(context)
+
+        enc_hidden = (self._fix_enc_hidden(enc_hidden[0]),
+                      self._fix_enc_hidden(enc_hidden[1]))
+
         out, dec_hidden, _attn = self.decoder(tgt, enc_hidden, context, init_output)
         if self.generate:
             out = self.generator(out)

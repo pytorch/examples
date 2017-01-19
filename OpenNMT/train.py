@@ -252,13 +252,14 @@ def main():
             nn.Linear(opt.rnn_size, dicts['tgt'].size()),
             nn.LogSoftmax())
         model = onmt.Models.NMTModel(encoder, decoder, generator)
-        
+
         optim = onmt.Optim(
             model.parameters(), opt.optim, opt.learning_rate, opt.max_grad_norm,
             lr_decay=opt.learning_rate_decay,
             start_decay_at=opt.start_decay_at
         )
     else:
+        print('Loading from checkpoint at %s' % opt.train_from)
         checkpoint = torch.load(opt.train_from)
         model = checkpoint['model']
         optim = checkpoint['optim']
