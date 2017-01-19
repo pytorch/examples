@@ -56,7 +56,11 @@ class VAE(nn.Module):
 
     def reparametrize(self, mu, logvar):
         std = logvar.mul(0.5).exp_()
-        eps = Variable(torch.randn(std.size()), requires_grad=False)
+        if args.cuda:
+            eps = torch.cuda.FloatTensor(std.size()).normal_()
+        else:
+            eps = torch.FloatTensor(std.size()).normal_()
+        eps = Variable(eps)
         return eps.mul(std).add_(mu)
 
     def decode(self, z):
@@ -80,7 +84,7 @@ reconstruction_function.size_average = False
 def loss_function(recon_x, x, mu, logvar):
     BCE = reconstruction_function(recon_x, x)
 
-    # see Appendix B from VAE paper: 
+    # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
@@ -98,6 +102,8 @@ def train(epoch):
     train_loss = 0
     for batch_idx, (data, _) in enumerate(train_loader):
         data = Variable(data)
+        if args.cuda:
+            data = data.cuda()
         optimizer.zero_grad()
         recon_batch, mu, logvar = model(data)
         loss = loss_function(recon_batch, data, mu, logvar)
@@ -118,6 +124,8 @@ def test(epoch):
     model.eval()
     test_loss = 0
     for data, _ in test_loader:
+        if args.cuda:
+            data = data.cuda()
         data = Variable(data, volatile=True)
         recon_batch, mu, logvar = model(data)
         test_loss += loss_function(recon_batch, data, mu, logvar).data[0]
