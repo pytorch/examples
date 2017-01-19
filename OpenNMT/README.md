@@ -20,4 +20,4 @@ OpenNMT consists of three commands:
 
 3) Translate sentences.
 
-TODO
+```python translate.py -cuda -model model_e13_*.pt -src data/src-test.txt -tgt data/tgt-test.txt -replace_unk -verbose```
