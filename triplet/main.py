@@ -26,7 +26,7 @@ parser.add_argument('--imageSize', type=int, default=32,
                     help='the height / width of the input image to network')
 parser.add_argument('--batch-size', type=int, default=64, metavar='N',
                     help='input batch size for training (default: 64)')
-parser.add_argument('--n_triplets', type=int, default=6400, metavar='N',
+parser.add_argument('--n_triplets', type=int, default=1280, metavar='N',
                     help='how many triplets will generate from the dataset')
 parser.add_argument('--epochs', type=int, default=10, metavar='N',
                     help='number of epochs to train (default: 2)')
@@ -63,12 +63,19 @@ class TripletMNIST(datasets.MNIST):
 
     def generate_triplets(self, labels):
         triplets = []
-        for x in xrange(self.n_triplets):
-            idx = np.random.randint(0, labels.size(0))
-            idx_matches = np.where(labels.numpy() == labels[idx])[0]
-            idx_no_matches = np.where(labels.numpy() != labels[idx])[0]
-            idx_a, idx_p = np.random.choice(idx_matches, 2, replace=False)
-            idx_n = np.random.choice(idx_no_matches, 1)[0]
+        labels = labels.numpy()
+
+        ulabels = np.unique(labels)
+        matches, no_matches = dict(), dict()
+        for x in ulabels:
+            matches[x] = np.where(labels == x)[0]
+            no_matches[x] = np.where(labels != x)[0]
+
+        candidates = np.random.randint(0, len(labels), size=self.n_triplets)
+        candidates = labels[candidates]
+        for x in candidates:
+            idx_a, idx_p = np.random.choice(matches[x], 2, replace=False)
+            idx_n = np.random.choice(no_matches[x], 1)[0]
             triplets.append([idx_a, idx_p, idx_n])
         return np.array(triplets)
 
