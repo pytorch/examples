@@ -51,6 +51,8 @@ class Translator(object):
         batchSize = srcBatch.size(1)
         beamSize = self.opt.beam_size
 
+        #  (1) run the encoder on the src
+
         # have to execute the encoder manually to deal with padding
         encStates = None
         context = []
@@ -66,11 +68,15 @@ class Translator(object):
         context = torch.cat(context)
         rnnSize = context.size(2)
 
+        #  This mask is applied to the attention model inside the decoder
+        #  so that the attention ignores source padding
         padMask = srcBatch.data.eq(onmt.Constants.PAD).t()
         def applyContextMask(m):
             if isinstance(m, onmt.modules.GlobalAttention):
                 m.applyMask(padMask)
 
+        #  (2) if a target is specified, compute the 'goldScore'
+        #  (i.e. log likelihood) of the target under the model
         goldScores = context.data.new(batchSize).zero_()
         if tgtBatch is not None:
             decStates = encStates
@@ -86,6 +92,8 @@ class Translator(object):
                 scores = gen_t.data.gather(1, tgt_t)
                 scores.masked_fill_(tgt_t.eq(onmt.Constants.PAD), 0)
                 goldScores += scores
+
+        #  (3) run the decoder to generate sentences, using beam search
 
         # Expand tensors for each beam.
         context = Variable(context.data.repeat(1, beamSize, 1))
@@ -137,7 +145,8 @@ class Translator(object):
             if not active:
                 break
 
-            # now make active contiguous
+            # in this section, the sentences that are still active are
+            # compacted so that the decoder is not run on completed sentences
             activeIdx = self.tt.LongTensor([batchIdx[k] for k in active])
             batchIdx = {beam: idx for idx, beam in enumerate(active)}
 
@@ -156,6 +165,8 @@ class Translator(object):
 
             remainingSents = len(active)
 
+        #  (4) package everything up
+
         allHyp, allScores, allAttn = [], [], []
         n_best = self.opt.n_best
 
@@ -172,14 +183,19 @@ class Translator(object):
         return allHyp, allScores, allAttn, goldScores
 
     def translate(self, srcBatch, goldBatch):
+        #  (1) convert words to indexes
         dataset = self.buildData(srcBatch, goldBatch)
         batch = dataset[0]
 
+        #  (2) translate
         pred, predScore, attn, goldScore = self.translateBatch(batch)
 
+        #  (3) convert indexes to words
         predBatch = []
         for b in range(batch[0].size(1)):
-            predBatch.append([self.buildTargetTokens(pred[b][n], srcBatch[b], attn[b][n])
-                              for n in range(self.opt.n_best)])
+            predBatch.append(
+                [self.buildTargetTokens(pred[b][n], srcBatch[b], attn[b][n])
+                        for n in range(self.opt.n_best)]
+            )
 
         return predBatch, predScore, goldScore

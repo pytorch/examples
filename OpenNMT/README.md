@@ -21,3 +21,25 @@ OpenNMT consists of three commands:
 3) Translate sentences.
 
 ```python translate.py -cuda -model model_e13_*.pt -src data/src-test.txt -tgt data/tgt-test.txt -replace_unk -verbose```
+
+## Release Notes
+
+The following OpenNMT features are implemented:
+
+- multi-layer bidirectional RNNs with attention and dropout
+- data preprocessing
+- saving and loading from checkpoints
+- inference (translation) with batching and beam search
+
+Not yet implemented:
+
+- word features
+- multi-GPU
+- residual connections
+
+## Performance
+
+With default parameters on a single Maxwell GPU, this version runs about 70% faster than the Lua torch OpenNMT. The improved performance comes from two main sources:
+
+- CuDNN is used for the encoder (although not for the decoder, since it can't handle attention)
+- The decoder softmax layer is batched to efficiently trade off CPU vs. memory efficiency; this can be tuned with the -max_generator_batches parameter.
