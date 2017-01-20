@@ -15,7 +15,7 @@ class PhotoTour(data.Dataset):
     ]
     image_ext = 'bmp'
     info_file = 'info.txt'
-    matches_files = 'm50_100000_100000.txt'
+    matches_files = 'm50_100000_100000_0.txt'
 
     def __init__(self, root, name='notredame', transform=None, download=False, size=64):
         self.root = root
@@ -109,11 +109,27 @@ def read_image_file(data_dir, image_ext, img_sz):
 
 
 def read_info_file(data_dir, info_file):
-    return 0
+    """Return a Tensor with the list with the labels
+       Read the file and keep only the ID if the 3D point
+    """
+    labels = []
+    with open(os.path.join(data_dir, info_file), 'r') as f:
+        for line in f:
+            labels.append(int(line.split()[0]))
+    return torch.IntTensor(labels)
 
 
 def read_matches_files(data_dir, matches_file):
-    return 0
+    """Return a Tensor with the ground truth matches
+       Read the file and keep only 3D point ID.
+       Matches represented by a 1, non matches by a 0
+    """
+    matches = []
+    with open(os.path.join(data_dir, matches_file), 'r') as f:
+        for line in f:
+            l = line.split()
+            matches.append([int(l[0]), int(l[3]), int(l[1] == l[4])])
+    return torch.IntTensor(matches)
 
 
 if __name__ == '__main__':
