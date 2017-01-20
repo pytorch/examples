@@ -48,6 +48,7 @@ torch.manual_seed(args.seed)
 if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
+
 class TripletMNIST(datasets.MNIST):
     """From the MNIST Dataset it generates triplet samples
     note: a triplet is composed by a pair of matching images and one of

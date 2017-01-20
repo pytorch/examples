@@ -7,25 +7,24 @@ import torch.utils.data as data
 
 
 class PhotoTour(data.Dataset):
-    #TODO: check this urls since I think that are not the same from the paper
+    # TODO: check this urls since I think that are not the same from the paper
     urls = [
         'http://phototour.cs.washington.edu/patches/trevi.zip',
         'http://phototour.cs.washington.edu/patches/notredame.zip',
         'http://phototour.cs.washington.edu/patches/halfdome.zip'
     ]
     image_ext = 'bmp'
-    raw_folder = 'raw'
-    processed_folder = 'processed'
+    info_file = 'info.txt'
+    matches_files = 'm50_100000_100000.txt'
 
-    def __init__(self, root, name='notredame', transform=None, download=False):
+    def __init__(self, root, name='notredame', transform=None, download=False, size=64):
         self.root = root
+        self.size = size
         self.transform = transform
 
         self.name = name
-        self.fname = '{}.pt'.format(name)
-        self.raw_dir = os.path.join(self.root, self.raw_folder, self.name)
-        self.save_file = os.path.join(self.root, self.processed_folder,
-                                      self.fname)
+        self.data_dir = os.path.join(self.root, name)
+        self.data_file = os.path.join(self.root, '{}.pt'.format(name))
 
         if download:
             self.download()
@@ -34,11 +33,8 @@ class PhotoTour(data.Dataset):
             raise RuntimeError('Dataset not found.'
                                + ' You can use download=True to download it')
 
-        print('Loading ...')
-
-        self.data = torch.load(self.save_file)
-
-        print('Done!')
+        # load the serialized data
+        self.data, self.labels, self.matches = torch.load(self.data_file)
 
     def __getitem__(self, index):
         return self.data[index]
@@ -46,79 +42,85 @@ class PhotoTour(data.Dataset):
     def __len__(self):
         if self.name == 'notredame':
             return 104192
-        #TODO: check other sizes
+        # TODO: check other sizes
         else:
             return 0
 
     def _check_exists(self):
-        return os.path.exists(self.save_file)
+        return os.path.exists(self.data_file)
 
     def download(self):
+        print('Loading PhotoTour dataset: {}'.format(self.name))
+
         if self._check_exists():
-            print('Files already downloaded')
+            print('Files already downloaded!')
             return
 
         # TODO: implement download files routine
 
         # process and save as torch files
-        print('Processing')
+        print('Processing ...')
 
         data_set = (
-            read_image_file(self.raw_dir, self.image_ext),
-            # read_info_file(os.path.join(self.root, self.raw_folder, 'train-labels-idx1-ubyte'))
+            read_image_file(self.data_dir, self.image_ext, self.size),
+            read_info_file(self.data_dir, self.info_file),
+            read_matches_files(self.data_dir, self.matches_files)
         )
-        with open(self.save_file, 'wb') as f:
+        with open(self.data_file, 'wb') as f:
             torch.save(data_set, f)
 
         print('Done!')
 
-def read_fnames(raw_dir, image_ext):
-    """Return a list with the file names of the images containing the patches
-    """
-    files = []
-    # find those files with the specified extension
-    for file in os.listdir(raw_dir):
-        if file.endswith(image_ext):
-            files.append(os.path.join(raw_dir, file))
-    return sorted(files)  # sort files in ascend order to keep relations
 
-def read_image_file(raw_dir, image_ext):
+def read_image_file(data_dir, image_ext, img_sz):
     """Return a Tensor containing the patches
     """
-    def PIL2array(img):
-        return np.array(img.getdata(), np.uint8) \
-            .reshape(img.size[1], img.size[0], 1)
+    def PIL2array(_img, img_size):
+        """Convert PIL image type to numpy 2D array
+        """
+        return np.array(_img.getdata(), dtype=np.uint8) \
+            .reshape(img_size, img_size)
 
-    def read_fnames(raw_dir, image_ext):
+    def read_filenames(_data_dir, _image_ext):
         """Return a list with the file names of the images containing the patches
         """
         files = []
         # find those files with the specified extension
-        for file in os.listdir(raw_dir):
-            if file.endswith(image_ext):
-                files.append(os.path.join(raw_dir, file))
+        for file_dir in os.listdir(_data_dir):
+            if file_dir.endswith(_image_ext):
+                files.append(os.path.join(_data_dir, file_dir))
         return sorted(files)  # sort files in ascend order to keep relations
 
     images = []
-    list_files = read_fnames(raw_dir, image_ext)
+    list_files = read_filenames(data_dir, image_ext)
 
-    for file in list_files:
-        assert os.path.isfile(file), 'Not a file: %s' % file
-        # load the image containing the patches and convert to float point
-        # and make sure that que only use one single channel
-        img = PIL2array(Image.open(file))
-        # split the image into patches and
-        # add patches to buffer as individual elements
-        patches_row = np.split(img, 16, axis=0)
-        for row in patches_row:
-            patches = np.split(row, 16, axis=1)
-            for patch in patches:
-                images.append(patch.reshape((64, 64)))
-    return torch.ByteTensor(np.vstack(images)).view(-1, 64, 64)
+    for file_path in list_files:
+        assert os.path.isfile(file_path), 'Not a file: %s' % file_path
+        # load the image containing the patches, crop in 64x64 patches and
+        # reshape to the desired size (default: 64)
+        img = Image.open(file_path)
+        for y in range(0, 1024 - 64, 64):
+            for x in range(0, 1024 - 64, 64):
+                patch = img.crop((x, y, x + 64, y + 64))
+                if img_sz != 64:
+                    patch = patch.resize((img_sz, img_sz), Image.BICUBIC)
+                images.append(PIL2array(patch, img_sz))
+    return torch.ByteTensor(np.vstack(images)).view(-1, img_sz, img_sz)
+
+
+def read_info_file(data_dir, info_file):
+    return 0
+
+
+def read_matches_files(data_dir, matches_file):
+    return 0
+
 
 if __name__ == '__main__':
-    dataset = PhotoTour(root='/home/eriba/software/pytorch/examples-edgarriba/data',
+    dataset = PhotoTour(root='/home/eriba/datasets/patches_dataset',
                         name='notredame',
-                        download=True)
+                        download=True,
+                        size=32)
 
-    print dataset.data
+    print('Loaded PhotoTour: {} with {} images.'
+          .format(dataset.name, len(dataset.data)))
