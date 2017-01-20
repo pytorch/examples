@@ -15,6 +15,7 @@ class PhotoTour(data.Dataset):
     ]
     mean = {'notredame': 0.4854, 'yosemite': 0.4844, 'liberty': 0.4437}
     std = {'notredame': 0.1864, 'yosemite': 0.1818, 'liberty': 0.2019}
+    lens = {'notredame': 468159, 'yosemite': 633587, 'liberty': 450092}
 
     image_ext = 'bmp'
     info_file = 'info.txt'
@@ -46,11 +47,7 @@ class PhotoTour(data.Dataset):
         return self.data[index]
 
     def __len__(self):
-        if self.name == 'notredame':
-            return 104192
-        # TODO: check other sizes
-        else:
-            return 0
+        return self.lens[self.name]
 
     def _check_exists(self):
         return os.path.exists(self.data_file)
@@ -68,17 +65,18 @@ class PhotoTour(data.Dataset):
         print('Processing ...')
 
         data_set = (
-            read_image_file(self.data_dir, self.image_ext, self.size),
+            read_image_file(self.data_dir, self.image_ext, self.size, self.__len__()),
             read_info_file(self.data_dir, self.info_file),
             read_matches_files(self.data_dir, self.matches_files)
         )
+
         with open(self.data_file, 'wb') as f:
             torch.save(data_set, f)
 
         print('Done!')
 
 
-def read_image_file(data_dir, image_ext, img_sz):
+def read_image_file(data_dir, image_ext, img_sz, n):
     """Return a Tensor containing the patches
     """
     def PIL2array(_img, img_size):
@@ -101,22 +99,21 @@ def read_image_file(data_dir, image_ext, img_sz):
     list_files = read_filenames(data_dir, image_ext)
 
     for file_path in list_files:
-        assert os.path.isfile(file_path), 'Not a file: %s' % file_path
         # load the image containing the patches, crop in 64x64 patches and
         # reshape to the desired size (default: 64)
         img = Image.open(file_path)
-        for y in range(0, 1024 - 64, 64):
-            for x in range(0, 1024 - 64, 64):
+        for y in range(0, 1024, 64):
+            for x in range(0, 1024, 64):
                 patch = img.crop((x, y, x + 64, y + 64))
                 if img_sz != 64:
                     patch = patch.resize((img_sz, img_sz), Image.BICUBIC)
                 images.append(PIL2array(patch, img_sz))
-    return torch.ByteTensor(np.vstack(images)).view(-1, img_sz, img_sz)
+    return torch.ByteTensor(np.vstack(images)).view(-1, img_sz, img_sz)[:n]
 
 
 def read_info_file(data_dir, info_file):
-    """Return a Tensor with the list with the labels
-       Read the file and keep only the ID if the 3D point
+    """Return a Tensor containing the list of labels
+       Read the file and keep only the ID of the 3D point.
     """
     labels = []
     with open(os.path.join(data_dir, info_file), 'r') as f:
@@ -126,9 +123,9 @@ def read_info_file(data_dir, info_file):
 
 
 def read_matches_files(data_dir, matches_file):
-    """Return a Tensor with the ground truth matches
+    """Return a Tensor containing the ground truth matches
        Read the file and keep only 3D point ID.
-       Matches represented by a 1, non matches by a 0
+       Matches are represented with a 1, non matches with a 0.
     """
     matches = []
     with open(os.path.join(data_dir, matches_file), 'r') as f:
@@ -140,7 +137,7 @@ def read_matches_files(data_dir, matches_file):
 
 if __name__ == '__main__':
     dataset = PhotoTour(root='/home/eriba/datasets/patches_dataset',
-                        name='notredame',
+                        name='liberty',
                         download=True,
                         size=32)
 
