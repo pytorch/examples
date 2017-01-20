@@ -13,6 +13,9 @@ class PhotoTour(data.Dataset):
         'http://phototour.cs.washington.edu/patches/notredame.zip',
         'http://phototour.cs.washington.edu/patches/halfdome.zip'
     ]
+    mean = {'notredame': 0.4854, 'yosemite': 0.4844, 'liberty': 0.4437}
+    std = {'notredame': 0.1864, 'yosemite': 0.1818, 'liberty': 0.2019}
+
     image_ext = 'bmp'
     info_file = 'info.txt'
     matches_files = 'm50_100000_100000_0.txt'
@@ -25,6 +28,9 @@ class PhotoTour(data.Dataset):
         self.name = name
         self.data_dir = os.path.join(self.root, name)
         self.data_file = os.path.join(self.root, '{}.pt'.format(name))
+
+        self.mean = self.mean[name]
+        self.std = self.std[name]
 
         if download:
             self.download()
