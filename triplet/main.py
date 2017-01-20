@@ -18,10 +18,15 @@ from torchvision import datasets, transforms
 from torch.autograd import Variable
 
 from PIL import Image
+import random
 import numpy as np
+import collections
+
+from phototour import PhotoTour
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch TFeat Example')
+parser.add_argument('--dataroot', required=False, help='path to dataset')
 parser.add_argument('--imageSize', type=int, default=32,
                     help='the height / width of the input image to network')
 parser.add_argument('--batch-size', type=int, default=64, metavar='N',
@@ -49,19 +54,19 @@ if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
 
-class TripletMNIST(datasets.MNIST):
+class TripletPhotoTour(PhotoTour):
     """From the MNIST Dataset it generates triplet samples
     note: a triplet is composed by a pair of matching images and one of
     different class.
     """
     def __init__(self, *arg, **kw):
-        super(TripletMNIST, self).__init__(*arg, **kw)
+        super(TripletPhotoTour, self).__init__(*arg, **kw)
 
         print('Generating triplets ...')
         self.n_triplets = args.n_triplets
-        self.train_triplets = self.generate_triplets(self.train_labels)
+        self.triplets = self.generate_triplets(self.labels)
 
-    def generate_triplets(self, labels):
+    '''def generate_triplets(self, labels):
         triplets = []
         labels = labels.numpy()
 
@@ -77,30 +82,76 @@ class TripletMNIST(datasets.MNIST):
             idx_a, idx_p = np.random.choice(matches[x], 2, replace=False)
             idx_n = np.random.choice(no_matches[x], 1)[0]
             triplets.append([idx_a, idx_p, idx_n])
+        return np.array(triplets)'''
+
+    def generate_triplets(self, labels):
+        def create_indices(_labels):
+            """Generates a dict to store the index of each labels in order
+               to avoid a linear search each time that we call list(labels).index(x)
+            """
+            old = labels[0]
+            indices = dict()
+            indices[old] = 0
+            for x in range(len(_labels) - 1):
+                new = labels[x + 1]
+                if old != new:
+                    indices[new] = x + 1
+                old = new
+            return indices
+        triplets = []
+        labels = labels.numpy()
+
+        # group labels in order to have O(1) search
+        count = collections.Counter(labels)
+        # index the labels in order to have O(1) search
+        indices = create_indices(labels)
+        # range for the sampling
+        labels_size = len(labels) - 1
+        # generate the triplets
+        for x in range(self.n_triplets):
+            # pick a random id for anchor
+            idx = random.randint(0, len(labels) - 1)
+            # count number of anchor occurrences
+            num_samples = count[labels[idx]]
+            # the global index to the id
+            begin_positives = indices[labels[idx]]
+            # generate two samples to the id
+            offset_a, offset_p = random.sample(range(num_samples), 2)
+            idx_a = begin_positives + offset_a
+            idx_p = begin_positives + offset_p
+            # find index of the same 3D but not same as before
+            idx_n = random.randint(0, labels_size)
+            while labels[idx_n] == labels[idx_a] and \
+                  labels[idx_n] == labels[idx_p]:
+                idx_n = random.randint(0, labels_size)
+            # pick and append triplets to the buffer
+            triplets.append([idx_a, idx_p, idx_n])
         return np.array(triplets)
 
     def __getitem__(self, index):
-        if self.train:
-            t = self.train_triplets[index]
-            a, p, n = self.train_data[t[0]], self.train_data[t[1]],\
-                      self.train_data[t[2]]
+        def convert_and_transform(img, transform):
+            """Convert image into numpy array and apply transformation
+               Doing this so that it is consistent with all other datasets
+               to return a PIL Image.
+            """
+            img = Image.fromarray(img.numpy(), mode='L')
 
-        # doing this so that it is consistent with all other datasets
-        # to return a PIL Image
-        img_a = Image.fromarray(a.numpy(), mode='L')
-        img_p = Image.fromarray(p.numpy(), mode='L')
-        img_n = Image.fromarray(n.numpy(), mode='L')
+            if transform is not None:
+                img = self.transform(img)
+            return img
 
-        if self.transform is not None:
-            img_a = self.transform(img_a)
-            img_p = self.transform(img_p)
-            img_n = self.transform(img_n)
+        t = self.triplets[index]
+        a, p, n = self.data[t[0]], self.data[t[1]], self.data[t[2]]
+
+        # transform image if required
+        img_a = convert_and_transform(a, self.transform)
+        img_p = convert_and_transform(p, self.transform)
+        img_n = convert_and_transform(n, self.transform)
 
         return img_a, img_p, img_n
 
     def __len__(self):
-        if self.train:
-            return self.train_triplets.shape[0]
+        return self.triplets.shape[0]
 
 
 class TNet(nn.Module):
@@ -146,12 +197,12 @@ def triplet_loss(input1, input2, input3, margin=1.0):
 
 kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
 train_loader = torch.utils.data.DataLoader(
-    TripletMNIST('../data', train=True, download=True,
-                 transform=transforms.Compose([
-                     transforms.Scale(args.imageSize),
-                     transforms.ToTensor(),
-                     transforms.Normalize((0.1307,), (0.3081,))
-                 ])),
+    TripletPhotoTour(args.dataroot, name='notredame', download=True,
+                     transform=transforms.Compose([
+                         transforms.Scale(args.imageSize),
+                         transforms.ToTensor(),
+                         transforms.Normalize((0.4854,), (0.1864,))
+                     ])),
     batch_size=args.batch_size, shuffle=True, **kwargs)
 
 

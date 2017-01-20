@@ -137,9 +137,11 @@ def read_matches_files(data_dir, matches_file):
 
 if __name__ == '__main__':
     dataset = PhotoTour(root='/home/eriba/datasets/patches_dataset',
-                        name='liberty',
+                        name='yosemite',
                         download=True,
                         size=32)
 
     print('Loaded PhotoTour: {} with {} images.'
           .format(dataset.name, len(dataset.data)))
+
+    assert len(dataset.data) == len(dataset.labels)
