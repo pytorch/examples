@@ -21,14 +21,15 @@ class PhotoTour(data.Dataset):
     info_file = 'info.txt'
     matches_files = 'm50_100000_100000_0.txt'
 
-    def __init__(self, root, name='notredame', transform=None, download=False, size=64):
+    def __init__(self, root, name='notredame', transform=None,
+                 download=False, size=64):
         self.root = root
         self.size = size
         self.transform = transform
 
         self.name = name
         self.data_dir = os.path.join(self.root, name)
-        self.data_file = os.path.join(self.root, '{}.pt'.format(name))
+        self.data_file = os.path.join(self.root, '{}_{}.pt'.format(name, size))
 
         self.mean = self.mean[name]
         self.std = self.std[name]
@@ -119,7 +120,7 @@ def read_info_file(data_dir, info_file):
     with open(os.path.join(data_dir, info_file), 'r') as f:
         for line in f:
             labels.append(int(line.split()[0]))
-    return torch.IntTensor(labels)
+    return np.array(labels)
 
 
 def read_matches_files(data_dir, matches_file):
@@ -132,7 +133,7 @@ def read_matches_files(data_dir, matches_file):
         for line in f:
             l = line.split()
             matches.append([int(l[0]), int(l[3]), int(l[1] == l[4])])
-    return torch.IntTensor(matches)
+    return np.array(matches)
 
 
 if __name__ == '__main__':

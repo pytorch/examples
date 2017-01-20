@@ -23,6 +23,7 @@ import numpy as np
 import collections
 
 from phototour import PhotoTour
+from eval_metrics import ErrorRateAt95Recall
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch TFeat Example')
@@ -31,7 +32,9 @@ parser.add_argument('--imageSize', type=int, default=32,
                     help='the height / width of the input image to network')
 parser.add_argument('--batch-size', type=int, default=64, metavar='N',
                     help='input batch size for training (default: 64)')
-parser.add_argument('--n_triplets', type=int, default=1280, metavar='N',
+parser.add_argument('--test-batch-size', type=int, default=1280, metavar='N',
+                    help='input batch size for testing (default: 1000)')
+parser.add_argument('--n_triplets', type=int, default=1280000, metavar='N',
                     help='how many triplets will generate from the dataset')
 parser.add_argument('--epochs', type=int, default=10, metavar='N',
                     help='number of epochs to train (default: 2)')
@@ -59,30 +62,16 @@ class TripletPhotoTour(PhotoTour):
     note: a triplet is composed by a pair of matching images and one of
     different class.
     """
-    def __init__(self, *arg, **kw):
+    def __init__(self, train=True, *arg, **kw):
         super(TripletPhotoTour, self).__init__(*arg, **kw)
 
-        print('Generating triplets ...')
-        self.n_triplets = args.n_triplets
-        self.triplets = self.generate_triplets(self.labels)
+        self.train = train
 
-    '''def generate_triplets(self, labels):
-        triplets = []
-        labels = labels.numpy()
-
-        ulabels = np.unique(labels)
-        matches, no_matches = dict(), dict()
-        for x in ulabels:
-            matches[x] = np.where(labels == x)[0]
-            no_matches[x] = np.where(labels != x)[0]
-
-        candidates = np.random.randint(0, len(labels), size=self.n_triplets)
-        candidates = labels[candidates]
-        for x in candidates:
-            idx_a, idx_p = np.random.choice(matches[x], 2, replace=False)
-            idx_n = np.random.choice(no_matches[x], 1)[0]
-            triplets.append([idx_a, idx_p, idx_n])
-        return np.array(triplets)'''
+        if self.train:
+            print('Generating triplets ...')
+            self.n_triplets = args.n_triplets
+            self.triplets = self.generate_triplets(self.labels)
+            pass
 
     def generate_triplets(self, labels):
         def create_indices(_labels):
@@ -99,7 +88,6 @@ class TripletPhotoTour(PhotoTour):
                 old = new
             return indices
         triplets = []
-        labels = labels.numpy()
 
         # group labels in order to have O(1) search
         count = collections.Counter(labels)
@@ -140,6 +128,12 @@ class TripletPhotoTour(PhotoTour):
                 img = self.transform(img)
             return img
 
+        if not self.train:
+            m = self.matches[index]
+            img1 = convert_and_transform(self.data[m[0]], self.transform)
+            img2 = convert_and_transform(self.data[m[1]], self.transform)
+            return img1, img2, m[2]
+
         t = self.triplets[index]
         a, p, n = self.data[t[0]], self.data[t[1]], self.data[t[2]]
 
@@ -151,7 +145,13 @@ class TripletPhotoTour(PhotoTour):
         return img_a, img_p, img_n
 
     def __len__(self):
-        return self.triplets.shape[0]
+        try:
+            if self.train:
+                return self.triplets.shape[0]
+            else:
+                return self.matches.shape[0]
+        except:
+            pass
 
 
 class TNet(nn.Module):
@@ -197,7 +197,7 @@ def triplet_loss(input1, input2, input3, margin=1.0):
 
 kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
 train_loader = torch.utils.data.DataLoader(
-    TripletPhotoTour(args.dataroot, name='notredame', download=True,
+    TripletPhotoTour(True, args.dataroot, name='notredame', download=True,
                      transform=transforms.Compose([
                          transforms.Scale(args.imageSize),
                          transforms.ToTensor(),
@@ -205,6 +205,14 @@ train_loader = torch.utils.data.DataLoader(
                      ])),
     batch_size=args.batch_size, shuffle=True, **kwargs)
 
+test_loader = torch.utils.data.DataLoader(
+    TripletPhotoTour(False, args.dataroot, name='liberty', download=True,
+                     transform=transforms.Compose([
+                         transforms.Scale(args.imageSize),
+                         transforms.ToTensor(),
+                         transforms.Normalize((0.4854,), (0.1864,))
+                     ])),
+    batch_size=args.test_batch_size, shuffle=False, **kwargs)
 
 model = TNet()
 if args.cuda:
@@ -230,6 +238,31 @@ def train(epoch):
                 100. * batch_idx / len(train_loader), loss.data[0]))
 
 
+def test(epoch):
+    model.eval()
+    scores, distances = [], []
+    for batch_idx, (data_a, data_p, label) in enumerate(test_loader):
+        if args.cuda:
+            data_a, data_p = data_a.cuda(), data_p.cuda()
+        data_a, data_p, labels = Variable(data_a, volatile=True), \
+                                 Variable(data_p, volatile=True), Variable(label)
+        out_a, out_p = model(data_a), model(data_p)
+        dists = torch.sqrt(torch.sum((out_a - out_p) ** 2, 1))  # euclidean distance
+        distances.extend(dists)
+        scores.extend(label.numpy())
+        if batch_idx % args.log_interval == 0:
+            print('Test Epoch: {} [{}/{} ({:.0f}%)]'.format(
+                epoch, batch_idx * len(data_a), len(test_loader.dataset),
+                100. * batch_idx / len(test_loader)))
+
+        if batch_idx > 70:
+            break
+
+    fpr95 = ErrorRateAt95Recall(distances, scores)
+    print('\nTest set: Accuracy(FPR95): {:.4f}'.format(fpr95))
+
+
 if __name__ == '__main__':
     for epoch in range(1, args.epochs + 1):
         train(epoch)
+        test(epoch)
