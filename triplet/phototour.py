@@ -1,4 +1,5 @@
 import os
+import errno
 import numpy as np
 from PIL import Image
 
@@ -8,11 +9,11 @@ import torch.utils.data as data
 
 class PhotoTour(data.Dataset):
     # TODO: check this urls since I think that are not the same from the paper
-    urls = [
-        'http://phototour.cs.washington.edu/patches/trevi.zip',
-        'http://phototour.cs.washington.edu/patches/notredame.zip',
-        'http://phototour.cs.washington.edu/patches/halfdome.zip'
-    ]
+    urls = {
+        'notredame': 'http://www.iis.ee.ic.ac.uk/~vbalnt/phototourism-patches/notredame.zip',
+        'yosemite': 'http://www.iis.ee.ic.ac.uk/~vbalnt/phototourism-patches/yosemite.zip',
+        'liberty': 'http://www.iis.ee.ic.ac.uk/~vbalnt/phototourism-patches/liberty.zip'
+    }
     mean = {'notredame': 0.4854, 'yosemite': 0.4844, 'liberty': 0.4437}
     std = {'notredame': 0.1864, 'yosemite': 0.1818, 'liberty': 0.2019}
     lens = {'notredame': 468159, 'yosemite': 633587, 'liberty': 450092}
@@ -54,13 +55,36 @@ class PhotoTour(data.Dataset):
         return os.path.exists(self.data_file)
 
     def download(self):
+        from six.moves import urllib
+        import zipfile
+
         print('Loading PhotoTour dataset: {}'.format(self.name))
 
         if self._check_exists():
             print('Files already downloaded!')
             return
 
-        # TODO: implement download files routine
+        # download files
+        try:
+            os.makedirs(self.root)
+        except OSError as e:
+            if e.errno == errno.EEXIST:
+                pass
+            else:
+                raise
+
+        url = self.urls[self.name]
+        print('Downloading {}\n\nIt might take while. '
+              'Please grab yourself a coffee and relax.'.format(url))
+
+        data = urllib.request.urlopen(url)
+        filename = url.rpartition('/')[2]
+        file_path = os.path.join(self.root, filename)
+        with open(file_path, 'wb') as f:
+            f.write(data.read())
+        with zipfile.ZipFile(file_path, 'r') as z:
+            z.extractall(self.data_dir)
+        os.unlink(file_path)
 
         # process and save as torch files
         print('Processing ...')
