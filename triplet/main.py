@@ -27,16 +27,17 @@ from eval_metrics import ErrorRateAt95Recall
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch TFeat Example')
-parser.add_argument('--dataroot', required=False, help='path to dataset')
+parser.add_argument('--dataroot', type=str, default='/tmp/phototour_dataset',
+                    help='path to dataset')
 parser.add_argument('--imageSize', type=int, default=32,
                     help='the height / width of the input image to network')
-parser.add_argument('--batch-size', type=int, default=64, metavar='N',
+parser.add_argument('--batch-size', type=int, default=64, metavar='BS',
                     help='input batch size for training (default: 64)')
-parser.add_argument('--test-batch-size', type=int, default=1280, metavar='N',
+parser.add_argument('--test-batch-size', type=int, default=1280, metavar='BST',
                     help='input batch size for testing (default: 1000)')
 parser.add_argument('--n_triplets', type=int, default=1280000, metavar='N',
                     help='how many triplets will generate from the dataset')
-parser.add_argument('--epochs', type=int, default=10, metavar='N',
+parser.add_argument('--epochs', type=int, default=2, metavar='E',
                     help='number of epochs to train (default: 2)')
 parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
                     help='learning rate (default: 0.01)')
@@ -44,9 +45,9 @@ parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
                     help='SGD momentum (default: 0.5)')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='enables CUDA training')
-parser.add_argument('--seed', type=int, default=1, metavar='S',
-                    help='random seed (default: 1)')
-parser.add_argument('--log-interval', type=int, default=10, metavar='N',
+parser.add_argument('--seed', type=int, default=666, metavar='S',
+                    help='random seed (default: 666)')
+parser.add_argument('--log-interval', type=int, default=10, metavar='LI',
                     help='how many batches to wait before logging training status')
 
 args = parser.parse_args()
@@ -58,7 +59,7 @@ if args.cuda:
 
 
 class TripletPhotoTour(PhotoTour):
-    """From the MNIST Dataset it generates triplet samples
+    """From the PhotoTour Dataset it generates triplet samples
     note: a triplet is composed by a pair of matching images and one of
     different class.
     """
@@ -66,12 +67,12 @@ class TripletPhotoTour(PhotoTour):
         super(TripletPhotoTour, self).__init__(*arg, **kw)
 
         self.train = train
+        self.n_triplets = args.n_triplets
 
         if self.train:
-            print('Generating triplets ...')
-            self.n_triplets = args.n_triplets
+            print('Generating {} triplets'.format(self.n_triplets))
             self.triplets = self.generate_triplets(self.labels)
-            pass
+            print('Generating {} triplets - done'.format(self.n_triplets))
 
     def generate_triplets(self, labels):
         def create_indices(_labels):
@@ -197,7 +198,8 @@ def triplet_loss(input1, input2, input3, margin=1.0):
 
 kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
 train_loader = torch.utils.data.DataLoader(
-    TripletPhotoTour(True, args.dataroot, name='notredame', download=True,
+    TripletPhotoTour(train=True, root=args.dataroot, name='notredame',
+                     download=True, size=32,
                      transform=transforms.Compose([
                          transforms.Scale(args.imageSize),
                          transforms.ToTensor(),
@@ -206,7 +208,8 @@ train_loader = torch.utils.data.DataLoader(
     batch_size=args.batch_size, shuffle=True, **kwargs)
 
 test_loader = torch.utils.data.DataLoader(
-    TripletPhotoTour(False, args.dataroot, name='liberty', download=True,
+    TripletPhotoTour(train=False, root=args.dataroot, name='liberty',
+                     download=True, size=32,
                      transform=transforms.Compose([
                          transforms.Scale(args.imageSize),
                          transforms.ToTensor(),

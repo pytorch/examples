@@ -30,6 +30,7 @@ class PhotoTour(data.Dataset):
 
         self.name = name
         self.data_dir = os.path.join(self.root, name)
+        self.data_down = os.path.join(self.root, '{}.zip'.format(name))
         self.data_file = os.path.join(self.root, '{}_{}.pt'.format(name, size))
 
         self.mean = self.mean[name]
@@ -54,14 +55,17 @@ class PhotoTour(data.Dataset):
     def _check_exists(self):
         return os.path.exists(self.data_file)
 
+    def _check_downloaded(self):
+        return os.path.exists(self.data_dir)
+
     def download(self):
         from six.moves import urllib
         import zipfile
 
-        print('Loading PhotoTour dataset: {}'.format(self.name))
+        print('\n-- Loading PhotoTour dataset: {}'.format(self.name))
 
         if self._check_exists():
-            print('Files already downloaded!')
+            print('Found cached data {}'.format(self.data_file))
             return
 
         # download files
@@ -73,21 +77,26 @@ class PhotoTour(data.Dataset):
             else:
                 raise
 
-        url = self.urls[self.name]
-        print('Downloading {}\n\nIt might take while. '
-              'Please grab yourself a coffee and relax.'.format(url))
+        if not self._check_downloaded():
+            url = self.urls[self.name]
+            data = urllib.request.urlopen(url)
+            filename = url.rpartition('/')[2]
+            file_path = os.path.join(self.root, filename)
 
-        data = urllib.request.urlopen(url)
-        filename = url.rpartition('/')[2]
-        file_path = os.path.join(self.root, filename)
-        with open(file_path, 'wb') as f:
-            f.write(data.read())
-        with zipfile.ZipFile(file_path, 'r') as z:
-            z.extractall(self.data_dir)
-        os.unlink(file_path)
+            print('Downloading {}\nDownloading {}\n\nIt might take while. '
+                  'Please grab yourself a coffee and relax.\n'.format(url, file_path))
+
+            with open(file_path, 'wb') as f:
+                f.write(data.read())
+
+            print('Extracting data {}\n'.format(self.file_down))
+
+            with zipfile.ZipFile(file_path, 'r') as z:
+                z.extractall(self.data_dir)
+            os.unlink(file_path)
 
         # process and save as torch files
-        print('Processing ...')
+        print('Caching data {}'.format(self.data_file))
 
         data_set = (
             read_image_file(self.data_dir, self.image_ext, self.size, self.__len__()),
@@ -97,8 +106,6 @@ class PhotoTour(data.Dataset):
 
         with open(self.data_file, 'wb') as f:
             torch.save(data_set, f)
-
-        print('Done!')
 
 
 def read_image_file(data_dir, image_ext, img_sz, n):
