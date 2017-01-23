@@ -99,7 +99,7 @@ class PhotoTour(data.Dataset):
         print('Caching data {}'.format(self.data_file))
 
         data_set = (
-            read_image_file(self.data_dir, self.image_ext, self.size, self.__len__()),
+            read_image_file(self.data_dir, self.image_ext, self.size, self.lens[self.name]),
             read_info_file(self.data_dir, self.info_file),
             read_matches_files(self.data_dir, self.matches_files)
         )
