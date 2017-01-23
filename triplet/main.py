@@ -35,14 +35,16 @@ parser.add_argument('--batch-size', type=int, default=128, metavar='BS',
                     help='input batch size for training (default: 128)')
 parser.add_argument('--test-batch-size', type=int, default=1000, metavar='BST',
                     help='input batch size for testing (default: 1000)')
-parser.add_argument('--n_triplets', type=int, default=128000, metavar='N',
+parser.add_argument('--n_triplets', type=int, default=1280000, metavar='N',
                     help='how many triplets will generate from the dataset')
 parser.add_argument('--epochs', type=int, default=10, metavar='E',
                     help='number of epochs to train (default: 10)')
-parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
-                    help='learning rate (default: 0.01)')
-parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
-                    help='SGD momentum (default: 0.5)')
+parser.add_argument('--lr', type=float, default=0.1, metavar='LR',
+                    help='learning rate (default: 0.1)')
+parser.add_argument('--momentum', type=float, default=0.9, metavar='M',
+                    help='SGD momentum (default: 0.9)')
+parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
+                    metavar='W', help='weight decay (default: 1e-4)')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='enables CUDA training')
 parser.add_argument('--seed', type=int, default=666, metavar='S',
@@ -190,10 +192,10 @@ class TripletMarginLoss(nn.Module):
 def triplet_loss(input1, input2, input3, margin=1.0):
     """Interface to call TripletMarginLoss
     """
-    return TripletMarginLoss(margin)(input1, input2, input3)
+    return TripletMarginLoss(margin).forward(input1, input2, input3)
 
 
-kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
+kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 train_loader = torch.utils.data.DataLoader(
     TripletPhotoTour(train=True, root=args.dataroot, name='notredame',
                      download=True,
@@ -218,20 +220,29 @@ model = TNet()
 if args.cuda:
     model.cuda()
 
-optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+optimizer = optim.SGD(model.parameters(), lr=args.lr,
+                      momentum=args.momentum)
 
 
 def train(epoch):
+    # switch to train mode
     model.train()
+
     for batch_idx, (data_a, data_p, data_n) in enumerate(train_loader):
         if args.cuda:
             data_a, data_p, data_n = data_a.cuda(), data_p.cuda(), data_n.cuda()
-        data_a, data_p, data_n = Variable(data_a), Variable(data_p), Variable(data_n)
-        optimizer.zero_grad()
+        data_a, data_p, data_n = Variable(data_a), Variable(data_p), \
+                                 Variable(data_n)
+
+        # compute output
         out_a, out_p, out_n = model(data_a), model(data_p), model(data_n)
         loss = triplet_loss(out_a, out_p, out_n)
+
+        # compute gradient and do SGD step
+        optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+
         if batch_idx % args.log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data_a), len(train_loader.dataset),
@@ -239,29 +250,43 @@ def train(epoch):
 
 
 def test(epoch):
+    # switch to evaluate mode
     model.eval()
+
     labels, distances = [], []
     for batch_idx, (data_a, data_p, label) in enumerate(test_loader):
         if args.cuda:
             data_a, data_p = data_a.cuda(), data_p.cuda()
         data_a, data_p, label = Variable(data_a, volatile=True), \
-                                 Variable(data_p, volatile=True), Variable(label)
+                                Variable(data_p, volatile=True), Variable(label)
+
+        # compute output
         out_a, out_p = model(data_a), model(data_p)
         dists = torch.sqrt(torch.sum((out_a - out_p) ** 2, 1))  # euclidean distance
         distances.append(dists.data.cpu().numpy())
         labels.append(label.data.cpu().numpy())
+
         if batch_idx % args.log_interval == 0:
             print('Test Epoch: {} [{}/{} ({:.0f}%)]'.format(
                 epoch, batch_idx * len(data_a), len(test_loader.dataset),
                 100. * batch_idx / len(test_loader)))
 
+    # measure accuracy (FPR95)
     labels = np.vstack(labels).reshape(100000)
     distances = np.vstack(distances).reshape(100000)
     fpr95 = ErrorRateAt95Recall(labels, distances)
     print('\nTest set: Accuracy(FPR95): {:.4f}\n'.format(fpr95))
 
 
+def adjust_learning_rate(optimizer, epoch):
+    """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
+    lr = args.lr * (0.1 ** (epoch // 30))
+    for param_group in optimizer.state_dict()['param_groups']:
+        param_group['lr'] = lr
+
+
 if __name__ == '__main__':
     for epoch in range(1, args.epochs + 1):
+        adjust_learning_rate(optimizer, epoch)
         train(epoch)
         test(epoch)
