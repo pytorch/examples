@@ -31,11 +31,11 @@ parser.add_argument('--dataroot', type=str, default='/tmp/phototour_dataset',
                     help='path to dataset')
 parser.add_argument('--imageSize', type=int, default=32,
                     help='the height / width of the input image to network')
-parser.add_argument('--batch-size', type=int, default=64, metavar='BS',
-                    help='input batch size for training (default: 64)')
-parser.add_argument('--test-batch-size', type=int, default=1280, metavar='BST',
+parser.add_argument('--batch-size', type=int, default=128, metavar='BS',
+                    help='input batch size for training (default: 128)')
+parser.add_argument('--test-batch-size', type=int, default=1000, metavar='BST',
                     help='input batch size for testing (default: 1000)')
-parser.add_argument('--n_triplets', type=int, default=1280000, metavar='N',
+parser.add_argument('--n_triplets', type=int, default=12800, metavar='N',
                     help='how many triplets will generate from the dataset')
 parser.add_argument('--epochs', type=int, default=2, metavar='E',
                     help='number of epochs to train (default: 2)')
@@ -146,13 +146,10 @@ class TripletPhotoTour(PhotoTour):
         return img_a, img_p, img_n
 
     def __len__(self):
-        try:
-            if self.train:
-                return self.triplets.shape[0]
-            else:
-                return self.matches.shape[0]
-        except:
-            pass
+        if self.train:
+            return self.triplets.shape[0]
+        else:
+            return self.matches.shape[0]
 
 
 class TNet(nn.Module):
@@ -161,7 +158,7 @@ class TNet(nn.Module):
     def __init__(self):
         super(TNet, self).__init__()
         self.conv1 = nn.Conv2d(1, 32, kernel_size=7)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=5)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=6)
         self.fc1 = nn.Linear(64*8*8, 128)
 
     def forward(self, x):
@@ -199,7 +196,7 @@ def triplet_loss(input1, input2, input3, margin=1.0):
 kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
 train_loader = torch.utils.data.DataLoader(
     TripletPhotoTour(train=True, root=args.dataroot, name='notredame',
-                     download=True, size=32,
+                     download=True,
                      transform=transforms.Compose([
                          transforms.Scale(args.imageSize),
                          transforms.ToTensor(),
@@ -209,7 +206,7 @@ train_loader = torch.utils.data.DataLoader(
 
 test_loader = torch.utils.data.DataLoader(
     TripletPhotoTour(train=False, root=args.dataroot, name='liberty',
-                     download=True, size=32,
+                     download=True,
                      transform=transforms.Compose([
                          transforms.Scale(args.imageSize),
                          transforms.ToTensor(),
@@ -257,9 +254,6 @@ def test(epoch):
             print('Test Epoch: {} [{}/{} ({:.0f}%)]'.format(
                 epoch, batch_idx * len(data_a), len(test_loader.dataset),
                 100. * batch_idx / len(test_loader)))
-
-        if batch_idx > 70:
-            break
 
     fpr95 = ErrorRateAt95Recall(distances, scores)
     print('\nTest set: Accuracy(FPR95): {:.4f}'.format(fpr95))
