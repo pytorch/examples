@@ -35,10 +35,10 @@ parser.add_argument('--batch-size', type=int, default=128, metavar='BS',
                     help='input batch size for training (default: 128)')
 parser.add_argument('--test-batch-size', type=int, default=1000, metavar='BST',
                     help='input batch size for testing (default: 1000)')
-parser.add_argument('--n_triplets', type=int, default=12800, metavar='N',
+parser.add_argument('--n_triplets', type=int, default=128000, metavar='N',
                     help='how many triplets will generate from the dataset')
-parser.add_argument('--epochs', type=int, default=2, metavar='E',
-                    help='number of epochs to train (default: 2)')
+parser.add_argument('--epochs', type=int, default=10, metavar='E',
+                    help='number of epochs to train (default: 10)')
 parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
                     help='learning rate (default: 0.01)')
 parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
@@ -240,23 +240,25 @@ def train(epoch):
 
 def test(epoch):
     model.eval()
-    scores, distances = [], []
+    labels, distances = [], []
     for batch_idx, (data_a, data_p, label) in enumerate(test_loader):
         if args.cuda:
             data_a, data_p = data_a.cuda(), data_p.cuda()
-        data_a, data_p, labels = Variable(data_a, volatile=True), \
+        data_a, data_p, label = Variable(data_a, volatile=True), \
                                  Variable(data_p, volatile=True), Variable(label)
         out_a, out_p = model(data_a), model(data_p)
         dists = torch.sqrt(torch.sum((out_a - out_p) ** 2, 1))  # euclidean distance
-        distances.extend(dists)
-        scores.extend(label.numpy())
+        distances.append(dists.data.cpu().numpy())
+        labels.append(label.data.cpu().numpy())
         if batch_idx % args.log_interval == 0:
             print('Test Epoch: {} [{}/{} ({:.0f}%)]'.format(
                 epoch, batch_idx * len(data_a), len(test_loader.dataset),
                 100. * batch_idx / len(test_loader)))
 
-    fpr95 = ErrorRateAt95Recall(distances, scores)
-    print('\nTest set: Accuracy(FPR95): {:.4f}'.format(fpr95))
+    labels = np.vstack(labels).reshape(100000)
+    distances = np.vstack(distances).reshape(100000)
+    fpr95 = ErrorRateAt95Recall(labels, distances)
+    print('\nTest set: Accuracy(FPR95): {:.4f}\n'.format(fpr95))
 
 
 if __name__ == '__main__':
