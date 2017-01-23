@@ -21,6 +21,7 @@ from PIL import Image
 import random
 import numpy as np
 import collections
+from tqdm import tqdm
 
 from phototour import PhotoTour
 from eval_metrics import ErrorRateAt95Recall
@@ -228,7 +229,8 @@ def train(epoch):
     # switch to train mode
     model.train()
 
-    for batch_idx, (data_a, data_p, data_n) in enumerate(train_loader):
+    pbar = tqdm(enumerate(train_loader))
+    for batch_idx, (data_a, data_p, data_n) in pbar:
         if args.cuda:
             data_a, data_p, data_n = data_a.cuda(), data_p.cuda(), data_n.cuda()
         data_a, data_p, data_n = Variable(data_a), Variable(data_p), \
@@ -244,9 +246,10 @@ def train(epoch):
         optimizer.step()
 
         if batch_idx % args.log_interval == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                epoch, batch_idx * len(data_a), len(train_loader.dataset),
-                100. * batch_idx / len(train_loader), loss.data[0]))
+            pbar.set_description(
+                'Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                    epoch, batch_idx * len(data_a), len(train_loader.dataset),
+                    100. * batch_idx / len(train_loader), loss.data[0]))
 
 
 def test(epoch):
@@ -254,7 +257,9 @@ def test(epoch):
     model.eval()
 
     labels, distances = [], []
-    for batch_idx, (data_a, data_p, label) in enumerate(test_loader):
+
+    pbar = tqdm(enumerate(test_loader))
+    for batch_idx, (data_a, data_p, label) in pbar:
         if args.cuda:
             data_a, data_p = data_a.cuda(), data_p.cuda()
         data_a, data_p, label = Variable(data_a, volatile=True), \
@@ -267,7 +272,7 @@ def test(epoch):
         labels.append(label.data.cpu().numpy())
 
         if batch_idx % args.log_interval == 0:
-            print('Test Epoch: {} [{}/{} ({:.0f}%)]'.format(
+            pbar.set_description('Test Epoch: {} [{}/{} ({:.0f}%)]'.format(
                 epoch, batch_idx * len(data_a), len(test_loader.dataset),
                 100. * batch_idx / len(test_loader)))
 
@@ -275,7 +280,7 @@ def test(epoch):
     labels = np.vstack(labels).reshape(100000)
     distances = np.vstack(distances).reshape(100000)
     fpr95 = ErrorRateAt95Recall(labels, distances)
-    print('\nTest set: Accuracy(FPR95): {:.4f}\n'.format(fpr95))
+    print('Test set: Accuracy(FPR95): {:.4f}\n'.format(fpr95))
 
 
 def adjust_learning_rate(optimizer, epoch):

@@ -1,2 +1,5 @@
 torch
 torchvision
+tqdm
+numpy
+collections
