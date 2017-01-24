@@ -25,16 +25,12 @@ class Encoder(nn.Module):
         self.rnn = nn.LSTM(input_size=config.d_embed, hidden_size=config.d_hidden,
                         num_layers=config.n_layers, dropout=config.dp_ratio,
                         bidirectional=config.bidirectional)
-        self.init_config = self.config.n_cells, self.config.batch_size, self.config.d_hidden
-        # self.register_buffer('h0', h0)
-        # self.register_buffer('c0', c0)
 
     def forward(self, inputs):
         batch_size = inputs.size()[1]
-        h0 = Variable(torch.zeros(*self.init_config)).cuda()
-        c0 = Variable(torch.zeros(*self.init_config)).cuda()
-
-        _, (hn, _) = self.rnn(inputs, (h0[:, :batch_size].contiguous(), c0[:, :batch_size].contiguous()))
+        h0 = Variable(torch.zeros(self.config.n_cells, batch_size, self.config.d_hidden)).cuda()
+        c0 = Variable(torch.zeros(self.config.n_cells, batch_size, self.config.d_hidden)).cuda()
+        _, (hn, _) = self.rnn(inputs, (h0, c0))
         return hn[-1] if not self.config.bidirectional else hn[-2:].view(batch_size, -1)
 
 

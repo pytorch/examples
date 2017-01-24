@@ -35,7 +35,7 @@ if config.bidirectional:
 model = SNLIClassifier(config)
 model.cuda()
 criterion = nn.CrossEntropyLoss()
-opt = O.Adam(model.parameters())
+opt = O.Adam(model.parameters(), lr=args.lr)
 
 iterations = 0
 start = time.time()
@@ -47,27 +47,23 @@ for epoch in range(args.epochs):
     log_template =     ' '.join('{:>6.0f},{:>5.0f},{:>9.0f},{:>5.0f}/{:<5.0f} {:>7.0f}%,{:>8.6f},{},{:12.4f},{}'.split(','))
     print(header)
     for batch_idx, batch in enumerate(train_iter):
-        model.train()
+        model.train(); opt.zero_grad()
         iterations += 1
-        opt.zero_grad()
         answer = model(batch)
         n_correct += (torch.max(answer, 1)[1].view(batch.label.size()).data == batch.label.data).sum()
         n_total += batch.batch_size
         train_acc = 100. * n_correct/n_total
         loss = criterion(answer, batch.label)
-        loss.backward()
-        opt.step()
+        loss.backward(); opt.step()
         if iterations % args.save_every == 0:
             torch.save(model, os.path.join(args.save_path, 'snapshot_acc_{:.4f}_loss_{:.6f}_iter_{}_model.pt'.format(train_acc, loss.data[0], iterations)))
         if iterations % args.val_every == 0:
-            val_iter.init_epoch()
+            model.eval(); val_iter.init_epoch()
             n_dev_correct, dev_loss = 0, 0
-            model.eval()
-            for dev_batch_idx, batch in enumerate(val_iter):
-                 opt.zero_grad()
-                 answer = model(batch)
-                 n_dev_correct += (torch.max(answer, 1)[1].view(batch.label.size()).data == batch.label.data).sum()
-                 dev_loss = criterion(answer, batch.label)
+            for dev_batch_idx, dev_batch in enumerate(val_iter):
+                 answer = model(dev_batch)
+                 n_dev_correct += (torch.max(answer, 1)[1].view(dev_batch.label.size()).data == dev_batch.label.data).sum()
+                 dev_loss = criterion(answer, dev_batch.label)
             dev_acc = 100. * n_dev_correct / len(val)
             print(val_log_template.format(time.time()-start,
                 epoch, iterations, batch_idx, len(train_iter),
