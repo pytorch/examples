@@ -28,10 +28,12 @@ from eval_metrics import ErrorRateAt95Recall
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch TFeat Example')
+# Model options
 parser.add_argument('--dataroot', type=str, default='/tmp/phototour_dataset',
                     help='path to dataset')
 parser.add_argument('--imageSize', type=int, default=32,
                     help='the height / width of the input image to network')
+# Training options
 parser.add_argument('--batch-size', type=int, default=128, metavar='BS',
                     help='input batch size for training (default: 128)')
 parser.add_argument('--test-batch-size', type=int, default=1000, metavar='BST',
@@ -46,8 +48,11 @@ parser.add_argument('--momentum', type=float, default=0.9, metavar='M',
                     help='SGD momentum (default: 0.9)')
 parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)')
+# Device options
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='enables CUDA training')
+parser.add_argument('--gpu_id', default=0, type=int,
+                    help='id(s) for CUDA_VISIBLE_DEVICES')
 parser.add_argument('--seed', type=int, default=666, metavar='S',
                     help='random seed (default: 666)')
 parser.add_argument('--log-interval', type=int, default=10, metavar='LI',
@@ -59,6 +64,7 @@ args.cuda = not args.no_cuda and torch.cuda.is_available()
 torch.manual_seed(args.seed)
 if args.cuda:
     torch.cuda.manual_seed(args.seed)
+    torch.cuda.set_device(args.gpu_id)
 
 
 class TripletPhotoTour(PhotoTour):
@@ -224,6 +230,10 @@ if args.cuda:
 optimizer = optim.SGD(model.parameters(), lr=args.lr,
                       momentum=args.momentum,
                       weight_decay=args.weight_decay)
+'''optimizer = optim.Adagrad(model.parameters(),
+                          lr=args.lr,
+                          lr_decay=1e-6,
+                          weight_decay=args.weight_decay)'''
 
 
 def train(epoch):
