@@ -19,6 +19,7 @@ from torch.autograd import Variable
 
 from PIL import Image
 import random
+import math
 import numpy as np
 import collections
 from tqdm import tqdm
@@ -38,11 +39,11 @@ parser.add_argument('--batch-size', type=int, default=128, metavar='BS',
                     help='input batch size for training (default: 128)')
 parser.add_argument('--test-batch-size', type=int, default=1000, metavar='BST',
                     help='input batch size for testing (default: 1000)')
-parser.add_argument('--n_triplets', type=int, default=128000, metavar='N',
+parser.add_argument('--n_triplets', type=int, default=1280000, metavar='N',
                     help='how many triplets will generate from the dataset')
 parser.add_argument('--epochs', type=int, default=10, metavar='E',
                     help='number of epochs to train (default: 10)')
-parser.add_argument('--lr', type=float, default=0.1, metavar='LR',
+parser.add_argument('--lr', type=float, default=0.0002, metavar='LR',
                     help='learning rate (default: 0.1)')
 parser.add_argument('--momentum', type=float, default=0.9, metavar='M',
                     help='SGD momentum (default: 0.9)')
@@ -170,10 +171,15 @@ class TNet(nn.Module):
         self.conv2 = nn.Conv2d(32, 64, kernel_size=6)
         self.fc1 = nn.Linear(64*8*8, 128)
 
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, math.sqrt(2. / n))
+
     def forward(self, x):
-        x = F.tanh(self.conv1(x))
+        x = F.leaky_relu(self.conv1(x), 0.2)
         x = F.max_pool2d(x, 2)
-        x = F.tanh(self.conv2(x))
+        x = F.leaky_relu(self.conv2(x), 0.2)
         x = x.view(-1, 64*8*8)
         x = F.tanh(self.fc1(x))
         return x
@@ -227,13 +233,12 @@ model = TNet()
 if args.cuda:
     model.cuda()
 
-optimizer = optim.SGD(model.parameters(), lr=args.lr,
+'''optimizer = optim.SGD(model.parameters(), lr=args.lr,
                       momentum=args.momentum,
-                      weight_decay=args.weight_decay)
-'''optimizer = optim.Adagrad(model.parameters(),
-                          lr=args.lr,
-                          lr_decay=1e-6,
-                          weight_decay=args.weight_decay)'''
+                      weight_decay=args.weight_decay)'''
+# setup optimizer
+optimizer = optim.Adam(model.parameters(), lr=args.lr,
+                       weight_decay=args.weight_decay)
 
 
 def train(epoch):
