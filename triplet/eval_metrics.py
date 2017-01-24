@@ -1,5 +1,8 @@
 """Utility methods for computing evaluating metrics. All methods assumes greater
 scores for better matches, and assumes label == 1 means match.
+
+Extracted from:
+https://github.com/hanxf/matchnet/blob/master/eval_metrics.py
 """
 import operator
 
@@ -8,7 +11,7 @@ def ErrorRateAt95Recall(labels, scores):
     recall_point = 0.95
     # Sort label-score tuples by the score in descending order.
     sorted_scores = zip(labels, scores)
-    sorted_scores.sort(key=operator.itemgetter(1), reverse=True)
+    sorted_scores.sort(key=operator.itemgetter(1), reverse=False)
 
     # Compute error rate
     n_match = sum(1 for x in sorted_scores if x[0] == 1)
