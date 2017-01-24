@@ -18,6 +18,7 @@ from torchvision import datasets, transforms
 from torch.autograd import Variable
 
 from PIL import Image
+import os
 import random
 import math
 import numpy as np
@@ -32,8 +33,14 @@ parser = argparse.ArgumentParser(description='PyTorch TFeat Example')
 # Model options
 parser.add_argument('--dataroot', type=str, default='/tmp/phototour_dataset',
                     help='path to dataset')
+parser.add_argument('--out_dir', default='./logs',
+                    help='folder to output model checkpoints')
 parser.add_argument('--imageSize', type=int, default=32,
                     help='the height / width of the input image to network')
+parser.add_argument('--resume', default='', type=str, metavar='PATH',
+                    help='path to latest checkpoint (default: none)')
+parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
+                    help='manual epoch number (useful on restarts)')
 # Training options
 parser.add_argument('--batch-size', type=int, default=128, metavar='BS',
                     help='input batch size for training (default: 128)')
@@ -61,8 +68,11 @@ parser.add_argument('--log-interval', type=int, default=10, metavar='LI',
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
-
 torch.manual_seed(args.seed)
+
+if not os.path.exists(args.out_dir):
+    os.makedirs(args.out_dir)
+
 if args.cuda:
     torch.cuda.manual_seed(args.seed)
     torch.cuda.set_device(args.gpu_id)
@@ -229,19 +239,38 @@ test_loader = torch.utils.data.DataLoader(
                      ])),
     batch_size=args.test_batch_size, shuffle=False, **kwargs)
 
-model = TNet()
-if args.cuda:
-    model.cuda()
 
-'''optimizer = optim.SGD(model.parameters(), lr=args.lr,
-                      momentum=args.momentum,
-                      weight_decay=args.weight_decay)'''
-# setup optimizer
-optimizer = optim.Adam(model.parameters(), lr=args.lr,
-                       weight_decay=args.weight_decay)
+def main():
+
+    model = TNet()
+    if args.cuda:
+        model.cuda()
+
+    optimizer = optim.SGD(model.parameters(), lr=args.lr,
+                          momentum=args.momentum,
+                          weight_decay=args.weight_decay)
+    # setup optimizer
+    '''optimizer = optim.Adam(model.parameters(), lr=args.lr,
+                           weight_decay=args.weight_decay)'''
+
+    # optionally resume from a checkpoint
+    if args.resume:
+        if os.path.isfile(args.resume):
+            print('=> loading checkpoint {}'.format(args.resume))
+            checkpoint = torch.load(args.resume)
+            args.start_epoch = checkpoint['epoch']
+            checkpoint = torch.load(args.resume)
+            model.load_state_dict(checkpoint['state_dict'])
+        else:
+            print('=> no checkpoint found at {}'.format(args.resume))
+
+    for epoch in range(args.start_epoch, args.epochs):
+        adjust_learning_rate(optimizer, epoch)
+        train(train_loader, model, optimizer, epoch)
+        test(test_loader, model, epoch)
 
 
-def train(epoch):
+def train(train_loader, model, optimizer, epoch):
     # switch to train mode
     model.train()
 
@@ -267,8 +296,12 @@ def train(epoch):
                     epoch, batch_idx * len(data_a), len(train_loader.dataset),
                     100. * batch_idx / len(train_loader), loss.data[0]))
 
+    # do checkpointing
+    torch.save({'epoch': epoch + 1, 'state_dict': model.state_dict()},
+               '{}/checkpoint_{}.pth'.format(args.out_dir, epoch))
 
-def test(epoch):
+
+def test(test_loader, model, epoch):
     # switch to evaluate mode
     model.eval()
 
@@ -308,7 +341,4 @@ def adjust_learning_rate(optimizer, epoch):
 
 
 if __name__ == '__main__':
-    for epoch in range(1, args.epochs + 1):
-        adjust_learning_rate(optimizer, epoch)
-        train(epoch)
-        test(epoch)
+    main()
