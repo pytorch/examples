@@ -1,3 +1,4 @@
+import os
 from argparse import ArgumentParser
 
 def get_args():
@@ -15,5 +16,7 @@ def get_args():
     parser.add_argument('--bidirectional', action='store_true')
     parser.add_argument('--gpu', type=int, default=0)
     parser.add_argument('--save_path', type=str, default='')
+    parser.add_argument('--data_cache', type=str, default=os.path.join(os.getcwd(), '.data_cache'))
+    parser.add_argument('--word_vectors', type=str, default='glove.42B')
     args = parser.parse_args()
     return args

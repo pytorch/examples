@@ -19,7 +19,7 @@ answers = data.Field(sequential=False)
 
 train, val, test = datasets.SNLI.splits(inputs, answers)
 
-inputs.build_vocab(train)
+inputs.build_vocab(train, vectors=(args.data_cache, args.word_vectors, args.d_embed))
 answers.build_vocab(train)
 
 train_iter, val_iter, test_iter = data.BucketIterator.splits(
@@ -33,6 +33,8 @@ if config.bidirectional:
     config.n_cells *= 2
 
 model = SNLIClassifier(config)
+if args.wv_path:
+    model.embed.weight = inputs.vocab.vectors
 model.cuda()
 criterion = nn.CrossEntropyLoss()
 opt = O.Adam(model.parameters(), lr=args.lr)
