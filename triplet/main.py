@@ -36,7 +36,7 @@ parser.add_argument('--batch-size', type=int, default=128, metavar='BS',
                     help='input batch size for training (default: 128)')
 parser.add_argument('--test-batch-size', type=int, default=1000, metavar='BST',
                     help='input batch size for testing (default: 1000)')
-parser.add_argument('--n_triplets', type=int, default=1280000, metavar='N',
+parser.add_argument('--n_triplets', type=int, default=128000, metavar='N',
                     help='how many triplets will generate from the dataset')
 parser.add_argument('--epochs', type=int, default=10, metavar='E',
                     help='number of epochs to train (default: 10)')
@@ -222,7 +222,8 @@ if args.cuda:
     model.cuda()
 
 optimizer = optim.SGD(model.parameters(), lr=args.lr,
-                      momentum=args.momentum)
+                      momentum=args.momentum,
+                      weight_decay=args.weight_decay)
 
 
 def train(epoch):
@@ -277,8 +278,9 @@ def test(epoch):
                 100. * batch_idx / len(test_loader)))
 
     # measure accuracy (FPR95)
-    labels = np.vstack(labels).reshape(100000)
-    distances = np.vstack(distances).reshape(100000)
+    num_tests = test_loader.dataset.matches.shape[0]
+    labels = np.vstack(labels).reshape(num_tests)
+    distances = np.vstack(distances).reshape(num_tests)
     fpr95 = ErrorRateAt95Recall(labels, distances)
     print('Test set: Accuracy(FPR95): {:.4f}\n'.format(fpr95))
 
