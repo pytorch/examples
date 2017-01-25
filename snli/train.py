@@ -20,16 +20,14 @@ answers = data.Field(sequential=False)
 
 train, dev, test = datasets.SNLI.splits(inputs, answers)
 
-if  args.word_vectors and os.path.isfile(args.vector_cache):
-    inputs.build_vocab(train, dev, test, lower=args.lower)
-    inputs.vocab.vectors = torch.load(args.vector_cache)
-else:
-    if args.word_vectors:
-        inputs.build_vocab(train, dev, test, vectors=(args.data_cache, args.word_vectors, args.d_embed), lower=args.lower)
+inputs.build_vocab(train, dev, test, lower=args.lower)
+if args.word_vectors:
+    if os.path.isfile(args.vector_cache):
+        inputs.vocab.vectors = torch.load(args.vector_cache)
+    else:
+        inputs.vocab.load_vectors(vectors=(args.data_cache, args.word_vectors, args.d_embed))
         os.makedirs(os.path.dirname(args.vector_cache), exist_ok=True)
         torch.save(inputs.vocab.vectors, args.vector_cache)
-    else:
-        inputs.build_vocab(train, dev, test, lower=args.lower)
 answers.build_vocab(train)
 
 train_iter, dev_iter, test_iter = data.BucketIterator.splits(
