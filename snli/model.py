@@ -22,16 +22,17 @@ class Encoder(nn.Module):
     def __init__(self, config):
         super(Encoder, self).__init__()
         self.config = config
-        self.rnn = nn.LSTM(input_size=config.d_embed, hidden_size=config.d_hidden,
+        input_size = config.d_proj if config.projection else config.d_embed
+        self.rnn = nn.LSTM(input_size=input_size, hidden_size=config.d_hidden,
                         num_layers=config.n_layers, dropout=config.dp_ratio,
-                        bidirectional=config.bidirectional)
+                        bidirectional=config.birnn)
 
     def forward(self, inputs):
         batch_size = inputs.size()[1]
-        h0 = Variable(torch.zeros(self.config.n_cells, batch_size, self.config.d_hidden)).cuda()
-        c0 = Variable(torch.zeros(self.config.n_cells, batch_size, self.config.d_hidden)).cuda()
-        _, (hn, _) = self.rnn(inputs, (h0, c0))
-        return hn[-1] if not self.config.bidirectional else hn[-2:].view(batch_size, -1)
+        state_shape = self.config.n_cells, batch_size, self.config.d_hidden
+        h0 = c0 = Variable(inputs.data.new(*state_shape).zero_())
+        outputs, (ht, ct) = self.rnn(inputs, (h0, c0))
+        return ht[-1] if not self.config.birnn else ht[-2:].view(batch_size, -1)
 
 
 class SNLIClassifier(nn.Module):
@@ -40,24 +41,36 @@ class SNLIClassifier(nn.Module):
         super(SNLIClassifier, self).__init__()
         self.config = config
         self.embed = nn.Embedding(config.n_embed, config.d_embed)
+        self.projection = Linear(config.d_embed, config.d_proj)
         self.encoder = Encoder(config)
+        self.dropout = nn.Dropout(p=config.dp_ratio)
+        self.relu = nn.ReLU()
         seq_in_size = 2*config.d_hidden
-        if self.config.bidirectional:
+        if self.config.birnn:
             seq_in_size *= 2
         lin_config = [seq_in_size]*2
         self.out = nn.Sequential(
             Linear(*lin_config),
-            nn.ReLU(),
-            nn.Dropout(p=config.dp_ratio),
+            self.relu,
+            self.dropout,
             Linear(*lin_config),
-            nn.ReLU(),
+            self.relu,
+            self.dropout,
             Linear(*lin_config),
-            nn.ReLU(),
-            nn.Dropout(p=config.dp_ratio),
+            self.relu,
+            self.dropout,
             Linear(seq_in_size, config.d_out))
 
     def forward(self, batch):
-        premise = self.encoder(self.embed(batch.premise))
-        hypothesis = self.encoder(self.embed(batch.hypothesis))
-        answer = self.out(torch.cat([premise, hypothesis], 1))
-        return answer
+        prem_embed = self.embed(batch.premise)
+        hypo_embed = self.embed(batch.hypothesis)
+        if self.config.fix_emb:
+            prem_embed = Variable(prem_embed.data)
+            hypo_embed = Variable(hypo_embed.data)
+        if self.config.projection:
+            prem_embed = self.relu(self.projection(prem_embed))
+            hypo_embed = self.relu(self.projection(hypo_embed))
+        premise = self.encoder(prem_embed)
+        hypothesis = self.encoder(hypo_embed)
+        scores = self.out(torch.cat([premise, hypothesis], 1))
+        return scores
