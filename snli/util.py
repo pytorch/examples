@@ -14,7 +14,7 @@ def get_args():
     parser.add_argument('--dev_every', type=int, default=1000)
     parser.add_argument('--save_every', type=int, default=1000)
     parser.add_argument('--dp_ratio', type=int, default=0.2)
-    parser.add_argument('--bidirectional', action='store_true', dest='birnn')
+    parser.add_argument('--no-bidirectional', action='store_false', dest='birnn')
     parser.add_argument('--preserve-case', action='store_false', dest='lower')
     parser.add_argument('--no-projection', action='store_false', dest='projection')
     parser.add_argument('--train_embed', action='store_false', dest='fix_emb')

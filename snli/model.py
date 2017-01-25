@@ -32,7 +32,7 @@ class Encoder(nn.Module):
         state_shape = self.config.n_cells, batch_size, self.config.d_hidden
         h0 = c0 = Variable(inputs.data.new(*state_shape).zero_())
         outputs, (ht, ct) = self.rnn(inputs, (h0, c0))
-        return ht[-1] if not self.config.birnn else ht[-2:].view(batch_size, -1)
+        return ht[-1] if not self.config.birnn else ht[-2:].transpose(0, 1).contiguous().view(batch_size, -1)
 
 
 class SNLIClassifier(nn.Module):
