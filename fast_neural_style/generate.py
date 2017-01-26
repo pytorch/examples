@@ -32,10 +32,13 @@ model.load_state_dict(torch.load(args.model))
 img = load_image(args.input)
 img = img.reshape((1,)+img.shape)
 img = torch.from_numpy(img)
+img = Variable(img, volatile=True)
+
 if(args.cuda):
     model.cuda()
     img = img.cuda()
 
+model.eval()
 result = model(img)
 result = result.data.numpy()
 result = result[0].transpose((1, 2, 0))
