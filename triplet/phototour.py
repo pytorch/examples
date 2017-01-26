@@ -89,7 +89,7 @@ class PhotoTour(data.Dataset):
             with open(file_path, 'wb') as f:
                 f.write(data.read())
 
-            print('Extracting data {}\n'.format(self.file_down))
+            print('Extracting data {}\n'.format(self.data_down))
 
             with zipfile.ZipFile(file_path, 'r') as z:
                 z.extractall(self.data_dir)
