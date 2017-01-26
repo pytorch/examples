@@ -14,13 +14,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torchvision import datasets, transforms
+import torchvision.transforms as transforms
 from torch.autograd import Variable
 
 from PIL import Image
 import os
 import random
-import math
 import numpy as np
 import collections
 from tqdm import tqdm
@@ -41,6 +40,8 @@ parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
+parser.add_argument('--epochs', type=int, default=60, metavar='E',
+                    help='number of epochs to train (default: 10)')
 # Training options
 parser.add_argument('--batch-size', type=int, default=128, metavar='BS',
                     help='input batch size for training (default: 128)')
@@ -48,10 +49,12 @@ parser.add_argument('--test-batch-size', type=int, default=1000, metavar='BST',
                     help='input batch size for testing (default: 1000)')
 parser.add_argument('--n_triplets', type=int, default=1280000, metavar='N',
                     help='how many triplets will generate from the dataset')
-parser.add_argument('--epochs', type=int, default=10, metavar='E',
-                    help='number of epochs to train (default: 10)')
-parser.add_argument('--lr', type=float, default=0.0002, metavar='LR',
+parser.add_argument('--margin', type=float, default=1.0, metavar='MARGIN',
+                    help='the margin value for the triplet loss function (default: 1.0')
+parser.add_argument('--lr', type=float, default=0.1, metavar='LR',
                     help='learning rate (default: 0.1)')
+parser.add_argument('--lrd', default=1e-6, type=float, metavar='LRD',
+                    help='learning rate decay ratio (default: 1e-6')
 parser.add_argument('--momentum', type=float, default=0.9, metavar='M',
                     help='SGD momentum (default: 0.9)')
 parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
@@ -59,7 +62,7 @@ parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
 # Device options
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='enables CUDA training')
-parser.add_argument('--gpu_id', default=0, type=int,
+parser.add_argument('--gpu_id', default=1, type=int,
                     help='id(s) for CUDA_VISIBLE_DEVICES')
 parser.add_argument('--seed', type=int, default=666, metavar='S',
                     help='random seed (default: 666)')
@@ -181,18 +184,24 @@ class TNet(nn.Module):
         self.conv2 = nn.Conv2d(32, 64, kernel_size=6)
         self.fc1 = nn.Linear(64*8*8, 128)
 
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, math.sqrt(2. / n))
-
     def forward(self, x):
-        x = F.leaky_relu(self.conv1(x), 0.2)
+        x = F.tanh(self.conv1(x))
         x = F.max_pool2d(x, 2)
-        x = F.leaky_relu(self.conv2(x), 0.2)
+        x = F.tanh(self.conv2(x))
         x = x.view(-1, 64*8*8)
         x = F.tanh(self.fc1(x))
         return x
+
+
+def weights_init(m):
+    if isinstance(m, nn.Conv2d):
+        ni = m.in_channels
+        no = m.out_channels
+        k, k = m.kernel_size
+        std = 2.0/np.sqrt(ni*k*k*no)
+        #m.weight.data.normal_(0.0, std)
+        m.weight.data.uniform_(-std, std)
+        m.bias.data.uniform_(-std, std)
 
 
 class TripletMarginLoss(nn.Module):
@@ -218,7 +227,7 @@ def triplet_loss(input1, input2, input3, margin=1.0):
     return TripletMarginLoss(margin).forward(input1, input2, input3)
 
 
-kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
+kwargs = {'num_workers': 2, 'pin_memory': True} if args.cuda else {}
 train_loader = torch.utils.data.DataLoader(
     TripletPhotoTour(train=True, root=args.dataroot, name='notredame',
                      download=True,
@@ -242,14 +251,20 @@ test_loader = torch.utils.data.DataLoader(
 
 def main():
 
+    # print the experiment configuration
+    print('\nparsed options:\n{}\n'.format(vars(args)))
+
+    # instantiate model and initialize weights
     model = TNet()
+    model.apply(weights_init)
     if args.cuda:
         model.cuda()
 
+    # setup optimizer
     optimizer = optim.SGD(model.parameters(), lr=args.lr,
                           momentum=args.momentum,
+                          dampening=args.momentum,
                           weight_decay=args.weight_decay)
-    # setup optimizer
     '''optimizer = optim.Adam(model.parameters(), lr=args.lr,
                            weight_decay=args.weight_decay)'''
 
@@ -265,7 +280,6 @@ def main():
             print('=> no checkpoint found at {}'.format(args.resume))
 
     for epoch in range(args.start_epoch, args.epochs):
-        adjust_learning_rate(optimizer, epoch)
         train(train_loader, model, optimizer, epoch)
         test(test_loader, model, epoch)
 
@@ -274,6 +288,7 @@ def train(train_loader, model, optimizer, epoch):
     # switch to train mode
     model.train()
 
+    loss_train = 0
     pbar = tqdm(enumerate(train_loader))
     for batch_idx, (data_a, data_p, data_n) in pbar:
         if args.cuda:
@@ -283,11 +298,15 @@ def train(train_loader, model, optimizer, epoch):
 
         # compute output
         out_a, out_p, out_n = model(data_a), model(data_p), model(data_n)
-        loss = triplet_loss(out_a, out_p, out_n)
+        loss = triplet_loss(out_a, out_p, out_n, margin=args.margin)
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
         loss.backward()
+        loss_train += loss.data[0]
+
+        # updates the learning rate acording to the original Lua implementation
+        adjust_learning_rate(optimizer)
         optimizer.step()
 
         if batch_idx % args.log_interval == 0:
@@ -296,9 +315,15 @@ def train(train_loader, model, optimizer, epoch):
                     epoch, batch_idx * len(data_a), len(train_loader.dataset),
                     100. * batch_idx / len(train_loader), loss.data[0]))
 
+    # reset the momentum buffer
+    reset_momentum(optimizer)
+
     # do checkpointing
     torch.save({'epoch': epoch + 1, 'state_dict': model.state_dict()},
                '{}/checkpoint_{}.pth'.format(args.out_dir, epoch))
+
+    # log the loss to check the learning curve
+    write('loss.txt', loss_train / args.batch_size)
 
 
 def test(test_loader, model, epoch):
@@ -332,13 +357,39 @@ def test(test_loader, model, epoch):
     fpr95 = ErrorRateAt95Recall(labels, distances)
     print('Test set: Accuracy(FPR95): {:.4f}\n'.format(fpr95))
 
+    # log the fpr95
+    write('fpr95.txt', fpr95)
 
-def adjust_learning_rate(optimizer, epoch):
-    """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-    lr = args.lr * (0.1 ** (epoch // 30))
+
+def adjust_learning_rate(optimizer):
+    """Updates the learning rate given the learning rate decay.
+    The routine has been implemented according to the original Lua SGD optimizer
+    """
     for param_group in optimizer.state_dict()['param_groups']:
-        param_group['lr'] = lr
+        if 'evalCounter' not in param_group:
+            param_group['evalCounter'] = 0
 
+        # https://github.com/torch/optim/blob/master/sgd.lua#L72
+        param_group['lr'] = args.lr / (1 + param_group['evalCounter'] * args.lrd)
+
+        param_group['evalCounter'] += 1
+
+
+def reset_momentum(optimizer):
+    """Resets to zero the momentum buffer
+    note: Extracted from
+    https://github.com/szagoruyko/attention-transfer/blob/master/cifar.py#L312-L315
+    """
+    for param_group in optimizer.state_dict()['param_groups']:
+        for p in param_group['params']:
+            param_state = optimizer.state[id(p)]
+            param_state['momentum_buffer'].zero_()
+
+
+def write(file_name, value):
+    file_path = '{}/{}'.format(args.out_dir, file_name)
+    with open(file_path, 'a') as f:
+        f.write('{} '.format(value))
 
 if __name__ == '__main__':
     main()
