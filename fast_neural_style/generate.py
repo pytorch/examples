@@ -40,10 +40,7 @@ if(args.cuda):
 
 model.eval()
 result = model(img)
-result = result.data.numpy()
+result = result.data.cpu().numpy()
 result = result[0].transpose((1, 2, 0))
 cv2.imwrite(args.output,result)
-
-
-
 
