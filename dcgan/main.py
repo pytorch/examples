@@ -35,7 +35,10 @@ parser.add_argument('--outf', default='.', help='folder to output images and mod
 opt = parser.parse_args()
 print(opt)
 
-os.makedirs(opt.outf, exist_ok=True)
+try:
+    os.makedirs(opt.outf)
+except OSError:
+    pass
 opt.manualSeed = random.randint(1, 10000) # fix seed
 print("Random Seed: ", opt.manualSeed)
 random.seed(opt.manualSeed)
@@ -205,16 +208,17 @@ for epoch in range(opt.niter):
         output = netD(input)
         errD_real = criterion(output, label)
         errD_real.backward()
+        D_x = output.data.mean()
 
         # train with fake
         noise.data.resize_(batch_size, nz, 1, 1)
         noise.data.normal_(0, 1)
-        fake = netG(noise)
-        input.data.copy_(fake.data)
+        fake = netG(noise).detach()
         label.data.fill_(fake_label)
-        output = netD(input)
+        output = netD(fake)
         errD_fake = criterion(output, label)
         errD_fake.backward()
+        D_G_z1 = output.data.mean()
         errD = errD_real + errD_fake
         optimizerD.step()
 
@@ -228,11 +232,12 @@ for epoch in range(opt.niter):
         output = netD(fake)
         errG = criterion(output, label)
         errG.backward()
+        D_G_z2 = output.data.mean()
         optimizerG.step()
 
-        print('[%d/%d][%d/%d] Loss_D: %f Loss_G: %f'
+        print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
               % (epoch, opt.niter, i, len(dataloader),
-                 errD.data[0], errG.data[0]))
+                 errD.data[0], errG.data[0], D_x, D_G_z1, D_G_z2))
         if i % 100 == 0:
             vutils.save_image(real_cpu,
                     '%s/real_samples.png' % opt.outf)
