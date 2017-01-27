@@ -44,9 +44,9 @@ parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
                     help='learning rate (default: 0.001)')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='enables CUDA training')
-parser.add_argument('--dataset', '-d', default='../../coco5000', type=str,
+parser.add_argument('--dataset', '-d', default='../../train2014', type=str,
                     help='dataset directory path (according to the paper, use MSCOCO 80k images)')
-parser.add_argument('--style_image', '-s', type=str, default='starry_night.jpg',
+parser.add_argument('--style_image', '-s', type=str, default='style_2.png',
                     help='style image path')
 parser.add_argument('--image_size', default=512, type=int)
 parser.add_argument('--lambda_feat', default=1.0, type=float)
