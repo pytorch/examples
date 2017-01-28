@@ -15,7 +15,8 @@ import torchvision.models as models
 
 
 model_names = sorted(name for name in models.__dict__
-    if name.islower() and not name.startswith("__"))
+    if name.islower() and not name.startswith("__")
+    and callable(models.__dict__[name]))
 
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
