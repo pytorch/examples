@@ -14,6 +14,7 @@ import torchvision.datasets as datasets
 import torchvision.models as models
 
 
+
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__"))
 
@@ -48,18 +49,66 @@ parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
                     help='evaluate model on validation set')
 parser.add_argument('--pretrained', dest='pretrained', action='store_true',
                     help='use pre-trained model')
+parser.add_argument('--finetune', dest='finetune', action='store_true',
+                    help='fine tune pre-trained model')
 
 best_prec1 = 0
+
+class FineTuneModel(nn.Module):
+    def __init__(self, original_model, arch, num_classes):
+        super(FineTuneModel, self).__init__()
+
+        if arch.startswith('alexnet') :
+            self.features = original_model.features
+            self.classifier = nn.Sequential(
+                nn.Dropout(),
+                nn.Linear(256 * 6 * 6, 4096),
+                nn.ReLU(inplace=True),
+                nn.Dropout(),
+                nn.Linear(4096, 4096),
+                nn.ReLU(inplace=True),
+                nn.Linear(4096, num_classes),
+            )
+            self.modelName = 'alexnet'
+        elif arch.startswith('resnet') :
+            # Everything except the last linear layer
+            self.features = nn.Sequential(*list(original_model.children())[:-1])
+            self.classifier = nn.Sequential(
+                nn.Linear(512, num_classes)
+            )
+            self.modelName = 'resnet'
+        else :
+            raise("Finetuning not supported on this architecture yet")
+
+        # Freeze those weights
+        for p in self.features.parameters():
+            p.requires_grad = False
+
+
+    def forward(self, x):
+        f = self.features(x)
+        if self.modelName == 'alexnet' :
+            f = f.view(f.size(0), 256 * 6 * 6)
+        elif self.modelName == 'resnet' :
+            f = f.view(f.size(0), -1)
+        y = self.classifier(f)
+        return y
 
 
 def main():
     global args, best_prec1
     args = parser.parse_args()
 
+    traindir = os.path.join(args.data, 'train')
+    valdir = os.path.join(args.data, 'val')
+    # Get number of classes from train directory
+    num_classes = len([name for name in os.listdir(traindir)])
+
     # create model
     if args.pretrained:
         print("=> using pre-trained model '{}'".format(args.arch))
-        model = models.__dict__[args.arch](pretrained=True)
+        original_model = models.__dict__[args.arch](pretrained=True)
+        model = FineTuneModel(original_model, args.arch, num_classes)
     else:
         print("=> creating model '{}'".format(args.arch))
         model = models.__dict__[args.arch]()
@@ -86,8 +135,6 @@ def main():
     cudnn.benchmark = True
 
     # Data loading code
-    traindir = os.path.join(args.data, 'train')
-    valdir = os.path.join(args.data, 'val')
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
 
@@ -97,7 +144,7 @@ def main():
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             normalize,
-        ])),
+        ])),    
         batch_size=args.batch_size, shuffle=True,
         num_workers=args.workers, pin_memory=True)
 
@@ -114,7 +161,8 @@ def main():
     # define loss function (criterion) and pptimizer
     criterion = nn.CrossEntropyLoss().cuda()
 
-    optimizer = torch.optim.SGD(model.parameters(), args.lr,
+    optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), # Only finetunable params
+                                args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
 
