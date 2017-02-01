@@ -2,6 +2,7 @@ import onmt
 import argparse
 import torch
 import torch.nn as nn
+from torch import cuda
 from torch.autograd import Variable
 import math
 import time
@@ -86,7 +87,7 @@ parser.add_argument('-pre_word_vecs_dec',
                     See README for specific formatting instructions.""")
 
 # GPU
-parser.add_argument('-cuda', action='store_true',
+parser.add_argument('-gpu', default=[], nargs='+', type=int,
                     help="Use CUDA")
 
 parser.add_argument('-log_interval', type=int, default=50,
@@ -95,11 +96,15 @@ parser.add_argument('-log_interval', type=int, default=50,
 #                     help="Seed for random initialization")
 
 opt = parser.parse_args()
+opt.cuda = len(opt.gpu)
+
 print(opt)
 
 if torch.cuda.is_available() and not opt.cuda:
     print("WARNING: You have a CUDA device, so you should probably run with -cuda")
 
+if opt.cuda:
+    cuda.set_device(opt.gpu[0])
 
 def NMTCriterion(vocabSize):
     weight = torch.ones(vocabSize)
@@ -117,7 +122,7 @@ def memoryEfficientLoss(outputs, targets, generator, crit, eval=False):
 
     batch_size = outputs.size(1)
     outputs_split = torch.split(outputs, opt.max_generator_batches)
-    targets_split = torch.split(targets, opt.max_generator_batches)
+    targets_split = torch.split(targets.contiguous(), opt.max_generator_batches)
     for out_t, targ_t in zip(outputs_split, targets_split):
         out_t = out_t.view(-1, out_t.size(2))
         pred_t = generator(out_t)
@@ -136,9 +141,9 @@ def eval(model, criterion, data):
 
     model.eval()
     for i in range(len(data)):
-        batch = data[i]
+        batch = [x.transpose(0, 1) for x in data[i]] # must be batch first for gather/scatter in DataParallel
         outputs = model(batch)  # FIXME volatile
-        targets = batch[1][1:]  # exclude <s> from targets
+        targets = batch[1][:, 1:]  # exclude <s> from targets
         loss, _ = memoryEfficientLoss(
                 outputs, targets, model.generator, criterion, eval=True)
         total_loss += loss
@@ -155,6 +160,7 @@ def trainModel(model, trainData, validData, dataset, optim):
     # define criterion of each GPU
     criterion = NMTCriterion(dataset['dicts']['tgt'].size())
 
+    start_time = time.time()
     def trainEpoch(epoch):
 
         # shuffle mini batch order
@@ -167,10 +173,11 @@ def trainModel(model, trainData, validData, dataset, optim):
 
             batchIdx = batchOrder[i] if epoch >= opt.curriculum else i
             batch = trainData[batchIdx]
+            batch = [x.transpose(0, 1) for x in batch] # must be batch first for gather/scatter in DataParallel
 
             model.zero_grad()
             outputs = model(batch)
-            targets = batch[1][1:]  # exclude <s> from targets
+            targets = batch[1][:, 1:]  # exclude <s> from targets
             loss, gradOutput = memoryEfficientLoss(
                     outputs, targets, model.generator, criterion)
 
@@ -185,10 +192,11 @@ def trainModel(model, trainData, validData, dataset, optim):
             total_words += num_words
             report_words += num_words
             if i % opt.log_interval == 0 and i > 0:
-                print("Epoch %2d, %5d/%5d batches; perplexity: %6.2f; %3.0f tokens/s" %
+                print("Epoch %2d, %5d/%5d batches; perplexity: %6.2f; %3.0f tokens/s; %6.0f s elapsed" %
                       (epoch, i, len(trainData),
                       math.exp(report_loss / report_words),
-                      report_words/(time.time()-start)))
+                      report_words/(time.time()-start),
+                      time.time()-start_time))
 
                 report_loss = report_words = 0
                 start = time.time()
@@ -249,7 +257,15 @@ def main():
         generator = nn.Sequential(
             nn.Linear(opt.rnn_size, dicts['tgt'].size()),
             nn.LogSoftmax())
+        generator = nn.DataParallel(generator, device_ids=opt.gpu)
         model = onmt.Models.NMTModel(encoder, decoder, generator)
+        model = nn.DataParallel(model, device_ids=opt.gpu)
+        if opt.cuda:
+            model.cuda()
+        else:
+            model.cpu()
+
+        model.generator = generator
 
         for p in model.parameters():
             p.data.uniform_(-opt.param_init, opt.param_init)
@@ -263,13 +279,12 @@ def main():
         print('Loading from checkpoint at %s' % opt.train_from)
         checkpoint = torch.load(opt.train_from)
         model = checkpoint['model']
+        if opt.cuda:
+            model.cuda()
+        else:
+            model.cpu()
         optim = checkpoint['optim']
         opt.start_epoch = checkpoint['epoch'] + 1
-
-    if opt.cuda:
-        model.cuda()
-    else:
-        model.cpu()
 
     nParams = sum([p.nelement() for p in model.parameters()])
     print('* number of parameters: %d' % nParams)

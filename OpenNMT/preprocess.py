@@ -1,7 +1,6 @@
 import onmt
 
 import argparse
-import os
 import torch
 
 parser = argparse.ArgumentParser(description='preprocess.lua')

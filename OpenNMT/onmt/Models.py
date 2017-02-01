@@ -29,10 +29,9 @@ class Encoder(nn.Module):
             self.word_lut.weight.copy_(pretrained)
 
     def forward(self, input, hidden=None):
-        emb = self.word_lut(input)
-
+        batch_size = input.size(0) # batch first for multi-gpu compatibility
+        emb = self.word_lut(input).transpose(0, 1)
         if hidden is None:
-            batch_size = emb.size(1)
             h_size = (self.layers * self.num_directions, batch_size, self.hidden_size)
             h_0 = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
             c_0 = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
@@ -46,21 +45,21 @@ class StackedLSTM(nn.Module):
     def __init__(self, num_layers, input_size, rnn_size, dropout):
         super(StackedLSTM, self).__init__()
         self.dropout = nn.Dropout(dropout)
+        self.num_layers = num_layers
 
-        self.layers = []
         for i in range(num_layers):
             layer = nn.LSTMCell(input_size, rnn_size)
             self.add_module('layer_%d' % i, layer)
-            self.layers += [layer]
             input_size = rnn_size
 
     def forward(self, input, hidden):
         h_0, c_0 = hidden
         h_1, c_1 = [], []
-        for i, layer in enumerate(self.layers):
+        for i in range(self.num_layers):
+            layer = getattr(self, 'layer_%d' % i)
             h_1_i, c_1_i = layer(input, (h_0[i], c_0[i]))
             input = h_1_i
-            if i != len(self.layers):
+            if i != self.num_layers:
                 input = self.dropout(input)
             h_1 += [h_1_i]
             c_1 += [c_1_i]
@@ -99,9 +98,9 @@ class Decoder(nn.Module):
 
 
     def forward(self, input, hidden, context, init_output):
-        emb = self.word_lut(input)
+        emb = self.word_lut(input).transpose(0, 1)
 
-        batch_size = input.size(1)
+        batch_size = input.size(0)
 
         h_size = (batch_size, self.hidden_size)
         output = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
@@ -122,7 +121,7 @@ class Decoder(nn.Module):
             outputs += [output]
 
         outputs = torch.stack(outputs)
-        return outputs, hidden, attn
+        return outputs.transpose(0, 1), hidden, attn
 
 
 class NMTModel(nn.Module):
@@ -154,7 +153,7 @@ class NMTModel(nn.Module):
 
     def forward(self, input):
         src = input[0]
-        tgt = input[1][:-1]  # exclude last target from inputs
+        tgt = input[1][:, :-1]  # exclude last target from inputs
         enc_hidden, context = self.encoder(src)
         init_output = self.make_init_decoder_output(context)
 
