@@ -87,7 +87,7 @@ parser.add_argument('-pre_word_vecs_dec',
                     See README for specific formatting instructions.""")
 
 # GPU
-parser.add_argument('-gpu', default=[], nargs='+', type=int,
+parser.add_argument('-gpus', default=[], nargs='+', type=int,
                     help="Use CUDA")
 
 parser.add_argument('-log_interval', type=int, default=50,
@@ -96,7 +96,7 @@ parser.add_argument('-log_interval', type=int, default=50,
 #                     help="Seed for random initialization")
 
 opt = parser.parse_args()
-opt.cuda = len(opt.gpu)
+opt.cuda = len(opt.gpus)
 
 print(opt)
 
@@ -104,7 +104,7 @@ if torch.cuda.is_available() and not opt.cuda:
     print("WARNING: You have a CUDA device, so you should probably run with -cuda")
 
 if opt.cuda:
-    cuda.set_device(opt.gpu[0])
+    cuda.set_device(opt.gpus[0])
 
 def NMTCriterion(vocabSize):
     weight = torch.ones(vocabSize)
@@ -118,7 +118,7 @@ def NMTCriterion(vocabSize):
 def memoryEfficientLoss(outputs, targets, generator, crit, eval=False):
     # compute generations one piece at a time
     loss = 0
-    outputs = Variable(outputs.data, requires_grad=(not eval), volatile=eval)
+    outputs = Variable(outputs.data, requires_grad=(not eval), volatile=eval).contiguous()
 
     batch_size = outputs.size(1)
     outputs_split = torch.split(outputs, opt.max_generator_batches)
@@ -257,9 +257,11 @@ def main():
         generator = nn.Sequential(
             nn.Linear(opt.rnn_size, dicts['tgt'].size()),
             nn.LogSoftmax())
-        generator = nn.DataParallel(generator, device_ids=opt.gpu)
+        if opt.cuda > 1:
+            generator = nn.DataParallel(generator, device_ids=opt.gpus)
         model = onmt.Models.NMTModel(encoder, decoder, generator)
-        model = nn.DataParallel(model, device_ids=opt.gpu)
+        if opt.cuda > 1:
+            model = nn.DataParallel(model, device_ids=opt.gpus)
         if opt.cuda:
             model.cuda()
         else:
