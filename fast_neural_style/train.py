@@ -139,7 +139,7 @@ if args.cuda:
 style = tensor_load_rgbimage(args.style_image, args.style_size)
 style = style.repeat(args.batch_size, 1, 1, 1)
 style = batch_rgb_to_bgr(style)
-tensor_save_bgrimage(style[0], 'y_style_output.jpg')
+
 if args.cuda:
     style = style.cuda()
 style_var = Variable(style, volatile=True)
