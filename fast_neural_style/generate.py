@@ -10,9 +10,12 @@ from PIL import Image
 parser = argparse.ArgumentParser(description='PyTorch Fast Neural Style Generate Example')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='enables CUDA training')
-parser.add_argument('--model', default='model.pth', type=str)
-parser.add_argument('--input', type=str, required=True)
-parser.add_argument('--output', default='output.jpg', type=str)
+parser.add_argument('--model', default='model.pth', type=str,
+                    help='the path of the model file')
+parser.add_argument('--input', type=str, required=True,
+                    help='the path of the input image')
+parser.add_argument('--output', default='output.jpg', type=str,
+                    help='the path of the output image')
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
 
