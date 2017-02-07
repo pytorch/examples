@@ -23,6 +23,6 @@ def get_args():
     parser.add_argument('--data_cache', type=str, default=os.path.join(os.getcwd(), '.data_cache'))
     parser.add_argument('--vector_cache', type=str, default=os.path.join(os.getcwd(), '.vector_cache/input_vectors.pt'))
     parser.add_argument('--word_vectors', type=str, default='glove.42B')
-    parser.add_argument('--resume_snapshot', type=str, default='results/snapshot.pt')
+    parser.add_argument('--resume_snapshot', type=str, default='')
     args = parser.parse_args()
     return args
