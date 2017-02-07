@@ -21,14 +21,14 @@ model.load_state_dict(torch.load(args.model))
 
 # load image
 img = Image.open(args.input)
-img = np.array(img)               # PIL->numpy
-img = np.array(img[...,::-1])     # RGB->BGR
-img = img.transpose(2, 0, 1)      # HWC->CHW
-img = img.reshape((1,)+img.shape) # CHW->BCHW
+img = np.array(img)  # PIL->numpy
+img = np.array(img[..., ::-1])  # RGB->BGR
+img = img.transpose(2, 0, 1)  # HWC->CHW
+img = img.reshape((1, ) + img.shape)  # CHW->BCHW
 img = torch.from_numpy(img).float()
 img = Variable(img, volatile=True)
 
-if(args.cuda):
+if args.cuda:
     model.cuda()
     img = img.cuda()
 
@@ -36,8 +36,8 @@ model.eval()
 output = model(img)
 
 # save output
-output = output.data.cpu().clamp(0,255).byte().numpy()
+output = output.data.cpu().clamp(0, 255).byte().numpy()
 output = output[0].transpose((1, 2, 0))
-output = output[...,::-1]
+output = output[..., ::-1]
 output = Image.fromarray(output)
 output.save(args.output)
