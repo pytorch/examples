@@ -23,9 +23,8 @@ python generate.py --input <input_image_path> --model <model_path> --output <out
 
 ## Models
 ### Example Results
-<div align='center'>
-  <img src='images/chicago.jpg' height="185px">
-</div>
+<img src='images/chicago.jpg' height="155px">
+<br>
 <img src='images/candy.jpg' height="155px">
 <img src='images/wave.jpg' height="155px">
 <img src='images/feathers.jpg' height='155px'>
