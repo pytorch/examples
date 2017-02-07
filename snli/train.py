@@ -15,12 +15,12 @@ from util import get_args
 
 args = get_args()
 
-inputs = data.Field()
+inputs = data.Field(lower=args.lower)
 answers = data.Field(sequential=False)
 
 train, dev, test = datasets.SNLI.splits(inputs, answers)
 
-inputs.build_vocab(train, dev, test, lower=args.lower)
+inputs.build_vocab(train, dev, test)
 if args.word_vectors:
     if os.path.isfile(args.vector_cache):
         inputs.vocab.vectors = torch.load(args.vector_cache)
@@ -40,10 +40,14 @@ config.n_cells = config.n_layers
 if config.birnn:
     config.n_cells *= 2
 
-model = SNLIClassifier(config)
-if args.word_vectors:
-    model.embed.weight.data = inputs.vocab.vectors
-model.cuda()
+if args.resume_snapshot:
+    model = torch.load(args.resume_snapshot, map_location=lambda storage, locatoin: storage.cuda(args.gpu))
+else:
+    model = SNLIClassifier(config)
+    if args.word_vectors:
+        model.embed.weight.data = inputs.vocab.vectors
+        model.cuda(args.gpu)
+
 criterion = nn.CrossEntropyLoss()
 opt = O.Adam(model.parameters(), lr=args.lr)
 
