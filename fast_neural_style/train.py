@@ -24,7 +24,7 @@ def download_convert_vgg16_model():
         if not os.path.exists('vgg16.t7'):
             os.system('wget http://cs.stanford.edu/people/jcjohns/fast-neural-style/models/vgg16.t7')
         vgglua = load_lua('vgg16.t7')
-        vgg = models.vgg16feature()
+        vgg = models.VGGFeature()
         for (src, dst) in zip(vgglua.parameters()[0], vgg.parameters()):
             dst[:] = src[:]
         torch.save(vgg.state_dict(), 'vgg16feature.pth')
