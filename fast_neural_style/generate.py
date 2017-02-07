@@ -1,23 +1,13 @@
 from __future__ import print_function
 import argparse
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torchvision import datasets, transforms
 from torch.autograd import Variable
 
 import net as models
 import numpy as np
-import os
-import cv2
+from PIL import Image
 
-def load_image(path):
-    img = cv2.imread(path).astype('float32')
-    img = img.transpose(2, 0, 1)
-    return img
-
-parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
+parser = argparse.ArgumentParser(description='PyTorch Fast Neural Style Generate Example')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='enables CUDA training')
 parser.add_argument('--model', default='model.pth', type=str)
@@ -29,9 +19,13 @@ args.cuda = not args.no_cuda and torch.cuda.is_available()
 model = models.FastStyleNet()
 model.load_state_dict(torch.load(args.model))
 
-img = load_image(args.input)
-img = img.reshape((1,)+img.shape)
-img = torch.from_numpy(img)
+# load image
+img = Image.open(args.input)
+img = np.array(img)               # PIL->numpy
+img = np.array(img[...,::-1])     # RGB->BGR
+img = img.transpose(2, 0, 1)      # HWC->CHW
+img = img.reshape((1,)+img.shape) # CHW->BCHW
+img = torch.from_numpy(img).float()
 img = Variable(img, volatile=True)
 
 if(args.cuda):
@@ -39,8 +33,11 @@ if(args.cuda):
     img = img.cuda()
 
 model.eval()
-result = model(img)
-result = result.data.cpu().numpy()
-result = result[0].transpose((1, 2, 0))
-cv2.imwrite(args.output,result)
+output = model(img)
 
+# save output
+output = output.data.cpu().clamp(0,255).byte().numpy()
+output = output[0].transpose((1, 2, 0))
+output = output[...,::-1]
+output = Image.fromarray(output)
+output.save(args.output)

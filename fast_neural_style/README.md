@@ -5,6 +5,17 @@ Download the MSCOCO 80k images dataset [Microsoft COCO dataset](http://mscoco.or
 ```
 python train.py --style_image <style_image_path> --dataset <training_dataset_path>
 ```
+Directory tree: ```training_dataset_path='../../dataset'```
+```
+.
+	|-dataset
+	|	|-train2014
+	|	|	|-xxxx.jpg
+	|	|	|-...
+	|-examples
+	|	|-fast_neural_style
+	|	|	|-train.py
+```
 
 ## Generate
 ```
