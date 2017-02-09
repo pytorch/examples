@@ -1,7 +1,6 @@
 import onmt
 import torch
 import argparse
-import time
 import math
 
 parser = argparse.ArgumentParser(description='translate.py')
@@ -37,8 +36,10 @@ parser.add_argument('-n_best', type=int, default=1,
                     help="""If verbose is set, will output the n_best
                     decoded sentences""")
 
-parser.add_argument('-cuda', action="store_true",
+parser.add_argument('-gpu', type=int, default=7,
                     help="Use CUDA")
+
+
 
 def reportScore(name, scoreTotal, wordsTotal):
     print("%s AVG SCORE: %.4f, %s PPL: %.4f" % (
@@ -48,6 +49,8 @@ def reportScore(name, scoreTotal, wordsTotal):
 
 def main():
     opt = parser.parse_args()
+    opt.cuda = True
+    torch.cuda.set_device(opt.gpu)
 
     translator = onmt.Translator(opt)
 
@@ -58,6 +61,7 @@ def main():
     srcBatch, tgtBatch = [], []
 
     count = 0
+
     tgtF = open(opt.tgt) if opt.tgt else None
     for line in open(opt.src):
 
