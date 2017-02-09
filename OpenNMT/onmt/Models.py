@@ -110,18 +110,18 @@ class Decoder(nn.Module):
         # self.input_feed=False
         outputs = []
         output = init_output
-        for emb_t in emb.chunk(emb.size(0)):
+        for i, emb_t in enumerate(emb.chunk(emb.size(0), dim=0)):
             emb_t = emb_t.squeeze(0)
             if self.input_feed:
                 emb_t = torch.cat([emb_t, output], 1)
 
-            output, hidden = self.rnn(emb_t, hidden)
+            output, h = self.rnn(emb_t, hidden)
             output, attn = self.attn(output, context.t())
             output = self.dropout(output)
             outputs += [output]
 
         outputs = torch.stack(outputs)
-        return outputs.transpose(0, 1), hidden, attn
+        return outputs.transpose(0, 1), h, attn
 
 
 class NMTModel(nn.Module):
