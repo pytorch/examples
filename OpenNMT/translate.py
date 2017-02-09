@@ -36,8 +36,8 @@ parser.add_argument('-n_best', type=int, default=1,
                     help="""If verbose is set, will output the n_best
                     decoded sentences""")
 
-parser.add_argument('-gpu', type=int, default=7,
-                    help="Use CUDA")
+parser.add_argument('-gpu', type=int, default=-1,
+                    help="Device to run on")
 
 
 
@@ -49,7 +49,7 @@ def reportScore(name, scoreTotal, wordsTotal):
 
 def main():
     opt = parser.parse_args()
-    opt.cuda = True
+    opt.cuda = True if opt.gpu > -1
     torch.cuda.set_device(opt.gpu)
 
     translator = onmt.Translator(opt)
