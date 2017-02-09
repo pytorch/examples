@@ -25,9 +25,9 @@ parser.add_argument('-train_from',
 
 parser.add_argument('-layers', type=int, default=2,
                     help='Number of layers in the LSTM encoder/decoder')
-parser.add_argument('-rnn_size', type=int, default=512,
+parser.add_argument('-rnn_size', type=int, default=500,
                     help='Size of LSTM hidden states')
-parser.add_argument('-word_vec_size', type=int, default=300,
+parser.add_argument('-word_vec_size', type=int, default=500,
                     help='Word embedding sizes')
 parser.add_argument('-input_feed', type=int, default=1,
                     help="""Feed the context vector at each time step as
@@ -43,13 +43,13 @@ parser.add_argument('-brnn_merge', default='concat',
 
 ## Optimization options
 
-parser.add_argument('-batch_size', type=int, default=256,
+parser.add_argument('-batch_size', type=int, default=64,
                     help='Maximum batch size')
 parser.add_argument('-max_generator_batches', type=int, default=32,
                     help="""Maximum batches of words in a sequence to run
                     the generator on in parallel. Higher is faster, but uses
                     more memory.""")
-parser.add_argument('-epochs', type=int, default=50,
+parser.add_argument('-epochs', type=int, default=13,
                     help='Number of training epochs')
 parser.add_argument('-start_epoch', type=int, default=1,
                     help='The epoch from which to start')
@@ -65,9 +65,9 @@ parser.add_argument('-learning_rate', type=float, default=1.0,
 parser.add_argument('-max_grad_norm', type=float, default=5,
                     help="""If the norm of the gradient vector exceeds this,
                     renormalize it to have the norm equal to max_grad_norm""")
-parser.add_argument('-dropout', type=float, default=0.2,
+parser.add_argument('-dropout', type=float, default=0.3,
                     help='Dropout probability; applied between LSTM stacks.')
-parser.add_argument('-learning_rate_decay', type=float, default=0.9,
+parser.add_argument('-learning_rate_decay', type=float, default=0.5,
                     help="""Decay learning rate by this much if (i) perplexity
                     does not decrease on the validation set or (ii) epoch has
                     gone past the start_decay_at_limit""")
@@ -156,6 +156,9 @@ def eval(model, criterion, data):
 def trainModel(model, trainData, validData, dataset, optim):
     print(model)
     model.train()
+    if optim.last_ppl is None:
+        for p in model.parameters():
+            p.data.uniform_(-opt.param_init, opt.param_init)
 
     # define criterion of each GPU
     criterion = NMTCriterion(dataset['dicts']['tgt'].size())
