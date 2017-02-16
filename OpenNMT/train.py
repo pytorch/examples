@@ -251,13 +251,14 @@ def main():
             nn.LogSoftmax())
         model = onmt.Models.NMTModel(encoder, decoder, generator)
 
+        for p in model.parameters():
+            p.data.uniform_(-opt.param_init, opt.param_init)
+
         optim = onmt.Optim(
             model.parameters(), opt.optim, opt.learning_rate, opt.max_grad_norm,
             lr_decay=opt.learning_rate_decay,
             start_decay_at=opt.start_decay_at
         )
-        for p in model.parameters():
-            p.data.uniform_(-opt.param_init, opt.param_init)
     else:
         print('Loading from checkpoint at %s' % opt.train_from)
         checkpoint = torch.load(opt.train_from)
