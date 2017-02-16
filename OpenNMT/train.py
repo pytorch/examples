@@ -264,7 +264,7 @@ def main():
         checkpoint = torch.load(opt.train_from)
         model = checkpoint['model']
         optim = checkpoint['optim']
-        opt.start_epoch = checkpoint['epoch']
+        opt.start_epoch = checkpoint['epoch'] + 1
 
     if opt.cuda:
         model.cuda()
