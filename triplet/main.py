@@ -12,27 +12,28 @@ from __future__ import print_function
 import argparse
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 import torchvision.transforms as transforms
 from torch.autograd import Variable
+from torch.autograd import Function
+import torch.backends.cudnn as cudnn
 
-from PIL import Image
 import os
-import random
+import cv2
 import numpy as np
-import collections
 from tqdm import tqdm
 
 from phototour import PhotoTour
 from eval_metrics import ErrorRateAt95Recall
+
+from tensorboard_logger import configure, log_value
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch TFeat Example')
 # Model options
 parser.add_argument('--dataroot', type=str, default='/tmp/phototour_dataset',
                     help='path to dataset')
-parser.add_argument('--out_dir', default='./logs',
+parser.add_argument('--log-dir', default='./logs',
                     help='folder to output model checkpoints')
 parser.add_argument('--imageSize', type=int, default=32,
                     help='the height / width of the input image to network')
@@ -40,45 +41,88 @@ parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
-parser.add_argument('--epochs', type=int, default=60, metavar='E',
+parser.add_argument('--epochs', type=int, default=10, metavar='E',
                     help='number of epochs to train (default: 10)')
 # Training options
 parser.add_argument('--batch-size', type=int, default=128, metavar='BS',
                     help='input batch size for training (default: 128)')
 parser.add_argument('--test-batch-size', type=int, default=1000, metavar='BST',
                     help='input batch size for testing (default: 1000)')
-parser.add_argument('--n_triplets', type=int, default=1280000, metavar='N',
+parser.add_argument('--n-triplets', type=int, default=1280000, metavar='N',
                     help='how many triplets will generate from the dataset')
-parser.add_argument('--margin', type=float, default=1.0, metavar='MARGIN',
-                    help='the margin value for the triplet loss function (default: 1.0')
+parser.add_argument('--margin', type=float, default=2.0, metavar='MARGIN',
+                    help='the margin value for the triplet loss function (default: 2.0')
 parser.add_argument('--lr', type=float, default=0.1, metavar='LR',
                     help='learning rate (default: 0.1)')
-parser.add_argument('--lrd', default=1e-6, type=float, metavar='LRD',
+parser.add_argument('--lr-decay', default=1e-6, type=float, metavar='LRD',
                     help='learning rate decay ratio (default: 1e-6')
-parser.add_argument('--momentum', type=float, default=0.9, metavar='M',
-                    help='SGD momentum (default: 0.9)')
-parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
+parser.add_argument('--wd', default=1e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)')
+parser.add_argument('--optimizer', default='sgd', type=str,
+                    metavar='OPT', help='The optimizer to use (default: SGD)')
 # Device options
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='enables CUDA training')
-parser.add_argument('--gpu_id', default=1, type=int,
+parser.add_argument('--gpu-id', default='0', type=str,
                     help='id(s) for CUDA_VISIBLE_DEVICES')
-parser.add_argument('--seed', type=int, default=666, metavar='S',
-                    help='random seed (default: 666)')
+parser.add_argument('--seed', type=int, default=0, metavar='S',
+                    help='random seed (default: 0)')
 parser.add_argument('--log-interval', type=int, default=10, metavar='LI',
                     help='how many batches to wait before logging training status')
 
 args = parser.parse_args()
+
+# set the device to use by setting CUDA_VISIBLE_DEVICES env variable in
+# order to prevent any memory allocation on unused GPUs
+os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id
+
 args.cuda = not args.no_cuda and torch.cuda.is_available()
 torch.manual_seed(args.seed)
+np.random.seed(args.seed)
+cv2.setRNGSeed(args.seed)
 
-if not os.path.exists(args.out_dir):
-    os.makedirs(args.out_dir)
+if not os.path.exists(args.log_dir):
+    os.makedirs(args.log_dir)
 
 if args.cuda:
+    cudnn.enabled = True
+    cudnn.benchmark = True
     torch.cuda.manual_seed(args.seed)
-    torch.cuda.set_device(args.gpu_id)
+    torch.cuda.manual_seed_all(args.seed)
+
+LOG_DIR = args.log_dir + '/run-optim_{}-n{}-lr{}-wd{}-m{}-S{}-tanh'\
+    .format(args.optimizer, args.n_triplets, args.lr, args.wd,
+            args.margin, args.seed)
+
+
+class Logger(object):
+    def __init__(self, log_dir):
+        # clean previous logged data under the same directory name
+        self._remove(log_dir)
+
+        # configure the project
+        configure(log_dir)
+
+        self.global_step = 0
+
+    def log_value(self, name, value):
+        log_value(name, value, self.global_step)
+        return self
+
+    def step(self):
+        self.global_step += 1
+
+    @staticmethod
+    def _remove(path):
+        """ param <path> could either be relative or absolute. """
+        if os.path.isfile(path):
+            os.remove(path)  # remove the file
+        elif os.path.isdir(path):
+            import shutil
+            shutil.rmtree(path)  # remove dir and all contains
+
+# create logger
+logger = Logger(LOG_DIR)
 
 
 class TripletPhotoTour(PhotoTour):
@@ -86,93 +130,76 @@ class TripletPhotoTour(PhotoTour):
     note: a triplet is composed by a pair of matching images and one of
     different class.
     """
-    def __init__(self, train=True, *arg, **kw):
+    def __init__(self, train=True, transform=None, *arg, **kw):
         super(TripletPhotoTour, self).__init__(*arg, **kw)
+        self.transform = transform
 
         self.train = train
         self.n_triplets = args.n_triplets
 
         if self.train:
             print('Generating {} triplets'.format(self.n_triplets))
-            self.triplets = self.generate_triplets(self.labels)
-            print('Generating {} triplets - done'.format(self.n_triplets))
+            self.triplets = self.generate_triplets(self.labels, self.n_triplets)
 
-    def generate_triplets(self, labels):
+    @staticmethod
+    def generate_triplets(labels, num_triplets):
         def create_indices(_labels):
-            """Generates a dict to store the index of each labels in order
-               to avoid a linear search each time that we call list(labels).index(x)
-            """
-            old = labels[0]
-            indices = dict()
-            indices[old] = 0
-            for x in range(len(_labels) - 1):
-                new = labels[x + 1]
-                if old != new:
-                    indices[new] = x + 1
-                old = new
-            return indices
-        triplets = []
+            inds = dict()
+            for idx, ind in enumerate(_labels):
+                if ind not in inds:
+                    inds[ind] = []
+                inds[ind].append(idx)
+            return inds
 
-        # group labels in order to have O(1) search
-        count = collections.Counter(labels)
-        # index the labels in order to have O(1) search
+        triplets = []
         indices = create_indices(labels)
-        # range for the sampling
-        labels_size = len(labels) - 1
-        # generate the triplets
-        for x in range(self.n_triplets):
-            # pick a random id for anchor
-            idx = random.randint(0, len(labels) - 1)
-            # count number of anchor occurrences
-            num_samples = count[labels[idx]]
-            # the global index to the id
-            begin_positives = indices[labels[idx]]
-            # generate two samples to the id
-            offset_a, offset_p = random.sample(range(num_samples), 2)
-            idx_a = begin_positives + offset_a
-            idx_p = begin_positives + offset_p
-            # find index of the same 3D but not same as before
-            idx_n = random.randint(0, labels_size)
-            while labels[idx_n] == labels[idx_a] and \
-                  labels[idx_n] == labels[idx_p]:
-                idx_n = random.randint(0, labels_size)
-            # pick and append triplets to the buffer
-            triplets.append([idx_a, idx_p, idx_n])
-        return np.array(triplets)
+        unique_labels = np.unique(labels.numpy())
+        n_classes = unique_labels.shape[0]
+
+        for x in tqdm(range(num_triplets)):
+            c1 = np.random.randint(0, n_classes-1)
+            c2 = np.random.randint(0, n_classes-1)
+            while c1 == c2:
+                c2 = np.random.randint(0, n_classes-1)
+            if len(indices[c1]) == 2:  # hack to speed up process
+                n1, n2 = 0, 1
+            else:
+                n1 = np.random.randint(0, len(indices[c1]) - 1)
+                n2 = np.random.randint(0, len(indices[c1]) - 1)
+                while n1 == n2:
+                    n2 = np.random.randint(0, len(indices[c1]) - 1)
+            n3 = np.random.randint(0, len(indices[c2]) - 1)
+
+            triplets.append([indices[c1][n1], indices[c1][n2], indices[c2][n3]])
+        return torch.LongTensor(np.array(triplets))
 
     def __getitem__(self, index):
-        def convert_and_transform(img, transform):
+        def transform(img):
             """Convert image into numpy array and apply transformation
                Doing this so that it is consistent with all other datasets
                to return a PIL Image.
             """
-            img = Image.fromarray(img.numpy(), mode='L')
-
             if transform is not None:
-                img = self.transform(img)
+                img = self.transform(img.numpy())
             return img
 
         if not self.train:
             m = self.matches[index]
-            img1 = convert_and_transform(self.data[m[0]], self.transform)
-            img2 = convert_and_transform(self.data[m[1]], self.transform)
+            img1, img2 = transform(self.data[m[0]]), transform(self.data[m[1]])
             return img1, img2, m[2]
 
         t = self.triplets[index]
         a, p, n = self.data[t[0]], self.data[t[1]], self.data[t[2]]
 
-        # transform image if required
-        img_a = convert_and_transform(a, self.transform)
-        img_p = convert_and_transform(p, self.transform)
-        img_n = convert_and_transform(n, self.transform)
-
+        # transform images if required
+        img_a, img_p, img_n = transform(a), transform(p), transform(n)
         return img_a, img_p, img_n
 
     def __len__(self):
         if self.train:
-            return self.triplets.shape[0]
+            return self.triplets.size(0)
         else:
-            return self.matches.shape[0]
+            return self.matches.size(0)
 
 
 class TNet(nn.Module):
@@ -180,43 +207,105 @@ class TNet(nn.Module):
     """
     def __init__(self):
         super(TNet, self).__init__()
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=7)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=6)
-        self.fc1 = nn.Linear(64*8*8, 128)
+        self.features = nn.Sequential(
+            nn.Conv2d(1, 32, kernel_size=7),
+            nn.Tanh(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(32, 64, kernel_size=6),
+            nn.Tanh()
+        )
+        self.classifier = nn.Sequential(
+            nn.Linear(64 * 8 * 8, 128),
+            nn.Tanh()
+        )
 
     def forward(self, x):
-        x = F.tanh(self.conv1(x))
-        x = F.max_pool2d(x, 2)
-        x = F.tanh(self.conv2(x))
-        x = x.view(-1, 64*8*8)
-        x = F.tanh(self.fc1(x))
+        x = self.features(x)
+        x = x.view(x.size(0), -1)
+        x = self.classifier(x)
         return x
 
 
 def weights_init(m):
+    # From https://github.com/alykhantejani/nninit/blob/master/nninit.py#L66
+    def _calculate_fan_in_and_fan_out(tensor):
+        if tensor.ndimension() < 2:
+            raise ValueError(
+               "fan in and fan out can not be computed for tensor of size ",
+               tensor.size())
+
+        if tensor.ndimension() == 2:  # Linear
+            fan_in = tensor.size(1)
+            fan_out = tensor.size(0)
+        else:
+            num_input_fmaps = tensor.size(1)
+            num_output_fmaps = tensor.size(0)
+            receptive_field_size = np.prod(tensor.numpy().shape[2:])
+            fan_in = num_input_fmaps * receptive_field_size
+            fan_out = num_output_fmaps * receptive_field_size
+
+        return fan_in, fan_out
+
+    def xavier_uniform(data, gain=1):
+        fan_in, fan_out = _calculate_fan_in_and_fan_out(data)
+        std = gain * np.sqrt(2.0 / (fan_in + fan_out))
+        a = np.sqrt(3.0) * std
+        data.uniform_(-a, a)
+
+    def constant(tensor, val):
+        tensor.fill_(val)
+
     if isinstance(m, nn.Conv2d):
-        ni = m.in_channels
-        no = m.out_channels
-        k, k = m.kernel_size
-        std = 2.0/np.sqrt(ni*k*k*no)
-        #m.weight.data.normal_(0.0, std)
-        m.weight.data.uniform_(-std, std)
-        m.bias.data.uniform_(-std, std)
+        xavier_uniform(m.weight.data)
+        constant(m.bias.data, 0.1)
 
 
-class TripletMarginLoss(nn.Module):
+class PairwiseDistance(Function):
+    def __init__(self, p):
+        super(PairwiseDistance, self).__init__()
+        self.norm = p
+
+    def forward(self, x1, x2):
+        assert x1.size() == x2.size()
+        eps = 1e-4 / x1.size(1)
+        diff = torch.abs(x1 - x2)
+        out = torch.pow(diff, self.norm).sum(dim=1)
+        return torch.pow(out + eps, 1. / self.norm)
+
+
+class TripletMarginLoss(Function):
     """Triplet loss function.
-    Based on: http://docs.chainer.org/en/stable/_modules/chainer/functions/loss/triplet.html
     """
     def __init__(self, margin):
         super(TripletMarginLoss, self).__init__()
         self.margin = margin
+        self.pdist = PairwiseDistance(2)  # norm 2
 
     def forward(self, anchor, positive, negative):
-        dist = torch.sum(
-            (anchor - positive) ** 2 - (anchor - negative) ** 2,
-            dim=1) + self.margin
-        dist_hinge = torch.clamp(dist, min=0.0)  # maximum between 'dist' and 0.0
+        d_p = self.pdist.forward(anchor, positive)
+        d_n = self.pdist.forward(anchor, negative)
+
+        dist_hinge = torch.clamp(self.margin + d_p - d_n, min=0.0)
+        loss = torch.mean(dist_hinge)
+        return loss
+
+
+class TripletMarginLossSwap(Function):
+    """Triplet loss function.
+    """
+    def __init__(self, margin):
+        super(TripletMarginLossSwap, self).__init__()
+        self.margin = margin
+        self.pdist = PairwiseDistance(2)
+
+    def forward(self, anchor, positive, negative):
+        d_p = self.pdist.forward(anchor, positive)
+        d_n = self.pdist.forward(anchor, negative)
+        d_n_ = self.pdist.forward(positive, negative)
+
+        d_s = torch.min(d_n, d_n_)
+
+        dist_hinge = torch.clamp(self.margin + d_p - d_s, min=0.0)
         loss = torch.mean(dist_hinge)
         return loss
 
@@ -227,24 +316,35 @@ def triplet_loss(input1, input2, input3, margin=1.0):
     return TripletMarginLoss(margin).forward(input1, input2, input3)
 
 
+def triplet_loss_swap(input1, input2, input3, margin=1.0):
+    """Interface to call TripletMarginLoss
+    """
+    return TripletMarginLossSwap(margin).forward(input1, input2, input3)
+
+cv2_scale = lambda x: cv2.resize(x, dsize=(32, 32),
+                                 interpolation=cv2.INTER_LINEAR)
+np_reshape = lambda x: np.reshape(x, (1, 32, 32))
+
 kwargs = {'num_workers': 2, 'pin_memory': True} if args.cuda else {}
 train_loader = torch.utils.data.DataLoader(
     TripletPhotoTour(train=True, root=args.dataroot, name='notredame',
-                     download=True,
+                     download=True, size=32,
                      transform=transforms.Compose([
-                         transforms.Scale(args.imageSize),
+                         transforms.Lambda(cv2_scale),
+                         transforms.Lambda(np_reshape),
                          transforms.ToTensor(),
-                         transforms.Normalize((0.4854,), (0.1864,))
+                         transforms.Normalize((0.48544601108437,), (0.18649942105166,))
                      ])),
     batch_size=args.batch_size, shuffle=True, **kwargs)
 
 test_loader = torch.utils.data.DataLoader(
     TripletPhotoTour(train=False, root=args.dataroot, name='liberty',
-                     download=True,
+                     download=True, size=32,
                      transform=transforms.Compose([
-                         transforms.Scale(args.imageSize),
+                         transforms.Lambda(cv2_scale),
+                         transforms.Lambda(np_reshape),
                          transforms.ToTensor(),
-                         transforms.Normalize((0.4854,), (0.1864,))
+                         transforms.Normalize((0.48544601108437,), (0.18649942105166,))
                      ])),
     batch_size=args.test_batch_size, shuffle=False, **kwargs)
 
@@ -257,16 +357,11 @@ def main():
     # instantiate model and initialize weights
     model = TNet()
     model.apply(weights_init)
+
     if args.cuda:
         model.cuda()
 
-    # setup optimizer
-    optimizer = optim.SGD(model.parameters(), lr=args.lr,
-                          momentum=args.momentum,
-                          dampening=args.momentum,
-                          weight_decay=args.weight_decay)
-    '''optimizer = optim.Adam(model.parameters(), lr=args.lr,
-                           weight_decay=args.weight_decay)'''
+    optimizer = create_optimizer(model, args.lr)
 
     # optionally resume from a checkpoint
     if args.resume:
@@ -279,7 +374,9 @@ def main():
         else:
             print('=> no checkpoint found at {}'.format(args.resume))
 
-    for epoch in range(args.start_epoch, args.epochs):
+    start = args.start_epoch
+    end = start + args.epochs
+    for epoch in range(start, end):
         train(train_loader, model, optimizer, epoch)
         test(test_loader, model, epoch)
 
@@ -288,9 +385,9 @@ def train(train_loader, model, optimizer, epoch):
     # switch to train mode
     model.train()
 
-    loss_train = 0
     pbar = tqdm(enumerate(train_loader))
     for batch_idx, (data_a, data_p, data_n) in pbar:
+
         if args.cuda:
             data_a, data_p, data_n = data_a.cuda(), data_p.cuda(), data_n.cuda()
         data_a, data_p, data_n = Variable(data_a), Variable(data_p), \
@@ -300,30 +397,27 @@ def train(train_loader, model, optimizer, epoch):
         out_a, out_p, out_n = model(data_a), model(data_p), model(data_n)
         loss = triplet_loss(out_a, out_p, out_n, margin=args.margin)
 
-        # compute gradient and do SGD step
+        # compute gradient and update weights
         optimizer.zero_grad()
         loss.backward()
-        loss_train += loss.data[0]
-
-        # updates the learning rate acording to the original Lua implementation
-        adjust_learning_rate(optimizer)
         optimizer.step()
+
+        # update the optimizer learning rate
+        adjust_learning_rate(optimizer)
+
+        # log loss value
+        logger.log_value('loss', loss.data[0]).step()
 
         if batch_idx % args.log_interval == 0:
             pbar.set_description(
                 'Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                     epoch, batch_idx * len(data_a), len(train_loader.dataset),
-                    100. * batch_idx / len(train_loader), loss.data[0]))
-
-    # reset the momentum buffer
-    reset_momentum(optimizer)
+                    100. * batch_idx / len(train_loader),
+                    loss.data[0]))
 
     # do checkpointing
     torch.save({'epoch': epoch + 1, 'state_dict': model.state_dict()},
-               '{}/checkpoint_{}.pth'.format(args.out_dir, epoch))
-
-    # log the loss to check the learning curve
-    write('loss.txt', loss_train / args.batch_size)
+               '{}/checkpoint_{}.pth'.format(LOG_DIR, epoch))
 
 
 def test(test_loader, model, epoch):
@@ -351,45 +445,43 @@ def test(test_loader, model, epoch):
                 100. * batch_idx / len(test_loader)))
 
     # measure accuracy (FPR95)
-    num_tests = test_loader.dataset.matches.shape[0]
+    num_tests = test_loader.dataset.matches.size(0)
     labels = np.vstack(labels).reshape(num_tests)
     distances = np.vstack(distances).reshape(num_tests)
-    fpr95 = ErrorRateAt95Recall(labels, distances)
-    print('Test set: Accuracy(FPR95): {:.4f}\n'.format(fpr95))
 
-    # log the fpr95
-    write('fpr95.txt', fpr95)
+    fpr95 = ErrorRateAt95Recall(labels, distances)
+    print('\33[91mTest set: Accuracy(FPR95): {:.8f}\n\33[0m'.format(fpr95))
+
+    logger.log_value('fpr95', fpr95)
 
 
 def adjust_learning_rate(optimizer):
     """Updates the learning rate given the learning rate decay.
     The routine has been implemented according to the original Lua SGD optimizer
     """
-    for param_group in optimizer.state_dict()['param_groups']:
-        if 'evalCounter' not in param_group:
-            param_group['evalCounter'] = 0
+    for group in optimizer.param_groups:
+        if 'step' not in group:
+            group['step'] = 0
+        group['step'] += 1
 
-        # https://github.com/torch/optim/blob/master/sgd.lua#L72
-        param_group['lr'] = args.lr / (1 + param_group['evalCounter'] * args.lrd)
-
-        param_group['evalCounter'] += 1
+        group['lr'] = args.lr / (1 + group['step'] * args.lr_decay)
 
 
-def reset_momentum(optimizer):
-    """Resets to zero the momentum buffer
-    note: Extracted from
-    https://github.com/szagoruyko/attention-transfer/blob/master/cifar.py#L312-L315
-    """
-    for param_group in optimizer.state_dict()['param_groups']:
-        for p in param_group['params']:
-            param_state = optimizer.state[id(p)]
-            param_state['momentum_buffer'].zero_()
-
-
-def write(file_name, value):
-    file_path = '{}/{}'.format(args.out_dir, file_name)
-    with open(file_path, 'a') as f:
-        f.write('{} '.format(value))
+def create_optimizer(model, new_lr):
+    # setup optimizer
+    if args.optimizer == 'sgd':
+        optimizer = optim.SGD(model.parameters(), lr=new_lr,
+                              momentum=0.9, dampening=0.9,
+                              weight_decay=args.wd)
+    elif args.optimizer == 'adam':
+        optimizer = optim.Adam(model.parameters(), lr=new_lr,
+                               weight_decay=args.wd)
+    elif args.optimizer == 'adagrad':
+        optimizer = optim.Adagrad(model.parameters(),
+                                  lr=new_lr,
+                                  lr_decay=args.lr_decay,
+                                  weight_decay=args.wd)
+    return optimizer
 
 if __name__ == '__main__':
     main()

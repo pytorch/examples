@@ -1,14 +1,14 @@
 import os
 import errno
 import numpy as np
-from PIL import Image
+
+import cv2
 
 import torch
 import torch.utils.data as data
 
 
 class PhotoTour(data.Dataset):
-    # TODO: check this urls since I think that are not the same from the paper
     urls = {
         'notredame': 'http://www.iis.ee.ic.ac.uk/~vbalnt/phototourism-patches/notredame.zip',
         'yosemite': 'http://www.iis.ee.ic.ac.uk/~vbalnt/phototourism-patches/yosemite.zip',
@@ -22,16 +22,14 @@ class PhotoTour(data.Dataset):
     info_file = 'info.txt'
     matches_files = 'm50_100000_100000_0.txt'
 
-    def __init__(self, root, name='notredame', transform=None,
-                 download=False, size=64):
+    def __init__(self, root, name, download=False, size=None):
         self.root = root
-        self.size = size
-        self.transform = transform
+        self.size = size or 64
 
         self.name = name
-        self.data_dir = os.path.join(self.root, name)
-        self.data_down = os.path.join(self.root, '{}.zip'.format(name))
-        self.data_file = os.path.join(self.root, '{}_{}.pt'.format(name, size))
+        self.data_dir = os.path.join(root, name)
+        self.data_down = os.path.join(root, '{}.zip'.format(name))
+        self.data_file = os.path.join(root, '{}_{}.pt'.format(name, self.size))
 
         self.mean = self.mean[name]
         self.std = self.std[name]
@@ -59,13 +57,10 @@ class PhotoTour(data.Dataset):
         return os.path.exists(self.data_dir)
 
     def download(self):
-        from six.moves import urllib
-        import zipfile
-
-        print('\n-- Loading PhotoTour dataset: {}'.format(self.name))
+        print_('\n-- Loading PhotoTour dataset: {}\n'.format(self.name))
 
         if self._check_exists():
-            print('Found cached data {}'.format(self.data_file))
+            print_('Found cached data {}'.format(self.data_file))
             return
 
         # download files
@@ -79,24 +74,25 @@ class PhotoTour(data.Dataset):
 
         if not self._check_downloaded():
             url = self.urls[self.name]
-            data = urllib.request.urlopen(url)
             filename = url.rpartition('/')[2]
             file_path = os.path.join(self.root, filename)
 
-            print('Downloading {}\nDownloading {}\n\nIt might take while. '
-                  'Please grab yourself a coffee and relax.\n'.format(url, file_path))
+            if not os.path.exists(file_path):
+                print_('Downloading {}\nDownloading {}\n\nIt might take while. '
+                       'Please grab yourself a coffee and relax.\n'
+                       .format(url, file_path))
 
-            with open(file_path, 'wb') as f:
-                f.write(data.read())
+                os.system('wget {} -P {}'.format(url, self.root))
 
-            print('Extracting data {}\n'.format(self.data_down))
+            print_('Extracting data {}\n'.format(self.data_down))
 
+            import zipfile
             with zipfile.ZipFile(file_path, 'r') as z:
                 z.extractall(self.data_dir)
             os.unlink(file_path)
 
         # process and save as torch files
-        print('Caching data {}'.format(self.data_file))
+        print_('Caching data {}'.format(self.data_file))
 
         data_set = (
             read_image_file(self.data_dir, self.image_ext, self.size, self.lens[self.name]),
@@ -106,6 +102,10 @@ class PhotoTour(data.Dataset):
 
         with open(self.data_file, 'wb') as f:
             torch.save(data_set, f)
+
+
+def print_(text):
+    print('\033[;1m{}\033[0;0m'.format(text))
 
 
 def read_image_file(data_dir, image_ext, img_sz, n):
@@ -130,17 +130,18 @@ def read_image_file(data_dir, image_ext, img_sz, n):
     images = []
     list_files = read_filenames(data_dir, image_ext)
 
+    # using opencv to read  dataset
     for file_path in list_files:
         # load the image containing the patches, crop in 64x64 patches and
         # reshape to the desired size (default: 64)
-        img = Image.open(file_path)
+        img = cv2.imread(file_path, cv2.IMREAD_GRAYSCALE)
         for y in range(0, 1024, 64):
             for x in range(0, 1024, 64):
-                patch = img.crop((x, y, x + 64, y + 64))
+                patch = img[y: y + 64, x: x + 64]
                 if img_sz != 64:
-                    patch = patch.resize((img_sz, img_sz), Image.BICUBIC)
-                images.append(PIL2array(patch, img_sz))
-    return torch.ByteTensor(np.vstack(images)).view(-1, img_sz, img_sz)[:n]
+                    patch = cv2.resize(patch, (img_sz, img_sz), cv2.INTER_LINEAR)
+                images.append(patch)
+    return torch.ByteTensor(np.array(images[:n]))
 
 
 def read_info_file(data_dir, info_file):
@@ -151,7 +152,7 @@ def read_info_file(data_dir, info_file):
     with open(os.path.join(data_dir, info_file), 'r') as f:
         for line in f:
             labels.append(int(line.split()[0]))
-    return np.array(labels)
+    return torch.LongTensor(np.array(labels))
 
 
 def read_matches_files(data_dir, matches_file):
@@ -164,7 +165,7 @@ def read_matches_files(data_dir, matches_file):
         for line in f:
             l = line.split()
             matches.append([int(l[0]), int(l[3]), int(l[1] == l[4])])
-    return np.array(matches)
+    return torch.LongTensor(np.array(matches))
 
 
 if __name__ == '__main__':
