@@ -10,6 +10,10 @@ an open-source (MIT) neural machine translation system.
 
 OpenNMT consists of three commands:
 
+0) Download the data.
+
+```wget https://s3.amazonaws.com/pytorch/examples/opennmt/data/onmt-data.tar && tar -xf onmt-data.tar```
+
 1) Preprocess the data.
 
 ```python preprocess.py -train_src data/src-train.txt -train_tgt data/tgt-train.txt -valid_src data/src-val.txt -valid_tgt data/tgt-val.txt -save_data data/demo```
@@ -21,6 +25,13 @@ OpenNMT consists of three commands:
 3) Translate sentences.
 
 ```python translate.py -cuda -model model_e13_*.pt -src data/src-test.txt -tgt data/tgt-test.txt -replace_unk -verbose```
+
+## Pretrained Models
+
+The following pretrained models can be downloaded and used with translate.py.
+
+- [onmt_model_en_de_200k](https://s3.amazonaws.com/pytorch/examples/opennmt/models/onmt_model_en_de_200k-4783d9c3.pt): An English-German translation model based on the 200k sentence dataset at [OpenNMT/IntegrationTesting](https://github.com/OpenNMT/IntegrationTesting/tree/master/data). Perplexity: 21. 
+- [onmt_model_en_fr_b1M](https://s3.amazonaws.com/pytorch/examples/opennmt/models/onmt_model_en_fr_b1M-261c69a7.pt): An English-French model trained on benchmark-1M. Perplexity: 4.85.
 
 ## Release Notes
 

@@ -24,6 +24,7 @@ import torch
 import torch.nn as nn
 import math
 
+_INF = float('inf')
 
 class GlobalAttention(nn.Module):
     def __init__(self, dim):
@@ -47,7 +48,7 @@ class GlobalAttention(nn.Module):
         # Get attention
         attn = torch.bmm(context, targetT).squeeze(2)  # batch x sourceL
         if self.mask is not None:
-            attn.data.masked_fill_(self.mask, -math.inf)
+            attn.data.masked_fill_(self.mask, -_INF)
         attn = self.sm(attn)
         attn3 = attn.view(attn.size(0), 1, attn.size(1))  # batch x 1 x sourceL
 
