@@ -65,6 +65,9 @@ class Translator(object):
                 encStates[1].data.index_fill_(1, batchPadIdx, 0)
             context += [context_t]
 
+        encStates = (self.model._fix_enc_hidden(encStates[0]),
+                     self.model._fix_enc_hidden(encStates[1]))
+
         context = torch.cat(context)
         rnnSize = context.size(2)
 
