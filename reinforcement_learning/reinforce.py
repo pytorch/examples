@@ -65,7 +65,7 @@ def finish_episode():
         R = r + args.gamma * R
         rewards.insert(0, R)
     rewards = torch.Tensor(rewards)
-    rewards = (rewards - rewards.mean()) / rewards.std()
+    rewards = (rewards - rewards.mean()) / (rewards.std() + np.finfo(np.float32).eps)
     for action, r in zip(model.saved_actions, rewards):
         action.reinforce(r)
     optimizer.zero_grad()

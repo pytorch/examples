@@ -69,7 +69,7 @@ def finish_episode():
         R = r + args.gamma * R
         rewards.insert(0, R)
     rewards = torch.Tensor(rewards)
-    rewards = (rewards - rewards.mean()) / rewards.std()
+    rewards = (rewards - rewards.mean()) / (rewards.std() + np.finfo(np.float32).eps)
     for (action, value), r in zip(saved_actions, rewards):
         action.reinforce(r - value.data.squeeze())
         value_loss += F.smooth_l1_loss(value, Variable(torch.Tensor([r])))
