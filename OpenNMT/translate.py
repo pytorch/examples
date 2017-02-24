@@ -50,7 +50,8 @@ def reportScore(name, scoreTotal, wordsTotal):
 def main():
     opt = parser.parse_args()
     opt.cuda = opt.gpu > -1
-    torch.cuda.set_device(opt.gpu)
+    if opt.cuda:
+        torch.cuda.set_device(opt.gpu)
 
     translator = onmt.Translator(opt)
 
