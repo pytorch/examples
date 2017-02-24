@@ -156,9 +156,6 @@ def eval(model, criterion, data):
 def trainModel(model, trainData, validData, dataset, optim):
     print(model)
     model.train()
-    if optim.last_ppl is None:
-        for p in model.parameters():
-            p.data.uniform_(-opt.param_init, opt.param_init)
 
     # define criterion of each GPU
     criterion = NMTCriterion(dataset['dicts']['tgt'].size())
