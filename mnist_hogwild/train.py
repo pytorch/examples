@@ -28,13 +28,12 @@ def train(rank, args, model):
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
     for epoch in range(1, args.epochs + 1):
         train_epoch(epoch, args, model, train_loader, optimizer)
-        test_epoch(epoch, args, model, test_loader)
+        test_epoch(model, test_loader)
 
 
 def train_epoch(epoch, args, model, data_loader, optimizer):
     model.train()
     pid = os.getpid()
-    samples_seen = 0
     for batch_idx, (data, target) in enumerate(data_loader):
         data, target = Variable(data), Variable(target)
         optimizer.zero_grad()
@@ -48,7 +47,7 @@ def train_epoch(epoch, args, model, data_loader, optimizer):
                 100. * batch_idx / len(data_loader), loss.data[0]))
 
 
-def test_epoch(epoch, args, model, data_loader):
+def test_epoch(model, data_loader):
     model.eval()
     test_loss = 0
     correct = 0
