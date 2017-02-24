@@ -2,7 +2,6 @@ import argparse
 import gym
 import numpy as np
 from itertools import count
-from collections import namedtuple
 
 import torch
 import torch.nn as nn
@@ -10,7 +9,6 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.autograd as autograd
 from torch.autograd import Variable
-import torchvision.transforms as T
 
 
 parser = argparse.ArgumentParser(description='PyTorch REINFORCE example')
