@@ -46,17 +46,16 @@ class StackedLSTM(nn.Module):
         super(StackedLSTM, self).__init__()
         self.dropout = nn.Dropout(dropout)
         self.num_layers = num_layers
+        self.layers = nn.ModuleList()
 
         for i in range(num_layers):
-            layer = nn.LSTMCell(input_size, rnn_size)
-            self.add_module('layer_%d' % i, layer)
+            self.layers.append(nn.LSTMCell(input_size, rnn_size))
             input_size = rnn_size
 
     def forward(self, input, hidden):
         h_0, c_0 = hidden
         h_1, c_1 = [], []
-        for i in range(self.num_layers):
-            layer = getattr(self, 'layer_%d' % i)
+        for i, layer in enumerate(self.layers):
             h_1_i, c_1_i = layer(input, (h_0[i], c_0[i]))
             input = h_1_i
             if i != self.num_layers:
