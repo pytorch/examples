@@ -110,7 +110,7 @@ class Decoder(nn.Module):
         # self.input_feed=False
         outputs = []
         output = init_output
-        for i, emb_t in enumerate(emb.chunk(emb.size(0), dim=0)):
+        for i, emb_t in enumerate(emb.split(1)):
             emb_t = emb_t.squeeze(0)
             if self.input_feed:
                 emb_t = torch.cat([emb_t, output], 1)
