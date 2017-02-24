@@ -96,21 +96,20 @@ parser.add_argument('-log_interval', type=int, default=50,
 #                     help="Seed for random initialization")
 
 opt = parser.parse_args()
-opt.cuda = len(opt.gpus)
 
 print(opt)
 
-if torch.cuda.is_available() and not opt.cuda:
-    print("WARNING: You have a CUDA device, so you should probably run with -gpus 1")
+if torch.cuda.is_available() and not opt.gpus:
+    print("WARNING: You have a CUDA device, so you should probably run with -gpus 0")
 
-if opt.cuda:
+if opt.gpus:
     cuda.set_device(opt.gpus[0])
 
 def NMTCriterion(vocabSize):
     weight = torch.ones(vocabSize)
     weight[onmt.Constants.PAD] = 0
     crit = nn.NLLLoss(weight, size_average=False)
-    if opt.cuda:
+    if opt.gpus:
         crit.cuda()
     return crit
 
@@ -238,9 +237,9 @@ def main():
     dataset = torch.load(opt.data)
 
     trainData = onmt.Dataset(dataset['train']['src'],
-                             dataset['train']['tgt'], opt.batch_size, opt.cuda)
+                             dataset['train']['tgt'], opt.batch_size, opt.gpus)
     validData = onmt.Dataset(dataset['valid']['src'],
-                             dataset['valid']['tgt'], opt.batch_size, opt.cuda)
+                             dataset['valid']['tgt'], opt.batch_size, opt.gpus)
 
     dicts = dataset['dicts']
     print(' * vocabulary size. source = %d; target = %d' %
@@ -257,12 +256,12 @@ def main():
         generator = nn.Sequential(
             nn.Linear(opt.rnn_size, dicts['tgt'].size()),
             nn.LogSoftmax())
-        if opt.cuda > 1:
+        if len(opt.gpus) > 1:
             generator = nn.DataParallel(generator, device_ids=opt.gpus)
         model = onmt.Models.NMTModel(encoder, decoder, generator)
-        if opt.cuda > 1:
+        if len(opt.gpus) > 1:
             model = nn.DataParallel(model, device_ids=opt.gpus)
-        if opt.cuda:
+        if opt.gpus:
             model.cuda()
         else:
             model.cpu()
@@ -281,7 +280,7 @@ def main():
         print('Loading from checkpoint at %s' % opt.train_from)
         checkpoint = torch.load(opt.train_from)
         model = checkpoint['model']
-        if opt.cuda:
+        if opt.gpus:
             model.cuda()
         else:
             model.cpu()
