@@ -71,7 +71,7 @@ parser.add_argument('-learning_rate_decay', type=float, default=0.5,
                     help="""Decay learning rate by this much if (i) perplexity
                     does not decrease on the validation set or (ii) epoch has
                     gone past the start_decay_at_limit""")
-parser.add_argument('-start_decay_at', default=8,
+parser.add_argument('-start_decay_at', type=int, default=8,
                     help="Start decay after this epoch")
 parser.add_argument('-curriculum', action="store_true",
                     help="""For this many epochs, order the minibatches based
