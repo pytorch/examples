@@ -12,14 +12,11 @@ class RNNModel(nn.Module):
             self.rnn = getattr(nn, rnn_type)(ninp, nhid, nlayers, bias=False)
         else:
             try:
-                nonlinearity = {
-                    'RNN_TANH': 'tanh', 'RNN_RELU': 'relu'}[rnn_type]
+                nonlinearity = {'RNN_TANH': 'tanh', 'RNN_RELU': 'relu'}[rnn_type]
             except KeyError:
-                raise ValueError(
-                    """An invalid option for `--model` was supplied,
-                    options are ['LSTM', 'GRU', 'RNN_TANH' or 'RNN_RELU']""")
-            self.rnn = nn.RNN(
-                ninp, nhid, nlayers, nonlinearity=nonlinearity, bias=False)
+                raise ValueError( """An invalid option for `--model` was supplied,
+                                 options are ['LSTM', 'GRU', 'RNN_TANH' or 'RNN_RELU']""")
+            self.rnn = nn.RNN(ninp, nhid, nlayers, nonlinearity=nonlinearity, bias=False)
         self.decoder = nn.Linear(nhid, ntoken)
 
         self.init_weights()
