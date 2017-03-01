@@ -99,7 +99,7 @@ def main():
                 if opt.n_best > 1:
                     print('\nBEST HYP:')
                     for n in range(opt.n_best):
-                        print("[%.4f] %s" % (predScore[b][n], " ".join(predBatch[b][0])))
+                        print("[%.4f] %s" % (predScore[b][n], " ".join(predBatch[b][n])))
 
                 print('')
 
