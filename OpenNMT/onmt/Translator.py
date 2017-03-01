@@ -99,9 +99,9 @@ class Translator(object):
         #  (3) run the decoder to generate sentences, using beam search
 
         # Expand tensors for each beam.
-        context = Variable(context.data.repeat(1, beamSize, 1))
-        decStates = (Variable(encStates[0].data.repeat(1, beamSize, 1)),
-                     Variable(encStates[1].data.repeat(1, beamSize, 1)))
+        context = Variable(context.data.repeat(1, beamSize, 1), volatile=True)
+        decStates = (Variable(encStates[0].data.repeat(1, beamSize, 1), volatile=True),
+                     Variable(encStates[1].data.repeat(1, beamSize, 1), volatile=True))
 
         beam = [onmt.Beam(beamSize, self.opt.cuda) for k in range(batchSize)]
 
@@ -120,7 +120,7 @@ class Translator(object):
                                if not b.done]).t().contiguous().view(1, -1)
 
             decOut, decStates, attn = self.model.decoder(
-                Variable(input).transpose(0, 1), decStates, context, decOut)
+                Variable(input, volatile=True).transpose(0, 1), decStates, context, decOut)
             # decOut: 1 x (beam*batch) x numWords
             decOut = decOut.transpose(0, 1).squeeze(0)
             out = self.model.generator.forward(decOut)
@@ -159,7 +159,7 @@ class Translator(object):
                 newSize = list(t.size())
                 newSize[-2] = newSize[-2] * len(activeIdx) // remainingSents
                 return Variable(view.index_select(1, activeIdx) \
-                                    .view(*newSize))
+                                    .view(*newSize), volatile=True)
 
             decStates = (updateActive(decStates[0]), updateActive(decStates[1]))
             decOut = updateActive(decOut)
