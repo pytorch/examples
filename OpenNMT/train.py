@@ -166,7 +166,7 @@ def trainModel(model, trainData, validData, dataset, optim):
         batchOrder = torch.randperm(len(trainData))
 
         total_loss, report_loss = 0, 0
-        total_words, report_words = 0, 0
+        total_words, report_tgt_words, report_src_words = 0, 0, 0
         start = time.time()
         for i in range(len(trainData)):
 
@@ -189,15 +189,17 @@ def trainModel(model, trainData, validData, dataset, optim):
             total_loss += loss
             num_words = targets.data.ne(onmt.Constants.PAD).sum()
             total_words += num_words
-            report_words += num_words
+            report_tgt_words += num_words
+            report_src_words += batch[0].data.ne(onmt.Constants.PAD).sum()
             if i % opt.log_interval == 0 and i > 0:
-                print("Epoch %2d, %5d/%5d batches; perplexity: %6.2f; %3.0f tokens/s; %6.0f s elapsed" %
+                print("Epoch %2d, %5d/%5d batches; perplexity: %6.2f; %3.0f source tokens/s; %3.0f target tokens/s; %6.0f s elapsed" %
                       (epoch, i, len(trainData),
-                      math.exp(report_loss / report_words),
-                      report_words/(time.time()-start),
+                      math.exp(report_loss / report_tgt_words),
+                      report_src_words/(time.time()-start),
+                      report_tgt_words/(time.time()-start),
                       time.time()-start_time))
 
-                report_loss = report_words = 0
+                report_loss = report_tgt_words = report_src_words = 0
                 start = time.time()
 
         return total_loss / total_words
