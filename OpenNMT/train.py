@@ -183,7 +183,7 @@ def trainModel(model, trainData, validData, dataset, optim):
             outputs.backward(gradOutput)
 
             # update the parameters
-            grad_norm = optim.step()
+            optim.step()
 
             report_loss += loss
             total_loss += loss

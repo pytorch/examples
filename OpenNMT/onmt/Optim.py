@@ -1,5 +1,7 @@
 import math
 import torch.optim as optim
+import torch.nn as nn
+from torch.nn.utils import clip_grad_norm
 
 class Optim(object):
 
@@ -29,19 +31,9 @@ class Optim(object):
 
     def step(self):
         # Compute gradients norm.
-        grad_norm = 0
-        for param in self.params:
-            grad_norm += math.pow(param.grad.data.norm(), 2)
-
-        grad_norm = math.sqrt(grad_norm)
-        shrinkage = self.max_grad_norm / grad_norm
-
-        for param in self.params:
-            if shrinkage < 1:
-                param.grad.data.mul_(shrinkage)
-
+        if self.max_grad_norm:
+            clip_grad_norm(self.params, self.max_grad_norm)
         self.optimizer.step()
-        return grad_norm
 
     # decay learning rate if val perf does not improve or we hit the start_decay_at limit
     def updateLearningRate(self, ppl, epoch):
