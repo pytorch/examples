@@ -88,7 +88,7 @@ def clip_gradient(model, clip):
         modulenorm = p.grad.data.norm()
         totalnorm += modulenorm ** 2
     totalnorm = math.sqrt(totalnorm)
-    return min(1, args.clip / (totalnorm + 1e-6))
+    return min(1, clip / (totalnorm + 1e-6))
 
 
 def repackage_hidden(h):

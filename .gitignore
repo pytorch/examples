@@ -1,4 +1,5 @@
 dcgan/data
 data
 *.pyc
+OpenNMT/data
 .DS_Store
