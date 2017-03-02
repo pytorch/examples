@@ -6,7 +6,7 @@ class Dict(object):
         self.idxToLabel = {}
         self.labelToIdx = {}
         self.frequencies = {}
-        self.lower = True
+        self.lower = lower
 
         # Special entries will not be pruned.
         self.special = []
