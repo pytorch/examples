@@ -50,7 +50,7 @@ opt = parser.parse_args()
 
 def makeVocabulary(filename, size):
     vocab = onmt.Dict([onmt.Constants.PAD_WORD, onmt.Constants.UNK_WORD,
-                       onmt.Constants.BOS_WORD, onmt.Constants.EOS_WORD], lower=True)
+                       onmt.Constants.BOS_WORD, onmt.Constants.EOS_WORD], lower=opt.lower)
 
     with open(filename) as f:
         for sent in f.readlines():
