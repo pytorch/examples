@@ -29,6 +29,7 @@ Use of OpenNMT consists of four steps:
 ### 4) Evaluate.
 
 ```wget https://raw.githubusercontent.com/moses-smt/mosesdecoder/master/scripts/generic/multi-bleu.perl```
+
 ```perl multi-bleu.perl data/tgt-test.txt < demo_pred.txt```
 
 ## WMT'16 Multimodal Translation: Flickr30k (de-en)
@@ -71,6 +72,7 @@ Data might not come as clean as the demo data. Here is a second example that use
 ### 4) Evaluate.
 
 ```wget https://raw.githubusercontent.com/moses-smt/mosesdecoder/master/scripts/generic/multi-bleu.perl```
+
 ```perl multi-bleu.perl data/flickr/test.de < flickr_pred.txt```
 
 ## Pretrained Models
