@@ -8,15 +8,34 @@ an open-source (MIT) neural machine translation system.
 
 ## Quickstart
 
-OpenNMT consists of three commands:
+Use of OpenNMT consists of four steps:
 
-0) Download the data.
-
-Demo:
+### 0) Download the data.
 
 ```wget https://s3.amazonaws.com/pytorch/examples/opennmt/data/onmt-data.tar && tar -xf onmt-data.tar```
 
-Flickr30k (de-en):
+### 1) Preprocess the data.
+
+```python preprocess.py -train_src data/src-train.txt -train_tgt data/tgt-train.txt -valid_src data/src-val.txt -valid_tgt data/tgt-val.txt -save_data data/demo```
+
+### 2) Train the model.
+
+```python train.py -data data/demo-train.pt -save_model demo_model -gpus 0```
+
+### 3) Translate sentences.
+
+```python translate.py -gpu 0 -model demo_model_e13_*.pt -src data/src-test.txt -tgt data/tgt-test.txt -replace_unk -verbose -output demo_pred.txt```
+
+### 4) Evaluate.
+
+```wget https://raw.githubusercontent.com/moses-smt/mosesdecoder/master/scripts/generic/multi-bleu.perl```
+```perl multi-bleu.perl data/tgt-test.txt < demo_pred.txt```
+
+## WMT'16 Multimodal Translation: Flickr30k (de-en)
+
+Data might not come as clean as the demo data. Here is a second example that uses the Moses tokenizer (http://www.statmt.org/moses/) to prepare the Flickr30k data from the WMT'16 Multimodal Translation task (http://www.statmt.org/wmt16/multimodal-task.html).
+
+### 0) Download the data.
 
 ```mkdir -p data/flickr```
 
@@ -26,13 +45,7 @@ Flickr30k (de-en):
 
 ```wget https://staff.fnwi.uva.nl/d.elliott/wmt16/mmt16_task1_test.tgz && tar -xf mmt16_task1_test.tgz -C data/flickr && rm mmt16_task1_test.tgz```
 
-1) Preprocess the data.
-
-Demo:
-
-```python preprocess.py -train_src data/src-train.txt -train_tgt data/tgt-train.txt -valid_src data/src-val.txt -valid_tgt data/tgt-val.txt -save_data data/demo```
-
-Flickr30k:
+### 1) Preprocess the data.
 
 ```wget https://raw.githubusercontent.com/moses-smt/mosesdecoder/master/scripts/tokenizer/tokenizer.perl```
 
@@ -46,37 +59,18 @@ Flickr30k:
 
 ```python preprocess.py -train_src data/flickr/train.en.tok -train_tgt data/flickr/train.de.tok -valid_src data/flickr/val.en.tok -valid_tgt data/flickr/val.de.tok -save_data data/flickr```
 
-2) Train the model.
-
-Demo:
-
-```python train.py -data data/demo-train.pt -save_model model -gpus 0```
-
-Flickr30k:
+### 2) Train the model.
 
 ```python train.py -data data/flickr-train.pt -save_model flickr_model -gpus 0```
 
-3) Translate sentences.
-
-Demo:
-
-```python translate.py -gpu 0 -model model_e13_*.pt -src data/src-test.txt -tgt data/tgt-test.txt -replace_unk -verbose -output demo-pred.txt```
-
-Flickr30k:
+### 3) Translate sentences.
 
 ```python translate.py -gpu 0 -model flickr_model_e7_*.pt -src data/flickr/test.en.tok -tgt data/flickr/test.de.tok -replace_unk -verbose -output flickr_pred.txt```
 >>>>>>> c87fc08... tips for non-demo mt via flickr30k example
 
-4) Evaluate.
+### 4) Evaluate.
 
 ```wget https://raw.githubusercontent.com/moses-smt/mosesdecoder/master/scripts/generic/multi-bleu.perl```
-
-Demo:
-
-```perl multi-bleu.perl data/tgt-test.txt < pred.txt```
-
-Flickr30k:
-
 ```perl multi-bleu.perl data/flickr/test.de < flickr_pred.txt```
 
 ## Pretrained Models
