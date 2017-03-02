@@ -2,6 +2,7 @@ import argparse
 import os
 import shutil
 import time
+import logging
 
 import torch
 import torch.nn as nn
@@ -12,6 +13,14 @@ import torch.utils.data
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
+
+
+logger = logging.getLogger("torch.examples.imagenet")
+logger.setLevel(logging.DEBUG)
+log_handler = logging.StreamHandler()
+log_handler.setLevel(logging.DEBUG)
+log_handler.setFormatter(logging.Formatter('=> %(message)s'))
+logger.addHandler(log_handler)
 
 
 model_names = sorted(name for name in models.__dict__
@@ -59,10 +68,10 @@ def main():
 
     # create model
     if args.pretrained:
-        print("=> using pre-trained model '{}'".format(args.arch))
+        logger.info("using pre-trained model '{}'".format(args.arch))
         model = models.__dict__[args.arch](pretrained=True)
     else:
-        print("=> creating model '{}'".format(args.arch))
+        logger.info("creating model '{}'".format(args.arch))
         model = models.__dict__[args.arch]()
 
     if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
@@ -74,15 +83,15 @@ def main():
     # optionally resume from a checkpoint
     if args.resume:
         if os.path.isfile(args.resume):
-            print("=> loading checkpoint '{}'".format(args.resume))
+            logger.info("loading checkpoint '{}'".format(args.resume))
             checkpoint = torch.load(args.resume)
             args.start_epoch = checkpoint['epoch']
             best_prec1 = checkpoint['best_prec1']
             model.load_state_dict(checkpoint['state_dict'])
-            print("=> loaded checkpoint '{}' (epoch {})"
-                  .format(args.evaluate, checkpoint['epoch']))
+            logger.info("loaded checkpoint '{}' (epoch {})"
+                .format(args.resume, checkpoint['epoch']))
         else:
-            print("=> no checkpoint found at '{}'".format(args.resume))
+            logger.error("no checkpoint found at '{}'".format(args.resume))
 
     cudnn.benchmark = True
 
@@ -182,14 +191,14 @@ def train(train_loader, model, criterion, optimizer, epoch):
         end = time.time()
 
         if i % args.print_freq == 0:
-            print('Epoch: [{0}][{1}/{2}]\t'
-                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-                  'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                   epoch, i, len(train_loader), batch_time=batch_time,
-                   data_time=data_time, loss=losses, top1=top1, top5=top5))
+            logger.debug('Epoch: [{0}][{1}/{2}]\t'
+                         'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                         'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
+                         'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                         'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+                         'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
+                         epoch, i, len(train_loader), batch_time=batch_time,
+                         data_time=data_time, loss=losses, top1=top1, top5=top5))
 
 
 def validate(val_loader, model, criterion):
@@ -222,16 +231,16 @@ def validate(val_loader, model, criterion):
         end = time.time()
 
         if i % args.print_freq == 0:
-            print('Test: [{0}/{1}]\t'
-                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-                  'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                   i, len(val_loader), batch_time=batch_time, loss=losses,
-                   top1=top1, top5=top5))
+            logger.debug('Test: [{0}/{1}]\t'
+                         'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                         'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                         'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+                         'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
+                         i, len(val_loader), batch_time=batch_time, loss=losses,
+                         top1=top1, top5=top5))
 
-    print(' * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}'
-          .format(top1=top1, top5=top5))
+    logger.debug(' * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}'
+                 .format(top1=top1, top5=top5))
 
     return top1.avg
 
