@@ -2,10 +2,11 @@ import torch
 
 
 class Dict(object):
-    def __init__(self, data=None):
+    def __init__(self, data=None, lower=False):
         self.idxToLabel = {}
         self.labelToIdx = {}
         self.frequencies = {}
+        self.lower = True
 
         # Special entries will not be pruned.
         self.special = []
@@ -37,6 +38,7 @@ class Dict(object):
         file.close()
 
     def lookup(self, key, default=None):
+        key = key.lower() if self.lower else key
         try:
             return self.labelToIdx[key]
         except KeyError:
@@ -60,6 +62,7 @@ class Dict(object):
 
     # Add `label` in the dictionary. Use `idx` as its index if given.
     def add(self, label, idx=None):
+        label = label.lower() if self.lower else label
         if idx is not None:
             self.idxToLabel[idx] = label
             self.labelToIdx[label] = idx

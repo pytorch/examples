@@ -88,12 +88,18 @@ def main():
             outF.write(" ".join(predBatch[b][0]) + '\n')
 
             if opt.verbose:
-                print('SENT %d: %s' % (count, " ".join(srcBatch[b])))
+                srcSent = ' '.join(srcBatch[b])
+                if translator.tgt_dict.lower:
+                    srcSent = srcSent.lower()
+                print('SENT %d: %s' % (count, srcSent))
                 print('PRED %d: %s' % (count, " ".join(predBatch[b][0])))
                 print("PRED SCORE: %.4f" % predScore[b][0])
 
                 if tgtF is not None:
-                    print('GOLD %d: %s ' % (count, " ".join(tgtBatch[b])))
+                    tgtSent = ' '.join(tgtBatch[b])
+                    if translator.tgt_dict.lower:
+                        tgtSent = tgtSent.lower()
+                    print('GOLD %d: %s ' % (count, tgtSent))
                     print("GOLD SCORE: %.4f" % goldScore[b])
 
                 if opt.n_best > 1:

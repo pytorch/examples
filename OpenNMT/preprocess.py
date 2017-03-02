@@ -40,6 +40,8 @@ parser.add_argument('-shuffle',    type=int, default=1,
 parser.add_argument('-seed',       type=int, default=3435,
                     help="Random seed")
 
+parser.add_argument('-lower', action='store_true', help='lowercase data')
+
 parser.add_argument('-report_every', type=int, default=100000,
                     help="Report status every this many sentences")
 
@@ -48,7 +50,7 @@ opt = parser.parse_args()
 
 def makeVocabulary(filename, size):
     vocab = onmt.Dict([onmt.Constants.PAD_WORD, onmt.Constants.UNK_WORD,
-                       onmt.Constants.BOS_WORD, onmt.Constants.EOS_WORD])
+                       onmt.Constants.BOS_WORD, onmt.Constants.EOS_WORD], lower=True)
 
     with open(filename) as f:
         for sent in f.readlines():
