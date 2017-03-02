@@ -19,8 +19,11 @@ Demo:
 Flickr30k (de-en):
 
 ```mkdir -p data/flickr```
+
 ```wget http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/training.tar.gz &&  tar -xf training.tar.gz -C data/flickr && rm training.tar.gz```
+
 ```wget http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/validation.tar.gz && tar -xf validation.tar.gz -C data/flickr && rm validation.tar.gz```
+
 ```wget https://staff.fnwi.uva.nl/d.elliott/wmt16/mmt16_task1_test.tgz && tar -xf mmt16_task1_test.tgz -C data/flickr && rm mmt16_task1_test.tgz```
 
 1) Preprocess the data.
@@ -32,10 +35,15 @@ Demo:
 Flickr30k:
 
 ```wget https://raw.githubusercontent.com/moses-smt/mosesdecoder/master/scripts/tokenizer/tokenizer.perl```
+
 ```sed -i "s/$RealBin\/..\/share\/nonbreaking_prefixes//" tokenizer.perl```
+
 ```wget https://github.com/moses-smt/mosesdecoder/blob/master/scripts/share/nonbreaking_prefixes/nonbreaking_prefix.de```
+
 ```wget https://github.com/moses-smt/mosesdecoder/blob/master/scripts/share/nonbreaking_prefixes/nonbreaking_prefix.en```
+
 ```for l in en de; do for f in data/flickr/*.$l; do if [[ "$f" != *"test"* ]]; then sed -i "$ d" $f; fi; perl tokenizer.perl -no-escape -l $l -q  < $f > $f.tok; done; done```
+
 ```python preprocess.py -train_src data/flickr/train.en.tok -train_tgt data/flickr/train.de.tok -valid_src data/flickr/val.en.tok -valid_tgt data/flickr/val.de.tok -save_data data/flickr```
 
 2) Train the model.
