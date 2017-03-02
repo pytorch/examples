@@ -10,19 +10,16 @@ class Encoder(nn.Module):
         self.num_directions = 2 if opt.brnn else 1
         assert opt.rnn_size % self.num_directions == 0
         self.hidden_size = opt.rnn_size // self.num_directions
-        inputSize = opt.word_vec_size
+        input_size = opt.word_vec_size
 
         super(Encoder, self).__init__()
         self.word_lut = nn.Embedding(dicts.size(),
                                   opt.word_vec_size,
                                   padding_idx=onmt.Constants.PAD)
-        self.rnn = nn.LSTM(inputSize, self.hidden_size,
+        self.rnn = nn.LSTM(input_size, self.hidden_size,
                         num_layers=opt.layers,
                         dropout=opt.dropout,
                         bidirectional=opt.brnn)
-
-        # self.rnn.bias_ih_l0.data.div_(2)
-        # self.rnn.bias_hh_l0.data.copy_(self.rnn.bias_ih_l0.data)
 
         if opt.pre_word_vecs_enc is not None:
             pretrained = torch.load(opt.pre_word_vecs_enc)
@@ -41,34 +38,6 @@ class Encoder(nn.Module):
         return hidden_t, outputs
 
 
-class StackedLSTM(nn.Module):
-    def __init__(self, num_layers, input_size, rnn_size, dropout):
-        super(StackedLSTM, self).__init__()
-        self.dropout = nn.Dropout(dropout)
-        self.num_layers = num_layers
-        self.layers = nn.ModuleList()
-
-        for i in range(num_layers):
-            self.layers.append(nn.LSTMCell(input_size, rnn_size))
-            input_size = rnn_size
-
-    def forward(self, input, hidden):
-        h_0, c_0 = hidden
-        h_1, c_1 = [], []
-        for i, layer in enumerate(self.layers):
-            h_1_i, c_1_i = layer(input, (h_0[i], c_0[i]))
-            input = h_1_i
-            if i != self.num_layers:
-                input = self.dropout(input)
-            h_1 += [h_1_i]
-            c_1 += [c_1_i]
-
-        h_1 = torch.stack(h_1)
-        c_1 = torch.stack(c_1)
-
-        return input, (h_1, c_1)
-
-
 class Decoder(nn.Module):
 
     def __init__(self, opt, dicts):
@@ -82,12 +51,11 @@ class Decoder(nn.Module):
         self.word_lut = nn.Embedding(dicts.size(),
                                   opt.word_vec_size,
                                   padding_idx=onmt.Constants.PAD)
-        self.rnn = StackedLSTM(opt.layers, input_size, opt.rnn_size, opt.dropout)
+        self.rnn = nn.LSTM(input_size, opt.rnn_size, 
+                        num_layers=opt.layers,
+                        dropout=opt.dropout)
         self.attn = onmt.modules.GlobalAttention(opt.rnn_size)
         self.dropout = nn.Dropout(opt.dropout)
-
-        # self.rnn.bias_ih.data.div_(2)
-        # self.rnn.bias_hh.data.copy_(self.rnn.bias_ih.data)
 
         self.hidden_size = opt.rnn_size
 
@@ -102,7 +70,6 @@ class Decoder(nn.Module):
         batch_size = input.size(0)
 
         h_size = (batch_size, self.hidden_size)
-        output = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
 
         # n.b. you can increase performance if you compute W_ih * x for all
         # iterations in parallel, but that's only possible if
@@ -110,16 +77,16 @@ class Decoder(nn.Module):
         outputs = []
         output = init_output
         for i, emb_t in enumerate(emb.split(1)):
-            emb_t = emb_t.squeeze(0)
+            emb_t = emb_t
             if self.input_feed:
-                emb_t = torch.cat([emb_t, output], 1)
+                emb_t = torch.cat([emb_t, output], 2)
 
             output, hidden = self.rnn(emb_t, hidden)
-            output, attn = self.attn(output, context.t())
-            output = self.dropout(output)
+            output, attn = self.attn(output.squeeze(0), context.t())
+            output = self.dropout(output.unsqueeze(0))
             outputs += [output]
 
-        outputs = torch.stack(outputs)
+        outputs = torch.cat(outputs, 0)
         return outputs.transpose(0, 1), hidden, attn
 
 
@@ -138,7 +105,7 @@ class NMTModel(nn.Module):
     def make_init_decoder_output(self, context):
         batch_size = context.size(1)
         h_size = (batch_size, self.decoder.hidden_size)
-        return Variable(context.data.new(*h_size).zero_(), requires_grad=False)
+        return Variable(context.data.new(1, *h_size).zero_(), requires_grad=False)
 
     def _fix_enc_hidden(self, h):
         #  the encoder hidden is  (layers*directions) x batch x dim
