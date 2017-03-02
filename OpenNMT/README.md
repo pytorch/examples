@@ -27,6 +27,11 @@ OpenNMT consists of three commands:
 ```python translate.py -gpu 0 -model model_e13_*.pt -src data/src-test.txt -tgt data/tgt-test.txt -replace_unk -verbose```
 >>>>>>> c19b7d3... README changes for multi-gpu
 
+4) Evaluate.
+
+```wget https://raw.githubusercontent.com/moses-smt/mosesdecoder/master/scripts/generic/multi-bleu.perl```
+```perl multi-bleu.perl data/tgt-test.txt < pred.txt```
+
 ## Pretrained Models
 
 The following pretrained models can be downloaded and used with translate.py.
