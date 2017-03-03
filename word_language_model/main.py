@@ -81,16 +81,6 @@ criterion = nn.CrossEntropyLoss()
 # Training code
 ###############################################################################
 
-def clip_gradient(model, clip):
-    """Computes a gradient clipping coefficient based on gradient norm."""
-    totalnorm = 0
-    for p in model.parameters():
-        modulenorm = p.grad.data.norm()
-        totalnorm += modulenorm ** 2
-    totalnorm = math.sqrt(totalnorm)
-    return min(1, clip / (totalnorm + 1e-6))
-
-
 def repackage_hidden(h):
     """Wraps hidden states in new Variables, to detach them from their history."""
     if type(h) == Variable:
@@ -132,9 +122,9 @@ def train():
         loss = criterion(output.view(-1, ntokens), targets)
         loss.backward()
 
-        clipped_lr = lr * clip_gradient(model, args.clip)
+        torch.nn.utils.clip_grad_norm(model.parameters(), args.clip)
         for p in model.parameters():
-            p.data.add_(-clipped_lr, p.grad.data)
+            p.data.add_(-lr, p.grad.data)
 
         total_loss += loss.data
 
