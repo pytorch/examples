@@ -53,23 +53,29 @@ class Translator(object):
 
         #  (1) run the encoder on the src
 
-        # have to execute the encoder manually to deal with padding
-        encStates = None
-        context = []
-        for srcBatch_t in srcBatch.split(1):
-            encStates, context_t = self.model.encoder(srcBatch_t, hidden=encStates)
-            batchPadIdx = srcBatch_t.data.squeeze(0).eq(onmt.Constants.PAD).nonzero()
-            if batchPadIdx.nelement() > 0:
-                batchPadIdx = batchPadIdx.squeeze(1)
-                encStates[0].data.index_fill_(1, batchPadIdx, 0)
-                encStates[1].data.index_fill_(1, batchPadIdx, 0)
-            context += [context_t]
+        encStates, context = None, None
 
+        if self.model.encoder.num_directions == 2:
+            # bidirectional encoder is negatively impacted by padding
+            # run with batch size 1 for improved translations
+            # This will be resolved when variable length LSTMs are used instead
+            encStates, context = self.model.encoder(srcBatch, hidden=encStates)
+        else:
+            # have to execute the encoder manually to deal with padding
+            context = []
+            for srcBatch_t in srcBatch.split(1):
+                encStates, context_t = self.model.encoder(srcBatch_t, hidden=encStates)
+                batchPadIdx = srcBatch_t.data.squeeze(0).eq(onmt.Constants.PAD).nonzero()
+                if batchPadIdx.nelement() > 0:
+                    batchPadIdx = batchPadIdx.squeeze(1)
+                    encStates[0].data.index_fill_(1, batchPadIdx, 0)
+                    encStates[1].data.index_fill_(1, batchPadIdx, 0)
+                context += [context_t]
+            context = torch.cat(context)
+
+        rnnSize = context.size(2)
         encStates = (self.model._fix_enc_hidden(encStates[0]),
                       self.model._fix_enc_hidden(encStates[1]))
-
-        context = torch.cat(context)
-        rnnSize = context.size(2)
 
         #  This mask is applied to the attention model inside the decoder
         #  so that the attention ignores source padding
