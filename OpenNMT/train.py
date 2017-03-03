@@ -229,7 +229,7 @@ def trainModel(model, trainData, validData, dataset, optim):
             'optim': optim,
         }
         torch.save(checkpoint,
-                   '%s_val%.2f_train%.2f_e%d.pt' % (opt.save_model, valid_ppl, train_ppl, epoch))
+                   '%s_val_%.2f_train_%.2f_e%d.pt' % (opt.save_model, valid_ppl, train_ppl, epoch))
 
 def main():
 
