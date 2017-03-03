@@ -117,11 +117,11 @@ def NMTCriterion(vocabSize):
 def memoryEfficientLoss(outputs, targets, generator, crit, eval=False):
     # compute generations one piece at a time
     loss = 0
-    outputs = Variable(outputs.data, requires_grad=(not eval), volatile=eval).contiguous()
+    outputs = Variable(outputs.data, requires_grad=(not eval), volatile=eval)
 
     batch_size = outputs.size(1)
     outputs_split = torch.split(outputs, opt.max_generator_batches)
-    targets_split = torch.split(targets.contiguous(), opt.max_generator_batches)
+    targets_split = torch.split(targets, opt.max_generator_batches)
     for out_t, targ_t in zip(outputs_split, targets_split):
         out_t = out_t.view(-1, out_t.size(2))
         pred_t = generator(out_t)
@@ -140,9 +140,9 @@ def eval(model, criterion, data):
 
     model.eval()
     for i in range(len(data)):
-        batch = [x.transpose(0, 1) for x in data[i]] # must be batch first for gather/scatter in DataParallel
+        batch = data[i]
         outputs = model(batch)  # FIXME volatile
-        targets = batch[1][:, 1:]  # exclude <s> from targets
+        targets = batch[1][1:]  # exclude <s> from targets
         loss, _ = memoryEfficientLoss(
                 outputs, targets, model.generator, criterion, eval=True)
         total_loss += loss
@@ -172,11 +172,10 @@ def trainModel(model, trainData, validData, dataset, optim):
 
             batchIdx = batchOrder[i] if epoch >= opt.curriculum else i
             batch = trainData[batchIdx]
-            batch = [x.transpose(0, 1) for x in batch] # must be batch first for gather/scatter in DataParallel
 
             model.zero_grad()
             outputs = model(batch)
-            targets = batch[1][:, 1:]  # exclude <s> from targets
+            targets = batch[1][1:]  # exclude <s> from targets
             loss, gradOutput = memoryEfficientLoss(
                     outputs, targets, model.generator, criterion)
 
@@ -209,7 +208,8 @@ def trainModel(model, trainData, validData, dataset, optim):
 
         #  (1) train for one epoch on the training set
         train_loss = trainEpoch(epoch)
-        print('Train perplexity: %g' % math.exp(min(train_loss, 100)))
+        train_ppl = math.exp(min(train_loss, 100))
+        print('Train perplexity: %g' % train_ppl)
 
         #  (2) evaluate on the validation set
         valid_loss = eval(model, criterion, validData)
@@ -229,8 +229,7 @@ def trainModel(model, trainData, validData, dataset, optim):
             'optim': optim,
         }
         torch.save(checkpoint,
-                   '%s_e%d_%.2f.pt' % (opt.save_model, epoch, valid_ppl))
-
+                   '%s_val%.2f_e%d_train%.2f.pt' % (opt.save_model, valid_ppl, epoch, train_ppl))
 
 def main():
 
@@ -258,11 +257,11 @@ def main():
         generator = nn.Sequential(
             nn.Linear(opt.rnn_size, dicts['tgt'].size()),
             nn.LogSoftmax())
-        if len(opt.gpus) > 1:
-            generator = nn.DataParallel(generator, device_ids=opt.gpus)
+#        if len(opt.gpus) > 1:
+#            generator = nn.DataParallel(generator, device_ids=opt.gpus)
         model = onmt.Models.NMTModel(encoder, decoder, generator)
         if len(opt.gpus) > 1:
-            model = nn.DataParallel(model, device_ids=opt.gpus)
+            model = nn.DataParallel(model, device_ids=opt.gpus, dim=1)
         if opt.gpus:
             model.cuda()
         else:

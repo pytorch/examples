@@ -26,9 +26,10 @@ class Encoder(nn.Module):
             self.word_lut.weight.copy_(pretrained)
 
     def forward(self, input, hidden=None):
-        batch_size = input.size(0) # batch first for multi-gpu compatibility
-        emb = self.word_lut(input).transpose(0, 1)
+        emb = self.word_lut(input)
+
         if hidden is None:
+            batch_size = emb.size(1)
             h_size = (self.layers * self.num_directions, batch_size, self.hidden_size)
             h_0 = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
             c_0 = Variable(emb.data.new(*h_size).zero_(), requires_grad=False)
@@ -91,9 +92,9 @@ class Decoder(nn.Module):
 
 
     def forward(self, input, hidden, context, init_output):
-        emb = self.word_lut(input).transpose(0, 1)
+        emb = self.word_lut(input)
 
-        batch_size = input.size(0)
+        batch_size = input.size(1)
 
         h_size = (batch_size, self.hidden_size)
 
@@ -102,7 +103,7 @@ class Decoder(nn.Module):
         # self.input_feed=False
         outputs = []
         output = init_output
-        for i, emb_t in enumerate(emb.split(1)):
+        for emb_t in emb.split(1):
             emb_t = emb_t.squeeze(0)
             if self.input_feed:
                 emb_t = torch.cat([emb_t, output], 1)
@@ -113,7 +114,7 @@ class Decoder(nn.Module):
             outputs += [output]
 
         outputs = torch.stack(outputs)
-        return outputs.transpose(0, 1), hidden, attn
+        return outputs, hidden, attn
 
 
 class NMTModel(nn.Module):
@@ -145,7 +146,7 @@ class NMTModel(nn.Module):
 
     def forward(self, input):
         src = input[0]
-        tgt = input[1][:, :-1]  # exclude last target from inputs
+        tgt = input[1][:-1]  # exclude last target from inputs
         enc_hidden, context = self.encoder(src)
         init_output = self.make_init_decoder_output(context)
 
