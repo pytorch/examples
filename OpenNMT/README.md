@@ -20,7 +20,7 @@ OpenNMT consists of three commands:
 
 2) Train the model.
 
-```python train.py -data data/demo-train.pt -save_model model -cuda```
+```python train.py -data data/demo-train.pt -save_model model -gpus 0```
 
 3) Translate sentences.
 
