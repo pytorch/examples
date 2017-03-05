@@ -101,7 +101,7 @@ opt.cuda = len(opt.gpus)
 print(opt)
 
 if torch.cuda.is_available() and not opt.cuda:
-    print("WARNING: You have a CUDA device, so you should probably run with -cuda")
+    print("WARNING: You have a CUDA device, so you should probably run with -gpus 1")
 
 if opt.cuda:
     cuda.set_device(opt.gpus[0])
