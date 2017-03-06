@@ -14,7 +14,7 @@ class Dataset(object):
         self.cuda = cuda
 
         self.batchSize = batchSize
-        self.numBatches = len(self.src) // batchSize
+        self.numBatches = (len(self.src) + batchSize - 1) // batchSize
 
     def _batchify(self, data, align_right=False):
         max_length = max(x.size(0) for x in data)
