@@ -3,6 +3,7 @@ import time
 import math
 import torch
 import torch.nn as nn
+import torch.optim as optim
 from torch.autograd import Variable
 
 import data
@@ -114,17 +115,17 @@ def train():
     start_time = time.time()
     ntokens = len(corpus.dictionary)
     hidden = model.init_hidden(args.batch_size)
+    optimizer = optim.SGD(model.parameters(), lr=lr)
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
         data, targets = get_batch(train_data, i)
         hidden = repackage_hidden(hidden)
-        model.zero_grad()
+        optimizer.zero_grad()
         output, hidden = model(data, hidden)
         loss = criterion(output.view(-1, ntokens), targets)
         loss.backward()
 
         torch.nn.utils.clip_grad_norm(model.parameters(), args.clip)
-        for p in model.parameters():
-            p.data.add_(-lr, p.grad.data)
+        optimizer.step()
 
         total_loss += loss.data
 
