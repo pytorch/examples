@@ -1,3 +1,5 @@
+import random
+
 import onmt
 from torch.autograd import Variable
 
@@ -46,3 +48,9 @@ class Dataset(object):
 
     def __len__(self):
         return self.numBatches
+
+
+    def shuffle(self):
+        zipped = list(zip(self.src, self.tgt))
+        random.shuffle(zipped)
+        self.src, self.tgt = [x[0] for x in zipped], [x[1] for x in zipped]
