@@ -67,14 +67,16 @@ parser.add_argument('-max_grad_norm', type=float, default=5,
                     renormalize it to have the norm equal to max_grad_norm""")
 parser.add_argument('-dropout', type=float, default=0.3,
                     help='Dropout probability; applied between LSTM stacks.')
-parser.add_argument('-padding_weight', type=int, default=0,
-                    help='The weight to give padding in the loss')
 parser.add_argument('-curriculum', action="store_true",
                     help="""For this many epochs, order the minibatches based
                     on source sequence length. Sometimes setting this to 1 will
                     increase convergence speed.""")
+parser.add_argument('-extra_shuffle', action="store_true",
+                    help="""By default only shuffle mini-batch order; when true,
+                    shuffle and re-assign mini-batches""")
 
 #learning rate
+
 parser.add_argument('-update_learning_rate', action='store_true',
                     help="Decay learning rate regardless of optimizer")
 parser.add_argument('-learning_rate_decay', type=float, default=0.5,
@@ -83,10 +85,11 @@ parser.add_argument('-learning_rate_decay', type=float, default=0.5,
                     validation set or (ii) epoch has gone past
                     start_decay_at""")
 parser.add_argument('-start_decay_at', type=int, default=8,
-                    help="Start decaying every epoch after and including this
-                    epoch")
+                    help="""Start decaying every epoch after and including this
+                    epoch""")
 
 #pretrained word vectors
+
 parser.add_argument('-pre_word_vecs_enc',
                     help="""If a valid path is specified, then this will load
                     pretrained word embeddings on the encoder side.
@@ -117,7 +120,7 @@ if opt.gpus:
 
 def NMTCriterion(vocabSize):
     weight = torch.ones(vocabSize)
-    weight[onmt.Constants.PAD] = opt.padding_weight
+    weightonmt.Constants.PAD] = 0
     crit = nn.NLLLoss(weight, size_average=False)
     if opt.gpus:
         crit.cuda()
@@ -171,6 +174,9 @@ def trainModel(model, trainData, validData, dataset, optim):
 
     start_time = time.time()
     def trainEpoch(epoch):
+
+        if opt.extra_shuffle and epoch >= opt.curriculum:
+            trainData.shuffle()
 
         # shuffle mini batch order
         batchOrder = torch.randperm(len(trainData))
