@@ -64,16 +64,15 @@ if config.spinn:
 else:
     config.regularization = 0
 
+model = SNLIClassifier(config)
+if config.spinn:
+    model.out[len(model.out._modules) - 1].weight.data.uniform_(-0.005, 0.005)
+if args.word_vectors:
+    model.embed.weight.data = inputs.vocab.vectors
+if args.gpu != -1:
+    model.cuda()
 if args.resume_snapshot:
-    model = torch.load(args.resume_snapshot, map_location=lambda storage, location: storage if args.gpu == -1 else storage.cuda(args.gpu))
-else:
-    model = SNLIClassifier(config)
-    if config.spinn:
-        model.out[len(model.out._modules) - 1].weight.data.uniform_(-0.005, 0.005)
-    if args.word_vectors:
-        model.embed.weight.data = inputs.vocab.vectors
-    if args.gpu != -1:
-        model.cuda()
+    model.load_state_dict(torch.load(args.resume_snapshot))
 
 criterion = nn.CrossEntropyLoss()
 #opt = optim.Adam(model.parameters(), lr=args.lr)
@@ -92,7 +91,7 @@ print(header)
 
 for epoch in range(args.epochs):
     train_iter.init_epoch()
-    n_correct, n_total, train_loss = 0, 0, 0
+    n_correct = n_total = train_loss = 0
     for batch_idx, batch in enumerate(train_iter):
         model.train(); opt.zero_grad()
         for pg in opt.param_groups:
@@ -109,13 +108,13 @@ for epoch in range(args.epochs):
         if iterations % args.save_every == 0:
             snapshot_prefix = os.path.join(args.save_path, 'snapshot')
             snapshot_path = snapshot_prefix + '_acc_{:.4f}_loss_{:.6f}_iter_{}_model.pt'.format(train_acc, train_loss / n_total, iterations)
-            torch.save(model, snapshot_path)
+            torch.save(model.state_dict(), snapshot_path)
             for f in glob.glob(snapshot_prefix + '*'):
                 if f != snapshot_path:
                     os.remove(f)
         if iterations % args.dev_every == 0:
             model.eval(); dev_iter.init_epoch()
-            n_dev_correct, dev_loss = 0, 0
+            n_dev_correct = dev_loss = 0
             for dev_batch_idx, dev_batch in enumerate(dev_iter):
                  answer = model(dev_batch)
                  n_dev_correct += (torch.max(answer, 1)[1].view(dev_batch.label.size()).data == dev_batch.label.data).sum()
@@ -124,12 +123,12 @@ for epoch in range(args.epochs):
             print(dev_log_template.format(time.time()-start,
                 epoch, iterations, 1+batch_idx, len(train_iter),
                 100. * (1+batch_idx) / len(train_iter), train_loss / n_total, dev_loss / len(dev), train_acc, dev_acc))
-            train_loss = 0
+            n_correct = n_total = train_loss = 0
             if dev_acc > best_dev_acc:
                 best_dev_acc = dev_acc
                 snapshot_prefix = os.path.join(args.save_path, 'best_snapshot')
-                snapshot_path = snapshot_prefix + '_devacc_{}_devloss_{}__iter_{}_model.pt'.format(dev_acc, dev_loss.data[0], iterations)
-                torch.save(model, snapshot_path)
+                snapshot_path = snapshot_prefix + '_devacc_{}_devloss_{}__iter_{}_model.pt'.format(dev_acc, dev_loss / len(dev), iterations)
+                torch.save(model.state_dict(), snapshot_path)
                 for f in glob.glob(snapshot_prefix + '*'):
                     if f != snapshot_path:
                         os.remove(f)
@@ -137,5 +136,5 @@ for epoch in range(args.epochs):
             print(log_template.format(time.time()-start,
                 epoch, iterations, 1+batch_idx, len(train_iter),
                 100. * (1+batch_idx) / len(train_iter), train_loss / n_total, ' '*8, n_correct / n_total*100, ' '*12))
-            n_correct, n_total, train_loss = 0, 0, 0
+            n_correct = n_total = train_loss = 0
 

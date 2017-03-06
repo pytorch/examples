@@ -48,7 +48,7 @@ class Reduce(nn.Module):
         if tracker_size is not None:
             self.track = nn.Linear(tracker_size, 5 * size, bias=False)
 
-    def __call__(self, left_in, right_in, tracking=None):
+    def forward(self, left_in, right_in, tracking=None):
         """Perform batched TreeLSTM composition.
 
         This implements the REDUCE operation of a SPINN in parallel for a
@@ -103,7 +103,7 @@ class Tracker(nn.Module):
     def reset_state(self):
         self.state = None
 
-    def __call__(self, bufs, stacks):
+    def forward(self, bufs, stacks):
         buf = bundle(buf[-1] for buf in bufs)[0]
         stack1 = bundle(stack[-1] for stack in stacks)[0]
         stack2 = bundle(stack[-2] for stack in stacks)[0]
@@ -113,8 +113,8 @@ class Tracker(nn.Module):
                 x.data.new(x.size(0), self.state_size).zero_())] 
         self.state = self.rnn(x, self.state)
         if hasattr(self, 'transition'):
-            return self.transition(self.state[0])
-
+            return unbundle(self.state), self.transition(self.state[0])
+        return unbundle(self.state), None
 
 class SPINN(nn.Module):
 
@@ -127,7 +127,7 @@ class SPINN(nn.Module):
             self.tracker = Tracker(config.d_hidden, config.d_tracker,
                                    predict=config.predict)
 
-    def __call__(self, buffers, transitions):
+    def forward(self, buffers, transitions):
         buffers = [list(torch.split(b.squeeze(1), 1, 0))
                    for b in torch.split(buffers, 1, 1)]
         stacks = [[buf[0], buf[0]] for buf in buffers]
@@ -147,7 +147,7 @@ class SPINN(nn.Module):
             if transitions is not None:
                 trans = transitions[i]
             if hasattr(self, 'tracker'):
-                trans_hyp = self.tracker(buffers, stacks)
+                tracker_states, trans_hyp = self.tracker(buffers, stacks)
                 if trans_hyp is not None:
                     trans = trans_hyp.max(1)[1]
                     # if transitions is not None:
@@ -155,10 +155,10 @@ class SPINN(nn.Module):
                     #     trans_acc += (trans_preds.data == trans.data).mean()
                     # else:
                     #     trans = trans_preds
+            else:
+                tracker_states = itertools.repeat(None)
             lefts, rights, trackings = [], [], []
-            batch = zip(trans.data, buffers, stacks,
-                        unbundle(self.tracker.state) if hasattr(self, 'tracker')
-                        else itertools.repeat(None))
+            batch = zip(trans.data, buffers, stacks, tracker_states)
             for transition, buf, stack, tracking in batch:
                 if transition == 3:  # shift
                     stack.append(buf.pop())
