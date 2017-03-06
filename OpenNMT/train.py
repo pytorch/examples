@@ -61,22 +61,32 @@ parser.add_argument('-optim', default='sgd',
 parser.add_argument('-learning_rate', type=float, default=1.0,
                     help="""Starting learning rate. If adagrad/adadelta/adam is
                     used, then this is the global learning rate. Recommended
-                    settings: sgd = 1, adagrad = 0.1, adadelta = 1, adam = 0.1""")
+                    settings: sgd = 1, adagrad = 0.1, adadelta = 1, adam = 0.001""")
 parser.add_argument('-max_grad_norm', type=float, default=5,
                     help="""If the norm of the gradient vector exceeds this,
                     renormalize it to have the norm equal to max_grad_norm""")
 parser.add_argument('-dropout', type=float, default=0.3,
                     help='Dropout probability; applied between LSTM stacks.')
-parser.add_argument('-learning_rate_decay', type=float, default=0.5,
-                    help="""Decay learning rate by this much if (i) perplexity
-                    does not decrease on the validation set or (ii) epoch has
-                    gone past the start_decay_at_limit""")
-parser.add_argument('-start_decay_at', type=int, default=8,
-                    help="Start decay after this epoch")
+parser.add_argument('-padding_weight', type=int, default=0,
+                    help='The weight to give padding in the loss')
 parser.add_argument('-curriculum', action="store_true",
                     help="""For this many epochs, order the minibatches based
                     on source sequence length. Sometimes setting this to 1 will
                     increase convergence speed.""")
+
+#learning rate
+parser.add_argument('-update_learning_rate', action='store_true',
+                    help="Decay learning rate regardless of optimizer")
+parser.add_argument('-learning_rate_decay', type=float, default=0.5,
+                    help="""If update_learning_rate, decay learning rate by
+                    this much if (i) perplexity does not decrease on the
+                    validation set or (ii) epoch has gone past
+                    start_decay_at""")
+parser.add_argument('-start_decay_at', type=int, default=8,
+                    help="Start decaying every epoch after and including this
+                    epoch")
+
+#pretrained word vectors
 parser.add_argument('-pre_word_vecs_enc',
                     help="""If a valid path is specified, then this will load
                     pretrained word embeddings on the encoder side.
@@ -107,7 +117,7 @@ if opt.gpus:
 
 def NMTCriterion(vocabSize):
     weight = torch.ones(vocabSize)
-    weight[onmt.Constants.PAD] = 0
+    weight[onmt.Constants.PAD] = opt.padding_weight
     crit = nn.NLLLoss(weight, size_average=False)
     if opt.gpus:
         crit.cuda()
@@ -217,7 +227,7 @@ def trainModel(model, trainData, validData, dataset, optim):
         print('Validation perplexity: %g' % valid_ppl)
 
         #  (3) maybe update the learning rate
-        if opt.optim == 'sgd':
+        if opt.update_learning_rate:
             optim.updateLearningRate(valid_loss, epoch)
 
         #  (4) drop a checkpoint
