@@ -32,19 +32,19 @@ Use of OpenNMT consists of four steps:
 
 ```perl multi-bleu.perl data/tgt-test.txt < demo_pred.txt```
 
-## WMT'16 Multimodal Translation: Flickr30k (de-en)
+## WMT'16 Multimodal Translation: Multi30k (de-en)
 
-Data might not come as clean as the demo data. Here is a second example that uses the Moses tokenizer (http://www.statmt.org/moses/) to prepare the Flickr30k data from the WMT'16 Multimodal Translation task (http://www.statmt.org/wmt16/multimodal-task.html).
+Data might not come as clean as the demo data. Here is a second example that uses the Moses tokenizer (http://www.statmt.org/moses/) to prepare the Multi30k data from the WMT'16 Multimodal Translation task (http://www.statmt.org/wmt16/multimodal-task.html).
 
 ### 0) Download the data.
 
-```mkdir -p data/flickr```
+```mkdir -p data/multi30k```
 
-```wget http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/training.tar.gz &&  tar -xf training.tar.gz -C data/flickr && rm training.tar.gz```
+```wget http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/training.tar.gz &&  tar -xf training.tar.gz -C data/multi30k && rm training.tar.gz```
 
-```wget http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/validation.tar.gz && tar -xf validation.tar.gz -C data/flickr && rm validation.tar.gz```
+```wget http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/validation.tar.gz && tar -xf validation.tar.gz -C data/multi30k && rm validation.tar.gz```
 
-```wget https://staff.fnwi.uva.nl/d.elliott/wmt16/mmt16_task1_test.tgz && tar -xf mmt16_task1_test.tgz -C data/flickr && rm mmt16_task1_test.tgz```
+```wget https://staff.fnwi.uva.nl/d.elliott/wmt16/mmt16_task1_test.tgz && tar -xf mmt16_task1_test.tgz -C data/multi30k && rm mmt16_task1_test.tgz```
 
 ### 1) Preprocess the data.
 
@@ -56,24 +56,23 @@ Data might not come as clean as the demo data. Here is a second example that use
 
 ```wget https://github.com/moses-smt/mosesdecoder/blob/master/scripts/share/nonbreaking_prefixes/nonbreaking_prefix.en```
 
-```for l in en de; do for f in data/flickr/*.$l; do if [[ "$f" != *"test"* ]]; then sed -i "$ d" $f; fi; perl tokenizer.perl -no-escape -l $l -q  < $f > $f.tok; done; done```
+```for l in en de; do for f in data/multi30k/*.$l; do if [[ "$f" != *"test"* ]]; then sed -i "$ d" $f; fi; perl tokenizer.perl -no-escape -l $l -q  < $f > $f.tok; done; done```
 
-```python preprocess.py -train_src data/flickr/train.en.tok -train_tgt data/flickr/train.de.tok -valid_src data/flickr/val.en.tok -valid_tgt data/flickr/val.de.tok -save_data data/flickr```
+```python preprocess.py -train_src data/multi30k/train.en.tok -train_tgt data/multi30k/train.de.tok -valid_src data/multi30k/val.en.tok -valid_tgt data/multi30k/val.de.tok -save_data data/multi30k```
 
 ### 2) Train the model.
 
-```python train.py -data data/flickr-train.pt -save_model flickr_model -gpus 0```
+```python train.py -data data/multi30k-train.pt -save_model multi30k_model -gpus 0```
 
 ### 3) Translate sentences.
 
-```python translate.py -gpu 0 -model flickr_model_e7_*.pt -src data/flickr/test.en.tok -tgt data/flickr/test.de.tok -replace_unk -verbose -output flickr_pred.txt```
->>>>>>> c87fc08... tips for non-demo mt via flickr30k example
+```python translate.py -gpu 0 -model multi30k_model_e13_*.pt -src data/multi30k/test.en.tok -tgt data/multi30k/test.de.tok -replace_unk -verbose -output multi30k_pred.txt```
 
 ### 4) Evaluate.
 
 ```wget https://raw.githubusercontent.com/moses-smt/mosesdecoder/master/scripts/generic/multi-bleu.perl```
 
-```perl multi-bleu.perl data/flickr/test.de < flickr_pred.txt```
+```perl multi-bleu.perl data/multi30k/test.de.tok < multi30k_pred.txt```
 
 ## Pretrained Models
 
