@@ -18,7 +18,7 @@ parser.add_argument('-beam_size',  type=int, default=5,
                     help='Beam size')
 parser.add_argument('-batch_size', type=int, default=30,
                     help='Batch size')
-parser.add_argument('-max_sent_length', default=100,
+parser.add_argument('-max_sent_length', type=int, default=100,
                     help='Maximum sentence length.')
 parser.add_argument('-replace_unk', action="store_true",
                     help="""Replace the generated UNK tokens with the source
