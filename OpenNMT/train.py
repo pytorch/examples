@@ -214,10 +214,10 @@ def trainModel(model, trainData, validData, dataset, optim):
             report_tgt_words += num_words
             report_src_words += batch[0].data.ne(onmt.Constants.PAD).sum()
             if i % opt.log_interval == 0 and i > 0:
-                print("Epoch %2d, %5d/%5d; ppl: %6.2f; acc: %6.2f; %3.0f src tok/s; %3.0f tgt tok/s; %6.0f s elapsed" %
+                print("Epoch %2d, %5d/%5d; acc: %6.2f; ppl: %6.2f; %3.0f src tok/s; %3.0f tgt tok/s; %6.0f s elapsed" %
                       (epoch, i, len(trainData),
-                      math.exp(report_loss / report_tgt_words),
                       num_correct / num_words * 100,
+                      math.exp(report_loss / report_tgt_words),
                       report_src_words/(time.time()-start),
                       report_tgt_words/(time.time()-start),
                       time.time()-start_time))
@@ -240,7 +240,7 @@ def trainModel(model, trainData, validData, dataset, optim):
         valid_loss, valid_acc = eval(model, criterion, validData)
         valid_ppl = math.exp(min(valid_loss, 100))
         print('Validation perplexity: %g' % valid_ppl)
-        print('Validation accuracy: %g' % valid_acc)
+        print('Validation accuracy: %g' % (valid_acc*100))
 
         #  (3) maybe update the learning rate
         if opt.update_learning_rate:
@@ -255,7 +255,7 @@ def trainModel(model, trainData, validData, dataset, optim):
             'optim': optim,
         }
         torch.save(checkpoint,
-                   '%s_acc_%.2f_ppl_%.2f_e%d.pt' % (opt.save_model, valid_acc, valid_ppl, epoch))
+                   '%s_acc_%.2f_ppl_%.2f_e%d.pt' % (opt.save_model, 100*valid_acc, valid_ppl, epoch))
 
 def main():
 
