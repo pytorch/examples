@@ -213,7 +213,7 @@ def trainModel(model, trainData, validData, dataset, optim):
             total_words += num_words
             report_tgt_words += num_words
             report_src_words += batch[0].data.ne(onmt.Constants.PAD).sum()
-            if i % opt.log_interval == 0 and i > 0:
+            if i % opt.log_interval == -1 % opt.log_interval:
                 print("Epoch %2d, %5d/%5d; acc: %6.2f; ppl: %6.2f; %3.0f src tok/s; %3.0f tgt tok/s; %6.0f s elapsed" %
                       (epoch, i, len(trainData),
                       num_correct / num_words * 100,
