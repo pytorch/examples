@@ -269,7 +269,8 @@ def main():
     trainData = onmt.Dataset(dataset['train']['src'],
                              dataset['train']['tgt'], opt.batch_size, opt.gpus)
     validData = onmt.Dataset(dataset['valid']['src'],
-                             dataset['valid']['tgt'], opt.batch_size, opt.gpus)
+                             dataset['valid']['tgt'], opt.batch_size, opt.gpus,
+                             volatile=True)
 
     dicts = dataset['dicts']
     print(' * vocabulary size. source = %d; target = %d' %

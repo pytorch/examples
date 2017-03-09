@@ -6,7 +6,7 @@ from torch.autograd import Variable
 
 class Dataset(object):
 
-    def __init__(self, srcData, tgtData, batchSize, cuda):
+    def __init__(self, srcData, tgtData, batchSize, cuda, volatile=False):
         self.src = srcData
         if tgtData:
             self.tgt = tgtData
@@ -16,7 +16,8 @@ class Dataset(object):
         self.cuda = cuda
 
         self.batchSize = batchSize
-        self.numBatches = (len(self.src) + batchSize - 1) // batchSize
+        self.numBatches = len(self.src) // batchSize
+        self.volatile = volatile
 
     def _batchify(self, data, align_right=False):
         max_length = max(x.size(0) for x in data)
@@ -30,7 +31,7 @@ class Dataset(object):
         if self.cuda:
             out = out.cuda()
 
-        v = Variable(out)
+        v = Variable(out, volatile=self.volatile)
         return v
 
     def __getitem__(self, index):
