@@ -186,8 +186,8 @@ def trainModel(model, trainData, validData, dataset, optim):
         # shuffle mini batch order
         batchOrder = torch.randperm(len(trainData))
 
-        total_loss, total_words, total_num_correct = 0
-        report_loss, report_tgt_words, report_src_words, report_num_correct = 0
+        total_loss, total_words, total_num_correct = 0, 0, 0
+        report_loss, report_tgt_words, report_src_words, report_num_correct = 0, 0, 0, 0
         start = time.time()
         for i in range(len(trainData)):
 
@@ -215,7 +215,7 @@ def trainModel(model, trainData, validData, dataset, optim):
             total_words += num_words
             if i % opt.log_interval == -1 % opt.log_interval:
                 print("Epoch %2d, %5d/%5d; acc: %6.2f; ppl: %6.2f; %3.0f src tok/s; %3.0f tgt tok/s; %6.0f s elapsed" %
-                      (epoch, i, len(trainData),
+                      (epoch, i+1, len(trainData),
                       report_num_correct / report_tgt_words * 100,
                       math.exp(report_loss / report_tgt_words),
                       report_src_words/(time.time()-start),
