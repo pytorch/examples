@@ -180,7 +180,7 @@ def trainModel(model, trainData, validData, dataset, optim):
     start_time = time.time()
     def trainEpoch(epoch):
 
-        if opt.extra_shuffle and epoch >= opt.curriculum:
+        if opt.extra_shuffle and epoch > opt.curriculum:
             trainData.shuffle()
 
         # shuffle mini batch order
@@ -192,7 +192,7 @@ def trainModel(model, trainData, validData, dataset, optim):
         start = time.time()
         for i in range(len(trainData)):
 
-            batchIdx = batchOrder[i] if epoch >= opt.curriculum else i
+            batchIdx = batchOrder[i] if epoch > opt.curriculum else i
             batch = trainData[batchIdx]
 
             model.zero_grad()
