@@ -1,3 +1,4 @@
+import math
 import random
 
 import onmt
@@ -16,7 +17,7 @@ class Dataset(object):
         self.cuda = cuda
 
         self.batchSize = batchSize
-        self.numBatches = len(self.src) // batchSize
+        self.numBatches = math.ceil(len(self.src)/batchSize)
         self.volatile = volatile
 
     def _batchify(self, data, align_right=False):
