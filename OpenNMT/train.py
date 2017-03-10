@@ -100,7 +100,7 @@ parser.add_argument('-pre_word_vecs_dec',
 
 # GPU
 parser.add_argument('-gpus', default=[], nargs='+', type=int,
-                    help="Use CUDA")
+                    help="Use CUDA on the listed devices.")
 
 parser.add_argument('-log_interval', type=int, default=50,
                     help="Print stats at this interval.")
@@ -255,7 +255,8 @@ def trainModel(model, trainData, validData, dataset, optim):
             'dicts': dataset['dicts'],
             'opt': opt,
             'epoch': epoch,
-            'optim': optim,
+            'optimizer': optim.optimizer.state_dict(),
+            'last_ppl': optim.last_ppl,
         }
         torch.save(checkpoint,
                    '%s_acc_%.2f_ppl_%.2f_e%d.pt' % (opt.save_model, 100*valid_acc, valid_ppl, epoch))
@@ -299,12 +300,14 @@ def main():
         print('Loading model from checkpoint at %s' % opt.train_from)
         model.load_state_dict(checkpoint['model'])
         generator.load_state_dict(checkpoint['generator'])
-        optim = checkpoint['optim']
         opt.start_epoch = checkpoint['epoch'] + 1
 
     if len(opt.gpus) >= 1:
         model.cuda()
         generator.cuda()
+    else:
+        model.cpu()
+        generator.cpu()
 
     if len(opt.gpus) > 1:
         model = nn.DataParallel(model, device_ids=opt.gpus, dim=1)
@@ -316,11 +319,15 @@ def main():
         for p in model.parameters():
             p.data.uniform_(-opt.param_init, opt.param_init)
 
-        optim = onmt.Optim(
-            model.parameters(), opt.optim, opt.learning_rate, opt.max_grad_norm,
-            lr_decay=opt.learning_rate_decay,
-            start_decay_at=opt.start_decay_at
-        )
+    optim = onmt.Optim(
+        model.parameters(), opt.optim, opt.learning_rate, opt.max_grad_norm,
+        lr_decay=opt.learning_rate_decay,
+        start_decay_at=opt.start_decay_at
+    )
+
+    if opt.train_from:
+        optim.last_ppl = checkpoint['last_ppl']
+        optim.optimizer.load_state_dict(checkpoint['optimizer'])
 
     nParams = sum([p.nelement() for p in model.parameters()])
     print('* number of parameters: %d' % nParams)
