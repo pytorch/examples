@@ -149,7 +149,7 @@ class NMTModel(nn.Module):
                       self._fix_enc_hidden(enc_hidden[1]))
 
         out, dec_hidden, _attn = self.decoder(tgt, enc_hidden, context, init_output)
-        if hasattr(self, 'generate') and self.generate:
+        if hasattr(self, 'generator') and self.generate:
             out = self.generator(out)
 
         return out

@@ -1,4 +1,5 @@
 import onmt
+import torch.nn as nn
 import torch
 from torch.autograd import Variable
 
@@ -9,17 +10,34 @@ class Translator(object):
         self.tt = torch.cuda if opt.cuda else torch
 
         checkpoint = torch.load(opt.model)
-        self.model = checkpoint['model']
 
-        self.model.eval()
-
-        if opt.cuda:
-            self.model.cuda()
-        else:
-            self.model.cpu()
-
+        model_opt = checkpoint['opt']
         self.src_dict = checkpoint['dicts']['src']
         self.tgt_dict = checkpoint['dicts']['tgt']
+
+        encoder = onmt.Models.Encoder(model_opt, self.src_dict)
+        decoder = onmt.Models.Decoder(model_opt, self.tgt_dict)
+        model = onmt.Models.NMTModel(encoder, decoder)
+
+        generator = nn.Sequential(
+            nn.Linear(model_opt.rnn_size, self.tgt_dict.size()),
+            nn.LogSoftmax())
+
+        model.load_state_dict(checkpoint['model'])
+        generator.load_state_dict(checkpoint['generator'])
+
+        if opt.cuda:
+            model.cuda()
+            generator.cuda()
+        else:
+            model.cpu()
+            generator.cpu()
+
+        model.generator = generator
+
+        self.model = model
+        self.model.eval()
+
 
     def buildData(self, srcBatch, goldBatch):
         srcData = [self.src_dict.convertToIdx(b,
