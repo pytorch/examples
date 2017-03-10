@@ -28,9 +28,10 @@ Use of OpenNMT consists of four steps:
 
 ### 4) Evaluate.
 
-```wget https://raw.githubusercontent.com/moses-smt/mosesdecoder/master/scripts/generic/multi-bleu.perl```
-
-```perl multi-bleu.perl data/tgt-test.txt < demo_pred.txt```
+```bash
+wget https://raw.githubusercontent.com/moses-smt/mosesdecoder/master/scripts/generic/multi-bleu.perl
+perl multi-bleu.perl data/tgt-test.txt < demo_pred.txt
+```
 
 ## WMT'16 Multimodal Translation: Multi30k (de-en)
 
@@ -38,27 +39,23 @@ Data might not come as clean as the demo data. Here is a second example that use
 
 ### 0) Download the data.
 
-```mkdir -p data/multi30k```
-
-```wget http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/training.tar.gz &&  tar -xf training.tar.gz -C data/multi30k && rm training.tar.gz```
-
-```wget http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/validation.tar.gz && tar -xf validation.tar.gz -C data/multi30k && rm validation.tar.gz```
-
-```wget https://staff.fnwi.uva.nl/d.elliott/wmt16/mmt16_task1_test.tgz && tar -xf mmt16_task1_test.tgz -C data/multi30k && rm mmt16_task1_test.tgz```
+```bash
+mkdir -p data/multi30k
+wget http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/training.tar.gz &&  tar -xf training.tar.gz -C data/multi30k && rm training.tar.gz
+wget http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/validation.tar.gz && tar -xf validation.tar.gz -C data/multi30k && rm validation.tar.gz
+wget https://staff.fnwi.uva.nl/d.elliott/wmt16/mmt16_task1_test.tgz && tar -xf mmt16_task1_test.tgz -C data/multi30k && rm mmt16_task1_test.tgz
+```
 
 ### 1) Preprocess the data.
 
-```wget https://raw.githubusercontent.com/moses-smt/mosesdecoder/master/scripts/tokenizer/tokenizer.perl```
-
-```sed -i "s/$RealBin\/..\/share\/nonbreaking_prefixes//" tokenizer.perl```
-
-```wget https://github.com/moses-smt/mosesdecoder/blob/master/scripts/share/nonbreaking_prefixes/nonbreaking_prefix.de```
-
-```wget https://github.com/moses-smt/mosesdecoder/blob/master/scripts/share/nonbreaking_prefixes/nonbreaking_prefix.en```
-
-```for l in en de; do for f in data/multi30k/*.$l; do if [[ "$f" != *"test"* ]]; then sed -i "$ d" $f; fi; perl tokenizer.perl -no-escape -l $l -q  < $f > $f.tok; done; done```
-
-```python preprocess.py -train_src data/multi30k/train.en.tok -train_tgt data/multi30k/train.de.tok -valid_src data/multi30k/val.en.tok -valid_tgt data/multi30k/val.de.tok -save_data data/multi30k```
+```bash
+wget https://raw.githubusercontent.com/moses-smt/mosesdecoder/master/scripts/tokenizer/tokenizer.perl
+sed -i "s/$RealBin\/..\/share\/nonbreaking_prefixes//" tokenizer.perl
+wget https://github.com/moses-smt/mosesdecoder/blob/master/scripts/share/nonbreaking_prefixes/nonbreaking_prefix.de
+wget https://github.com/moses-smt/mosesdecoder/blob/master/scripts/share/nonbreaking_prefixes/nonbreaking_prefix.en
+for l in en de; do for f in data/multi30k/*.$l; do if [[ "$f" != *"test"* ]]; then sed -i "$ d" $f; fi; perl tokenizer.perl -no-escape -l $l -q  < $f > $f.tok; done; done
+python preprocess.py -train_src data/multi30k/train.en.tok -train_tgt data/multi30k/train.de.tok -valid_src data/multi30k/val.en.tok -valid_tgt data/multi30k/val.de.tok -save_data data/multi30k
+```
 
 ### 2) Train the model.
 
@@ -70,9 +67,10 @@ Data might not come as clean as the demo data. Here is a second example that use
 
 ### 4) Evaluate.
 
-```wget https://raw.githubusercontent.com/moses-smt/mosesdecoder/master/scripts/generic/multi-bleu.perl```
-
-```perl multi-bleu.perl data/multi30k/test.de.tok < multi30k_pred.txt```
+```bash
+wget https://raw.githubusercontent.com/moses-smt/mosesdecoder/master/scripts/generic/multi-bleu.perl
+perl multi-bleu.perl data/multi30k/test.de.tok < multi30k_pred.txt
+```
 
 ## Pretrained Models
 
