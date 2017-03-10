@@ -115,11 +115,10 @@ class Decoder(nn.Module):
 
 class NMTModel(nn.Module):
 
-    def __init__(self, encoder, decoder, generator):
+    def __init__(self, encoder, decoder):
         super(NMTModel, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
-        self.generator = generator
         self.generate = False
 
     def set_generate(self, enabled):
@@ -150,7 +149,7 @@ class NMTModel(nn.Module):
                       self._fix_enc_hidden(enc_hidden[1]))
 
         out, dec_hidden, _attn = self.decoder(tgt, enc_hidden, context, init_output)
-        if self.generate:
+        if hasattr(self, 'generate') and self.generate:
             out = self.generator(out)
 
         return out

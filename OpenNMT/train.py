@@ -76,9 +76,8 @@ parser.add_argument('-extra_shuffle', action="store_true",
                     shuffle and re-assign mini-batches""")
 
 #learning rate
-
-parser.add_argument('-update_learning_rate', action='store_true',
-                    help="Decay learning rate regardless of optimizer")
+parser.add_argument('-fix_learning_rate', action='store_false', dest='update_learning_rate',
+                    help="Do not decay learning rate (may be desirable for some optimzers (e.g. Adam)")
 parser.add_argument('-learning_rate_decay', type=float, default=0.5,
                     help="""If update_learning_rate, decay learning rate by
                     this much if (i) perplexity does not decrease on the
@@ -158,7 +157,7 @@ def eval(model, criterion, data):
     model.eval()
     for i in range(len(data)):
         batch = data[i]
-        outputs = model(batch)  # FIXME volatile
+        outputs = model(batch)
         targets = batch[1][1:]  # exclude <s> from targets
         loss, _, num_correct = memoryEfficientLoss(
                 outputs, targets, model.generator, criterion, eval=True)
@@ -246,9 +245,13 @@ def trainModel(model, trainData, validData, dataset, optim):
         if opt.update_learning_rate:
             optim.updateLearningRate(valid_loss, epoch)
 
+        model_state_dict = model.module.state_dict() if len(opt.gpus) > 1 else model.state_dict()
+        model_state_dict = {k: v for k, v in model_state_dict.items() if 'generator' not in k}
+        generator_state_dict = model.generator.module.state_dict() if len(opt.gpus) > 1 else model.generator.state_dict()
         #  (4) drop a checkpoint
         checkpoint = {
-            'model': model,
+            'model': model_state_dict,
+            'generator': generator_state_dict,
             'dicts': dataset['dicts'],
             'opt': opt,
             'epoch': epoch,
@@ -262,7 +265,9 @@ def main():
     print("Loading data from '%s'" % opt.data)
 
     dataset = torch.load(opt.data)
+
     if opt.train_from:
+        print('Loading dicts from checkpoint at %s' % opt.train_from)
         checkpoint = torch.load(opt.train_from)
         dataset['dicts'] = checkpoint['dicts']
 
@@ -281,24 +286,33 @@ def main():
 
     print('Building model...')
 
-    if opt.train_from is None:
-        encoder = onmt.Models.Encoder(opt, dicts['src'])
-        decoder = onmt.Models.Decoder(opt, dicts['tgt'])
-        generator = nn.Sequential(
-            nn.Linear(opt.rnn_size, dicts['tgt'].size()),
-            nn.LogSoftmax())
-#        if len(opt.gpus) > 1:
-#            generator = nn.DataParallel(generator, device_ids=opt.gpus)
-        model = onmt.Models.NMTModel(encoder, decoder, generator)
-        if len(opt.gpus) > 1:
-            model = nn.DataParallel(model, device_ids=opt.gpus, dim=1)
-        if opt.gpus:
-            model.cuda()
-        else:
-            model.cpu()
+    encoder = onmt.Models.Encoder(opt, dicts['src'])
+    decoder = onmt.Models.Decoder(opt, dicts['tgt'])
 
-        model.generator = generator
+    generator = nn.Sequential(
+        nn.Linear(opt.rnn_size, dicts['tgt'].size()),
+        nn.LogSoftmax())
 
+    model = onmt.Models.NMTModel(encoder, decoder)
+
+    if opt.train_from:
+        print('Loading model from checkpoint at %s' % opt.train_from)
+        model.load_state_dict(checkpoint['model'])
+        generator.load_state_dict(checkpoint['generator'])
+        optim = checkpoint['optim']
+        opt.start_epoch = checkpoint['epoch'] + 1
+
+    if len(opt.gpus) >= 1:
+        model.cuda()
+        generator.cuda()
+
+    if len(opt.gpus) > 1:
+        model = nn.DataParallel(model, device_ids=opt.gpus, dim=1)
+        generator = nn.DataParallel(generator, device_ids=opt.gpus, dim=0)
+
+    model.generator = generator
+
+    if not opt.train_from:
         for p in model.parameters():
             p.data.uniform_(-opt.param_init, opt.param_init)
 
@@ -307,16 +321,6 @@ def main():
             lr_decay=opt.learning_rate_decay,
             start_decay_at=opt.start_decay_at
         )
-    else:
-        print('Loading from checkpoint at %s' % opt.train_from)
-        checkpoint = torch.load(opt.train_from)
-        model = checkpoint['model']
-        if opt.gpus:
-            model.cuda()
-        else:
-            model.cpu()
-        optim = checkpoint['optim']
-        opt.start_epoch = checkpoint['epoch'] + 1
 
     nParams = sum([p.nelement() for p in model.parameters()])
     print('* number of parameters: %d' % nParams)
