@@ -120,7 +120,7 @@ def memoryEfficientLoss(outputs, targets, generator, crit, eval=False):
     loss = 0
     outputs = Variable(outputs.data, requires_grad=(not eval), volatile=eval).contiguous()
 
-    batch_size = outputs.size(1)
+    batch_size = outputs.size(0)
     outputs_split = torch.split(outputs, opt.max_generator_batches)
     targets_split = torch.split(targets.contiguous(), opt.max_generator_batches)
     for out_t, targ_t in zip(outputs_split, targets_split):
