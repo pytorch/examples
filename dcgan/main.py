@@ -31,6 +31,7 @@ parser.add_argument('--ngpu'  , type=int, default=1, help='number of GPUs to use
 parser.add_argument('--netG', default='', help="path to netG (to continue training)")
 parser.add_argument('--netD', default='', help="path to netD (to continue training)")
 parser.add_argument('--outf', default='.', help='folder to output images and model checkpoints')
+parser.add_argument('--manualSeed', type=int, help='manual seed')
 
 opt = parser.parse_args()
 print(opt)
@@ -39,10 +40,14 @@ try:
     os.makedirs(opt.outf)
 except OSError:
     pass
-opt.manualSeed = random.randint(1, 10000) # fix seed
+
+if opt.manualSeed is None:
+    opt.manualSeed = random.randint(1, 10000)
 print("Random Seed: ", opt.manualSeed)
 random.seed(opt.manualSeed)
 torch.manual_seed(opt.manualSeed)
+if opt.cuda:
+    torch.cuda.manual_seed_all(opt.manualSeed)
 
 cudnn.benchmark = True
 
