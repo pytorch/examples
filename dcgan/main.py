@@ -26,8 +26,8 @@ parser.add_argument('--ndf', type=int, default=64)
 parser.add_argument('--niter', type=int, default=25, help='number of epochs to train for')
 parser.add_argument('--lr', type=float, default=0.0002, help='learning rate, default=0.0002')
 parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam. default=0.5')
-parser.add_argument('--cuda'  , action='store_true', help='enables cuda')
-parser.add_argument('--ngpu'  , type=int, default=1, help='number of GPUs to use')
+parser.add_argument('--cuda', action='store_true', help='enables cuda')
+parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs to use')
 parser.add_argument('--netG', default='', help="path to netG (to continue training)")
 parser.add_argument('--netD', default='', help="path to netD (to continue training)")
 parser.add_argument('--outf', default='.', help='folder to output images and model checkpoints')
@@ -89,6 +89,7 @@ ngf = int(opt.ngf)
 ndf = int(opt.ndf)
 nc = 3
 
+
 # custom weights initialization called on netG and netD
 def weights_init(m):
     classname = m.__class__.__name__
@@ -97,6 +98,7 @@ def weights_init(m):
     elif classname.find('BatchNorm') != -1:
         m.weight.data.normal_(1.0, 0.02)
         m.bias.data.fill_(0)
+
 
 class _netG(nn.Module):
     def __init__(self, ngpu):
@@ -124,17 +126,20 @@ class _netG(nn.Module):
             nn.Tanh()
             # state size. (nc) x 64 x 64
         )
+
     def forward(self, input):
         gpu_ids = None
         if isinstance(input.data, torch.cuda.FloatTensor) and self.ngpu > 1:
             gpu_ids = range(self.ngpu)
         return nn.parallel.data_parallel(self.main, input, gpu_ids)
 
+
 netG = _netG(ngpu)
 netG.apply(weights_init)
 if opt.netG != '':
     netG.load_state_dict(torch.load(opt.netG))
 print(netG)
+
 
 class _netD(nn.Module):
     def __init__(self, ngpu):
@@ -160,12 +165,14 @@ class _netD(nn.Module):
             nn.Conv2d(ndf * 8, 1, 4, 1, 0, bias=False),
             nn.Sigmoid()
         )
+
     def forward(self, input):
         gpu_ids = None
         if isinstance(input.data, torch.cuda.FloatTensor) and self.ngpu > 1:
             gpu_ids = range(self.ngpu)
         output = nn.parallel.data_parallel(self.main, input, gpu_ids)
         return output.view(-1, 1)
+
 
 netD = _netD(ngpu)
 netD.apply(weights_init)
@@ -195,8 +202,8 @@ noise = Variable(noise)
 fixed_noise = Variable(fixed_noise)
 
 # setup optimizer
-optimizerD = optim.Adam(netD.parameters(), lr = opt.lr, betas = (opt.beta1, 0.999))
-optimizerG = optim.Adam(netG.parameters(), lr = opt.lr, betas = (opt.beta1, 0.999))
+optimizerD = optim.Adam(netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
+optimizerG = optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 
 for epoch in range(opt.niter):
     for i, data in enumerate(dataloader, 0):
@@ -231,7 +238,7 @@ for epoch in range(opt.niter):
         # (2) Update G network: maximize log(D(G(z)))
         ###########################
         netG.zero_grad()
-        label.data.fill_(real_label) # fake labels are real for generator cost
+        label.data.fill_(real_label)  # fake labels are real for generator cost
         output = netD(fake)
         errG = criterion(output, label)
         errG.backward()
