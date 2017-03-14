@@ -92,6 +92,7 @@ class Dict(object):
         _, idx = torch.sort(freq, 0, True)
 
         newDict = Dict()
+        newDict.lower = self.lower
 
         # Add special entries in all cases.
         for i in self.special:
