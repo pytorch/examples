@@ -17,7 +17,10 @@ parser.add_argument('-save_model', default='model',
                     help="""Model filename (the model will be saved as
                     <save_model>_epochN_PPL.pt where PPL is the
                     validation perplexity""")
-parser.add_argument('-train_from',
+parser.add_argument('-train_from_state_dict', default='', type=str,
+                    help="""If training from a checkpoint then this is the
+                    path to the pretrained model's state_dict.""")
+parser.add_argument('-train_from', default='', type=str,
                     help="""If training from a checkpoint then this is the
                     path to the pretrained model.""")
 
@@ -267,9 +270,10 @@ def main():
 
     dataset = torch.load(opt.data)
 
-    if opt.train_from:
-        print('Loading dicts from checkpoint at %s' % opt.train_from)
-        checkpoint = torch.load(opt.train_from)
+    dict_checkpoint = opt.train_from if opt.train_from else opt.train_from_state_dict
+    if dict_checkpoint:
+        print('Loading dicts from checkpoint at %s' % dict_checkpoint)
+        checkpoint = torch.load(dict_checkpoint)
         dataset['dicts'] = checkpoint['dicts']
 
     trainData = onmt.Dataset(dataset['train']['src'],
@@ -298,8 +302,16 @@ def main():
 
     if opt.train_from:
         print('Loading model from checkpoint at %s' % opt.train_from)
+        chk_model = checkpoint['model']
+        generator_state_dict = chk_model.generator.state_dict()
+        model_state_dict = {k: v for k, v in chk_model.state_dict().items() if 'generator' not in k}
+        model.load_state_dict(model_state_dict)
+        generator.load_state_dict(generator_state_dict)
+        opt.start_epoch = checkpoint['epoch'] + 1
+
+    if opt.train_from_state_dict:
+        print('Loading model from checkpoint at %s' % opt.train_from_state_dict)
         model.load_state_dict(checkpoint['model'])
-        generator.load_state_dict(checkpoint['generator'])
         opt.start_epoch = checkpoint['epoch'] + 1
 
     if len(opt.gpus) >= 1:
@@ -315,7 +327,7 @@ def main():
 
     model.generator = generator
 
-    if not opt.train_from:
+    if not opt.train_from_state_dict and not opt.train_from:
         for p in model.parameters():
             p.data.uniform_(-opt.param_init, opt.param_init)
 
@@ -326,7 +338,9 @@ def main():
     )
 
     if opt.train_from:
-        optim.last_ppl = checkpoint['last_ppl']
+        optim.optimizer.load_state_dict(checkpoint['optim'].optimizer.state_dict())
+
+    if opt.train_from_state_dict:
         optim.optimizer.load_state_dict(checkpoint['optimizer'])
 
     nParams = sum([p.nelement() for p in model.parameters()])
