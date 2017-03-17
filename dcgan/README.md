@@ -12,7 +12,7 @@ After every epoch, models are saved to: `netG_epoch_%d.pth` and `netD_epoch_%d.p
 ##Downloading the dataset
 You can download the LSUN dataset by cloning [this repo](https://github.com/fyu/lsun) and running
 ```
-python donwload.py -c bedroom
+python download.py -c bedroom
 ```
 
 ##Usage
