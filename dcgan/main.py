@@ -211,6 +211,8 @@ for epoch in range(opt.niter):
         # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
         ###########################
         # train with real
+        netD.train()
+        netG.eval()
         netD.zero_grad()
         real_cpu, _ = data
         batch_size = real_cpu.size(0)
@@ -237,6 +239,7 @@ for epoch in range(opt.niter):
         ############################
         # (2) Update G network: maximize log(D(G(z)))
         ###########################
+        netG.train()
         netG.zero_grad()
         label.data.fill_(real_label)  # fake labels are real for generator cost
         output = netD(fake)
@@ -251,6 +254,7 @@ for epoch in range(opt.niter):
         if i % 100 == 0:
             vutils.save_image(real_cpu,
                     '%s/real_samples.png' % opt.outf)
+            netG.eval()
             fake = netG(fixed_noise)
             vutils.save_image(fake.data,
                     '%s/fake_samples_epoch_%03d.png' % (opt.outf, epoch))
