@@ -25,7 +25,7 @@ class Sequence(nn.Module):
             h_t, c_t = self.lstm1(input_t, (h_t, c_t))
             h_t2, c_t2 = self.lstm2(c_t, (h_t2, c_t2))
             outputs += [c_t2]
-        for i in range(future):
+        for i in range(future):# if we should predict the future
             h_t, c_t = self.lstm1(c_t2, (h_t, c_t))
             h_t2, c_t2 = self.lstm2(c_t, (h_t2, c_t2))
             outputs += [c_t2]
@@ -49,13 +49,13 @@ if __name__ == '__main__':
     # use LBFGS as optimizer since we can load the whole data to train
     optimizer = optim.LBFGS(seq.parameters())
     #begin to train
-    for i in range(20):
-        print i
+    for i in range(10):
+        print('STEP: ', i)
         def closure():
             optimizer.zero_grad()
             out = seq(input)
             loss = criterion(out, target)
-            print 'loss:', loss.data.numpy()[0]
+            print('loss:', loss.data.numpy()[0])
             loss.backward()
             return loss
         optimizer.step(closure)
