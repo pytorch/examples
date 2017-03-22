@@ -1,5 +1,5 @@
 # Time Sequence Prediction
-This is a toy example for beginners to start with both pytorch and time sequence prediction. Two LSTMCell is used in this example to learn some sine wave signals starting at different phase. After learning the sine waves, the network try to predict the signals in the future. The results is shown in the picture below.
+This is a toy example for beginners to start with. It is helpful for learning both pytorch and time sequence prediction. Two LSTMCell is used in this example to learn some sine wave signals starting at different phase. After learning the sine waves, the network try to predict the signals in the future. The results is shown in the picture below.
 
 ## Usage
 
