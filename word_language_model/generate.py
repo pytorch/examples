@@ -46,6 +46,7 @@ if args.temperature < 1e-3:
 
 with open(args.checkpoint, 'rb') as f:
     model = torch.load(f)
+model.eval()
 
 if args.cuda:
     model.cuda()
