@@ -20,10 +20,6 @@ def train(args):
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
 
-    if args.cuda and not torch.cuda.is_available():
-        print("ERROR: cuda is not available, try running on CPU")
-        sys.exit(1)
-
     if args.cuda:
         torch.cuda.manual_seed(args.seed)
         kwargs = {'num_workers': 0, 'pin_memory': False}
@@ -133,10 +129,17 @@ def check_paths(args):
 def stylize(args):
     content_image = utils.tensor_load_rgbimage(args.content_image, scale=args.content_scale)
     content_image = content_image.unsqueeze(0)
+
+    if args.cuda:
+        content_image = content_image.cuda()
     content_image = Variable(utils.preprocess_batch(content_image))
     style_model = torch.load(args.model)
+
+    if args.cuda:
+        style_model.cuda()
+
     output = style_model(content_image)
-    utils.tensor_save_bgrimage(output.data[0], args.output_image)
+    utils.tensor_save_bgrimage(output.data[0], args.output_image, args.cuda)
 
 
 def main():
@@ -182,11 +185,17 @@ def main():
                                  help="path for saving the output image")
     eval_arg_parser.add_argument("--model", type=str, required=True,
                                  help="saved model to be used for stylizing the image")
+    eval_arg_parser.add_argument("--cuda", type=int, required=True,
+                                 help="set it to 1 for running on GPU, 0 for CPU")
 
     args = main_arg_parser.parse_args()
 
     if args.subcommand is None:
         print("ERROR: specify either train or eval")
+        sys.exit(1)
+
+    if args.cuda and not torch.cuda.is_available():
+        print("ERROR: cuda is not available, try running on CPU")
         sys.exit(1)
 
     if args.subcommand == "train":
