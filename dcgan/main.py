@@ -133,7 +133,7 @@ class _netG(nn.Module):
             gpu_ids = range(self.ngpu)
             return nn.parallel.data_parallel(self.main, input, gpu_ids)
         else:
-            return self.main.forward(input)
+            return self.main(input)
 
 
 netG = _netG(ngpu)
@@ -174,7 +174,7 @@ class _netD(nn.Module):
             gpu_ids = range(self.ngpu)
             output = nn.parallel.data_parallel(self.main, input, gpu_ids)
         else:
-            output=self.main.forward(input)
+            output=self.main(input)
         return output.view(-1, 1)
 
 
