@@ -45,7 +45,6 @@ def gram_matrix(y):
 
 
 def subtract_imagenet_mean_batch(batch):
-    """Subtract ImageNet mean pixel-wise from a BGR image."""
     tensortype = type(batch.data)
     mean = tensortype(batch.data.size())
     mean[:, 0, :, :] = 103.939
@@ -63,11 +62,10 @@ def preprocess_batch(batch):
 
 
 def init_vgg16(model_folder):
-    """load the vgg16 model feature"""
     if not os.path.exists(os.path.join(model_folder, 'vgg16.weight')):
         if not os.path.exists(os.path.join(model_folder, 'vgg16.t7')):
             os.system(
-                'wget http://cs.stanford.edu/people/jcjohns/fast-neural-style/models/vgg16.t7 -O ' + os.path.join(model_folder, 'vgg16.t7'))
+                'wget https://www.dropbox.com/s/76l3rt4kyi3s8x7/vgg16.t7?dl=1 -O ' + os.path.join(model_folder, 'vgg16.t7'))
         vgglua = load_lua(os.path.join(model_folder, 'vgg16.t7'))
         vgg = Vgg16()
         for (src, dst) in zip(vgglua.parameters()[0], vgg.parameters()):
