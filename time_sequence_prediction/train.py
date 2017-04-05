@@ -2,7 +2,6 @@ from __future__ import print_function
 import torch
 import torch.nn as nn 
 from torch.autograd import Variable
-import cPickle as pickle
 import torch.optim as optim
 import numpy as np
 import matplotlib
@@ -40,7 +39,7 @@ if __name__ == '__main__':
     np.random.seed(0)
     torch.manual_seed(0)
     # load data and make training set
-    data = pickle.load(open('traindata.pkl'))
+    data = torch.load(open('traindata.pt'))
     input = Variable(torch.from_numpy(data[3:, :-1]), requires_grad=False)
     target = Variable(torch.from_numpy(data[3:, 1:]), requires_grad=False)
     # build the model
