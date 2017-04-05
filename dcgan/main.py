@@ -128,10 +128,11 @@ class _netG(nn.Module):
         )
 
     def forward(self, input):
-        gpu_ids = None
-        if isinstance(input.data, torch.cuda.FloatTensor) and self.ngpu >= 1:
-            gpu_ids = range(self.ngpu)
-        return nn.parallel.data_parallel(self.main, input, gpu_ids)
+        if isinstance(input.data, torch.cuda.FloatTensor) and self.ngpu > 1:
+            output = nn.parallel.data_parallel(self.main, input, range(self.ngpu))
+        else:
+            output = self.main(input)
+        return output
 
 
 netG = _netG(ngpu)
@@ -167,10 +168,11 @@ class _netD(nn.Module):
         )
 
     def forward(self, input):
-        gpu_ids = None
-        if isinstance(input.data, torch.cuda.FloatTensor) and self.ngpu > =1:
-            gpu_ids = range(self.ngpu)
-        output = nn.parallel.data_parallel(self.main, input, gpu_ids)
+        if isinstance(input.data, torch.cuda.FloatTensor) and self.ngpu > 1:
+            output = nn.parallel.data_parallel(self.main, input, range(self.ngpu))
+        else:
+            output = self.main(input)
+
         return output.view(-1, 1)
 
 
