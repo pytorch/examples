@@ -2,7 +2,6 @@ import torch.utils.data as data
 
 from os import listdir
 from os.path import join
-import numpy as np
 from PIL import Image
 
 

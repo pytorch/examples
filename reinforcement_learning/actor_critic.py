@@ -10,12 +10,11 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.autograd as autograd
 from torch.autograd import Variable
-import torchvision.transforms as T
 
 
 parser = argparse.ArgumentParser(description='PyTorch actor-critic example')
-parser.add_argument('--gamma', type=int, default=0.999, metavar='G',
-                    help='discount factor (default: 0.999)')
+parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
+                    help='discount factor (default: 0.99)')
 parser.add_argument('--seed', type=int, default=543, metavar='N',
                     help='random seed (default: 1)')
 parser.add_argument('--render', action='store_true',
@@ -49,7 +48,7 @@ class Policy(nn.Module):
 
 
 model = Policy()
-optimizer = optim.Adam(model.parameters(), lr=1e-2)
+optimizer = optim.Adam(model.parameters(), lr=3e-2)
 
 
 def select_action(state):
@@ -69,9 +68,10 @@ def finish_episode():
         R = r + args.gamma * R
         rewards.insert(0, R)
     rewards = torch.Tensor(rewards)
-    rewards = (rewards - rewards.mean()) / rewards.std()
+    rewards = (rewards - rewards.mean()) / (rewards.std() + np.finfo(np.float32).eps)
     for (action, value), r in zip(saved_actions, rewards):
-        action.reinforce(r)
+        reward = r - value.data[0,0]
+        action.reinforce(reward)
         value_loss += F.smooth_l1_loss(value, Variable(torch.Tensor([r])))
     optimizer.zero_grad()
     final_nodes = [value_loss] + list(map(lambda p: p.action, saved_actions))

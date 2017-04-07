@@ -2,7 +2,6 @@ import argparse
 import gym
 import numpy as np
 from itertools import count
-from collections import namedtuple
 
 import torch
 import torch.nn as nn
@@ -10,11 +9,10 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.autograd as autograd
 from torch.autograd import Variable
-import torchvision.transforms as T
 
 
 parser = argparse.ArgumentParser(description='PyTorch REINFORCE example')
-parser.add_argument('--gamma', type=int, default=0.99, metavar='G',
+parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
                     help='discount factor (default: 0.99)')
 parser.add_argument('--seed', type=int, default=543, metavar='N',
                     help='random seed (default: 1)')
@@ -65,7 +63,7 @@ def finish_episode():
         R = r + args.gamma * R
         rewards.insert(0, R)
     rewards = torch.Tensor(rewards)
-    rewards = (rewards - rewards.mean()) / rewards.std()
+    rewards = (rewards - rewards.mean()) / (rewards.std() + np.finfo(np.float32).eps)
     for action, r in zip(model.saved_actions, rewards):
         action.reinforce(r)
     optimizer.zero_grad()
