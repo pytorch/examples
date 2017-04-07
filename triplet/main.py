@@ -11,21 +11,22 @@
 from __future__ import print_function
 import argparse
 import torch
+import torch.nn.init
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
+import torchvision.datasets as dset
 import torchvision.transforms as transforms
 from torch.autograd import Variable
-from torch.autograd import Function
 import torch.backends.cudnn as cudnn
 
 import os
 import cv2
+import math
 import numpy as np
 from tqdm import tqdm
 
-from phototour import PhotoTour
 from eval_metrics import ErrorRateAt95Recall
-
 from tensorboard_logger import configure, log_value
 
 # Training settings
@@ -85,9 +86,7 @@ if not os.path.exists(args.log_dir):
     os.makedirs(args.log_dir)
 
 if args.cuda:
-    cudnn.enabled = True
     cudnn.benchmark = True
-    torch.cuda.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
 
 LOG_DIR = args.log_dir + '/run-optim_{}-n{}-lr{}-wd{}-m{}-S{}-tanh'\
@@ -125,7 +124,7 @@ class Logger(object):
 logger = Logger(LOG_DIR)
 
 
-class TripletPhotoTour(PhotoTour):
+class TripletPhotoTour(dset.PhotoTour):
     """From the PhotoTour Dataset it generates triplet samples
     note: a triplet is composed by a pair of matching images and one of
     different class.
@@ -174,25 +173,24 @@ class TripletPhotoTour(PhotoTour):
         return torch.LongTensor(np.array(triplets))
 
     def __getitem__(self, index):
-        def transform(img):
-            """Convert image into numpy array and apply transformation
-               Doing this so that it is consistent with all other datasets
-               to return a PIL Image.
-            """
-            if transform is not None:
+        def transform_img(img):
+            if self.transform is not None:
                 img = self.transform(img.numpy())
             return img
 
         if not self.train:
             m = self.matches[index]
-            img1, img2 = transform(self.data[m[0]]), transform(self.data[m[1]])
+            img1 = transform_img(self.data[m[0]])
+            img2 = transform_img(self.data[m[1]])
             return img1, img2, m[2]
 
         t = self.triplets[index]
         a, p, n = self.data[t[0]], self.data[t[1]], self.data[t[2]]
 
         # transform images if required
-        img_a, img_p, img_n = transform(a), transform(p), transform(n)
+        img_a = transform_img(a)
+        img_p = transform_img(p)
+        img_n = transform_img(n)
         return img_a, img_p, img_n
 
     def __len__(self):
@@ -227,99 +225,9 @@ class TNet(nn.Module):
 
 
 def weights_init(m):
-    # From https://github.com/alykhantejani/nninit/blob/master/nninit.py#L66
-    def _calculate_fan_in_and_fan_out(tensor):
-        if tensor.ndimension() < 2:
-            raise ValueError(
-               "fan in and fan out can not be computed for tensor of size ",
-               tensor.size())
-
-        if tensor.ndimension() == 2:  # Linear
-            fan_in = tensor.size(1)
-            fan_out = tensor.size(0)
-        else:
-            num_input_fmaps = tensor.size(1)
-            num_output_fmaps = tensor.size(0)
-            receptive_field_size = np.prod(tensor.numpy().shape[2:])
-            fan_in = num_input_fmaps * receptive_field_size
-            fan_out = num_output_fmaps * receptive_field_size
-
-        return fan_in, fan_out
-
-    def xavier_uniform(data, gain=1):
-        fan_in, fan_out = _calculate_fan_in_and_fan_out(data)
-        std = gain * np.sqrt(2.0 / (fan_in + fan_out))
-        a = np.sqrt(3.0) * std
-        data.uniform_(-a, a)
-
-    def constant(tensor, val):
-        tensor.fill_(val)
-
     if isinstance(m, nn.Conv2d):
-        xavier_uniform(m.weight.data)
-        constant(m.bias.data, 0.1)
-
-
-class PairwiseDistance(Function):
-    def __init__(self, p):
-        super(PairwiseDistance, self).__init__()
-        self.norm = p
-
-    def forward(self, x1, x2):
-        assert x1.size() == x2.size()
-        eps = 1e-4 / x1.size(1)
-        diff = torch.abs(x1 - x2)
-        out = torch.pow(diff, self.norm).sum(dim=1)
-        return torch.pow(out + eps, 1. / self.norm)
-
-
-class TripletMarginLoss(Function):
-    """Triplet loss function.
-    """
-    def __init__(self, margin):
-        super(TripletMarginLoss, self).__init__()
-        self.margin = margin
-        self.pdist = PairwiseDistance(2)  # norm 2
-
-    def forward(self, anchor, positive, negative):
-        d_p = self.pdist.forward(anchor, positive)
-        d_n = self.pdist.forward(anchor, negative)
-
-        dist_hinge = torch.clamp(self.margin + d_p - d_n, min=0.0)
-        loss = torch.mean(dist_hinge)
-        return loss
-
-
-class TripletMarginLossSwap(Function):
-    """Triplet loss function.
-    """
-    def __init__(self, margin):
-        super(TripletMarginLossSwap, self).__init__()
-        self.margin = margin
-        self.pdist = PairwiseDistance(2)
-
-    def forward(self, anchor, positive, negative):
-        d_p = self.pdist.forward(anchor, positive)
-        d_n = self.pdist.forward(anchor, negative)
-        d_n_ = self.pdist.forward(positive, negative)
-
-        d_s = torch.min(d_n, d_n_)
-
-        dist_hinge = torch.clamp(self.margin + d_p - d_s, min=0.0)
-        loss = torch.mean(dist_hinge)
-        return loss
-
-
-def triplet_loss(input1, input2, input3, margin=1.0):
-    """Interface to call TripletMarginLoss
-    """
-    return TripletMarginLoss(margin).forward(input1, input2, input3)
-
-
-def triplet_loss_swap(input1, input2, input3, margin=1.0):
-    """Interface to call TripletMarginLoss
-    """
-    return TripletMarginLossSwap(margin).forward(input1, input2, input3)
+        nn.init.xavier_uniform(m.weight.data, gain=math.sqrt(2.0))
+        nn.init.constant(m.bias.data, 0.1)
 
 cv2_scale = lambda x: cv2.resize(x, dsize=(32, 32),
                                  interpolation=cv2.INTER_LINEAR)
@@ -328,24 +236,22 @@ np_reshape = lambda x: np.reshape(x, (1, 32, 32))
 kwargs = {'num_workers': 2, 'pin_memory': True} if args.cuda else {}
 train_loader = torch.utils.data.DataLoader(
     TripletPhotoTour(train=True, root=args.dataroot, name='notredame',
-                     download=True, size=32,
-                     transform=transforms.Compose([
-                         transforms.Lambda(cv2_scale),
-                         transforms.Lambda(np_reshape),
-                         transforms.ToTensor(),
-                         transforms.Normalize((0.48544601108437,), (0.18649942105166,))
-                     ])),
+                     download=True, transform=transforms.Compose([
+                        transforms.Lambda(cv2_scale),
+                        transforms.Lambda(np_reshape),
+                        transforms.ToTensor(),
+                        transforms.Normalize((0.48544601108437,), (0.18649942105166,))
+                        ])),
     batch_size=args.batch_size, shuffle=True, **kwargs)
 
 test_loader = torch.utils.data.DataLoader(
     TripletPhotoTour(train=False, root=args.dataroot, name='liberty',
-                     download=True, size=32,
-                     transform=transforms.Compose([
-                         transforms.Lambda(cv2_scale),
-                         transforms.Lambda(np_reshape),
-                         transforms.ToTensor(),
-                         transforms.Normalize((0.48544601108437,), (0.18649942105166,))
-                     ])),
+                     download=True, transform=transforms.Compose([
+                        transforms.Lambda(cv2_scale),
+                        transforms.Lambda(np_reshape),
+                        transforms.ToTensor(),
+                        transforms.Normalize((0.48544601108437,), (0.18649942105166,))
+                        ])),
     batch_size=args.test_batch_size, shuffle=False, **kwargs)
 
 
@@ -395,7 +301,7 @@ def train(train_loader, model, optimizer, epoch):
 
         # compute output
         out_a, out_p, out_n = model(data_a), model(data_p), model(data_n)
-        loss = triplet_loss(out_a, out_p, out_n, margin=args.margin)
+        loss = F.triplet_margin_loss(out_a, out_p, out_n, margin=args.margin)
 
         # compute gradient and update weights
         optimizer.zero_grad()
@@ -476,11 +382,8 @@ def create_optimizer(model, new_lr):
     elif args.optimizer == 'adam':
         optimizer = optim.Adam(model.parameters(), lr=new_lr,
                                weight_decay=args.wd)
-    elif args.optimizer == 'adagrad':
-        optimizer = optim.Adagrad(model.parameters(),
-                                  lr=new_lr,
-                                  lr_decay=args.lr_decay,
-                                  weight_decay=args.wd)
+    else:
+        raise Exception('Not supported optimizer: {0}'.format(args.optimizer))
     return optimizer
 
 if __name__ == '__main__':
