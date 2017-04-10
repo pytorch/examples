@@ -12,9 +12,9 @@ import os
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch face recognition Example')
-parser.add_argument('--batch-size', type=int, default=128, metavar='N',
+parser.add_argument('--batch_size', type=int, default=128, metavar='N',
                     help='input batch size for training (default: 128)')
-parser.add_argument('--test-batch-size', type=int, default=64, metavar='N',
+parser.add_argument('--test_batch_size', type=int, default=64, metavar='N',
                     help='input batch size for testing (default: 64)')
 parser.add_argument('--epochs', type=int, default=10, metavar='N',
                     help='number of epochs to train (default: 10)')
@@ -24,6 +24,7 @@ parser.add_argument('--max_iter', type=int, default=100000, metavar='S',
                     help='random seed (default: 1)')
 parser.add_argument('--lr', type=float, default=0.001, help='learning rate, default=0.001')
 parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam. default=0.5')
+parser.add_argument('--center_loss_weight', type=float, default=0.01, help='weight for center loss')
 parser.add_argument('--root', type=str,
         help='path to the data directory containing aligned face patches. Multiple directories are separated with colon.',
         default='./datasets/raw')
@@ -85,6 +86,7 @@ def main():
         train_loader=train_loader,
         val_loader=val_loader,
         max_iter=args.max_iter,
+        center_loss_weight = args.center_loss_weight
     )
 
     if args.resume:

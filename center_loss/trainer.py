@@ -72,7 +72,7 @@ def get_center_loss(centers, features, target, alpha, num_classes):
 
 class Trainer(object):
     def __init__(self, cuda, model, optimizer,
-                 train_loader, val_loader, max_iter):
+                 train_loader, val_loader, max_iter, center_loss_weight):
         self.cuda = cuda
         self.model = model
         self.optim = optimizer
@@ -85,6 +85,7 @@ class Trainer(object):
         self.top1 = AverageMeter()
         self.losses = AverageMeter()
         self.best_prec1 = 0
+        self.center_loss_weight =  center_loss_weight
 
     def validate(self):
         self.model.eval()
@@ -126,7 +127,7 @@ class Trainer(object):
 
             center_loss, self.model.centers = get_center_loss(self.model.centers, self.model.features, target_var, 1, self.model.num_classes)
             softmax_loss = self.criterion(output, target_var)
-            loss = center_loss + softmax_loss
+            loss = self.center_loss_weight*center_loss + softmax_loss
 
             # measure accuracy and record loss
             prec = accuracy(output.data, target, topk=(1,))
