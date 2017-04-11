@@ -72,7 +72,7 @@ def finish_episode():
     del model.saved_actions[:]
 
 
-running_reward = 0
+running_reward = 10
 for i_episode in count(1):
     state = env.reset()
     for t in range(10000): # Don't infinite loop while learning
