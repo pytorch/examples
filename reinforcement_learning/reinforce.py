@@ -15,10 +15,10 @@ parser = argparse.ArgumentParser(description='PyTorch REINFORCE example')
 parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
                     help='discount factor (default: 0.99)')
 parser.add_argument('--seed', type=int, default=543, metavar='N',
-                    help='random seed (default: 1)')
+                    help='random seed (default: 543)')
 parser.add_argument('--render', action='store_true',
                     help='render the environment')
-parser.add_argument('--log-interval', type=int, default=10, metavar='N',
+parser.add_argument('--log_interval', type=int, default=10, metavar='N',
                     help='interval between training status logs (default: 10)')
 args = parser.parse_args()
 
@@ -57,7 +57,6 @@ def select_action(state):
 
 def finish_episode():
     R = 0
-    saved_actions = model.saved_actions
     rewards = []
     for r in model.rewards[::-1]:
         R = r + args.gamma * R
@@ -73,7 +72,7 @@ def finish_episode():
     del model.saved_actions[:]
 
 
-running_reward = 10
+running_reward = 0
 for i_episode in count(1):
     state = env.reset()
     for t in range(10000): # Don't infinite loop while learning
