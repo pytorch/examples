@@ -34,11 +34,11 @@ There are several command line arguments, the important ones are listed below
 * `--save-model-dir`: path to folder where trained model will be saved.
 * `--cuda`: set it to 1 for running on GPU, 0 for CPU.
 
-Refer to ``neural_style/neural_style.py`` for other command line arguments.
+Refer to ``neural_style/neural_style.py`` for other command line arguments. For training new models you might have to tune the values of `--content-weight` and `--style-weight`. The mosaic style model shown above was trained with `--content-weight 1e5` and `--style-weight 1e10`. The remaining 3 models were also trained with similar order of weight parameters with slight variation in the `--style-weight` (`5e10` or `1e11`).
 
 ## Models
 
-Models for the examples shown below can be downloaded from [here](https://www.dropbox.com/s/pji9s13bamykvqj/fns_saved_models.zip?dl=0) or by running the script ``download_saved_models.sh``.
+Models for the examples shown below can be downloaded from [here](https://www.dropbox.com/s/pji9s13bamykvqj/fns_saved_models.zip?dl=0) or by running the script ``download_saved_models.sh``. 
 
 <div align='center'>
   <img src='images/content-images/amber.jpg' height="174px">		
