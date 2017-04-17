@@ -192,8 +192,8 @@ def main():
                                   help="weight for content-loss, default is 1e5")
     train_arg_parser.add_argument("--style-weight", type=float, default=1e10,
                                   help="weight for style-loss, default is 1e10")
-    train_arg_parser.add_argument("--lr", type=float, default=1e-2,
-                                  help="learning rate, default is 0.01")
+    train_arg_parser.add_argument("--lr", type=float, default=1e-3,
+                                  help="learning rate, default is 1e-3")
     train_arg_parser.add_argument("--log-interval", type=int, default=500,
                                   help="number of images after which the training loss is logged, default is 500")
     train_arg_parser.add_argument("--checkpoint-interval", type=int, default=2000,
