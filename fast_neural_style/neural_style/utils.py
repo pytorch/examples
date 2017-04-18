@@ -29,8 +29,7 @@ def gram_matrix(y):
 
 def normalize_batch(batch):
     """
-    :param batch: input tensors with pixels in range [0, 255]
-    :return: normalized tensors using imagenet mean and variance
+    normalize batch using imagenet mean and variance.
     """
     tensortype = type(batch.data)
     mean = tensortype(batch.data.size())
