@@ -1,5 +1,6 @@
 from __future__ import print_function
 import argparse
+import sys
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -19,14 +20,21 @@ parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
                     help='learning rate (default: 0.01)')
 parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
                     help='SGD momentum (default: 0.5)')
-parser.add_argument('--no-cuda', action='store_true', default=False,
-                    help='enables CUDA training')
+parser.add_argument('--gpu', type=int,
+                    help='gpu id to be used. -1 represents cpu mode.')
 parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
 parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                     help='how many batches to wait before logging training status')
 args = parser.parse_args()
-args.cuda = not args.no_cuda and torch.cuda.is_available()
+
+args.cuda = torch.cuda.is_available()
+if args.gpu is not None:
+    if args.gpu < 0:
+        args.cuda = False
+    elif not args.cuda:
+        print('GPU id is specified but cuda is unavailable,'
+              ' so running on CPU mode.', file=sys.stderr)
 
 torch.manual_seed(args.seed)
 if args.cuda:
@@ -69,6 +77,7 @@ class Net(nn.Module):
 
 model = Net()
 if args.cuda:
+    torch.cuda.set_device(args.gpu)
     model.cuda()
 
 optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
