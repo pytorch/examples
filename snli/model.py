@@ -10,7 +10,7 @@ class Bottle(nn.Module):
             return super(Bottle, self).forward(input)
         size = input.size()[:2]
         out = super(Bottle, self).forward(input.view(size[0]*size[1], -1))
-        return out.view(*size, -1)
+        return out.view(size[0], size[1], -1)
 
 
 class Linear(Bottle, nn.Linear):
