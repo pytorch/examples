@@ -53,7 +53,7 @@ def train(args):
     style_v = Variable(style, volatile=True)
     style_v = utils.normalize_batch(style_v)
     features_style = vgg(style_v)
-    gram_style = [utils.gram_matrix(y) for y in features_style]
+    gram_style = [utils.gram_matrix(y).data for y in features_style]
 
     for e in range(args.epochs):
         transformer.train()
@@ -78,15 +78,16 @@ def train(args):
             features_y = vgg(y)
             features_xc = vgg(xc)
 
-            f_xc_c = Variable(features_xc[1].data, requires_grad=False)
+            f_xc_c = Variable(features_xc.relu2_2.data, requires_grad=False)
 
-            content_loss = args.content_weight * mse_loss(features_y[1], f_xc_c)
+            content_loss = args.content_weight * mse_loss(features_y.relu2_2, f_xc_c)
 
             style_loss = 0.
-            for m in range(len(features_y)):
-                gram_s = Variable(gram_style[m].data, requires_grad=False)
-                gram_y = utils.gram_matrix(features_y[m])
-                style_loss += args.style_weight * mse_loss(gram_y, gram_s[:n_batch, :, :])
+            for ft_y, gm_style in zip(features_y, gram_style):
+                gram_s = Variable(gm_style, requires_grad=False)
+                gram_y = utils.gram_matrix(ft_y)
+                style_loss += mse_loss(gram_y, gram_s[:n_batch, :, :])
+            style_loss *= args.style_weight
 
             total_loss = content_loss + style_loss
             total_loss.backward()

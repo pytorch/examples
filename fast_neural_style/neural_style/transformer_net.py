@@ -1,6 +1,4 @@
 import torch
-import torch.nn as nn
-import numpy as np
 
 
 class TransformerNet(torch.nn.Module):
@@ -30,7 +28,7 @@ class TransformerNet(torch.nn.Module):
         self.deconv3 = ConvLayer(32, 3, kernel_size=9, stride=1)
 
         # Non-linearities
-        self.relu = nn.ReLU()
+        self.relu = torch.nn.ReLU()
 
     def forward(self, X):
         in_X = X
@@ -51,9 +49,9 @@ class TransformerNet(torch.nn.Module):
 class ConvLayer(torch.nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride):
         super(ConvLayer, self).__init__()
-        reflection_padding = int(np.floor(kernel_size / 2))
-        self.reflection_pad = nn.ReflectionPad2d(reflection_padding)
-        self.conv2d = nn.Conv2d(in_channels, out_channels, kernel_size, stride)
+        reflection_padding = kernel_size // 2
+        self.reflection_pad = torch.nn.ReflectionPad2d(reflection_padding)
+        self.conv2d = torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride)
 
     def forward(self, x):
         out = self.reflection_pad(x)
@@ -73,7 +71,7 @@ class ResidualBlock(torch.nn.Module):
         self.in1 = InstanceNormalization(channels)
         self.conv2 = ConvLayer(channels, channels, kernel_size=3, stride=1)
         self.in2 = InstanceNormalization(channels)
-        self.relu = nn.ReLU()
+        self.relu = torch.nn.ReLU()
 
     def forward(self, x):
         residual = x
@@ -95,9 +93,9 @@ class UpsampleConvLayer(torch.nn.Module):
         self.upsample = upsample
         if upsample:
             self.upsample_layer = torch.nn.UpsamplingNearest2d(scale_factor=upsample)
-        reflection_padding = int(np.floor(kernel_size / 2))
-        self.reflection_pad = nn.ReflectionPad2d(reflection_padding)
-        self.conv2d = nn.Conv2d(in_channels, out_channels, kernel_size, stride)
+        reflection_padding = kernel_size // 2
+        self.reflection_pad = torch.nn.ReflectionPad2d(reflection_padding)
+        self.conv2d = torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride)
 
     def forward(self, x):
         x_in = x
@@ -116,8 +114,8 @@ class InstanceNormalization(torch.nn.Module):
 
     def __init__(self, dim, eps=1e-9):
         super(InstanceNormalization, self).__init__()
-        self.scale = nn.Parameter(torch.FloatTensor(dim))
-        self.shift = nn.Parameter(torch.FloatTensor(dim))
+        self.scale = torch.nn.Parameter(torch.FloatTensor(dim))
+        self.shift = torch.nn.Parameter(torch.FloatTensor(dim))
         self.eps = eps
         self._reset_parameters()
 

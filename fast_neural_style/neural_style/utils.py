@@ -28,12 +28,9 @@ def gram_matrix(y):
 
 
 def normalize_batch(batch):
-    """
-    normalize batch using imagenet mean and variance.
-    """
-    tensortype = type(batch.data)
-    mean = tensortype(batch.data.size())
-    std = tensortype(batch.data.size())
+    # normalize using imagenet mean and std
+    mean = batch.data.new(batch.data.size())
+    std = batch.data.new(batch.data.size())
     mean[:, 0, :, :] = 0.485
     mean[:, 1, :, :] = 0.456
     mean[:, 2, :, :] = 0.406
