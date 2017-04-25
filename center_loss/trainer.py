@@ -72,7 +72,7 @@ def get_center_loss(centers, features, target, alpha, num_classes):
 
 class Trainer(object):
     def __init__(self, cuda, model, optimizer,
-                 train_loader, val_loader, max_iter, center_loss_weight):
+                 train_loader, val_loader, max_iter, center_loss_weight=1, alpha=1):
         self.cuda = cuda
         self.model = model
         self.optim = optimizer
@@ -81,11 +81,12 @@ class Trainer(object):
         self.epoch = 0
         self.iteration = 0
         self.max_iter = max_iter
-        self.criterion = nn.CrossEntropyLoss()
+        self.criterion = F.nll_loss
         self.top1 = AverageMeter()
         self.losses = AverageMeter()
         self.best_prec1 = 0
         self.center_loss_weight =  center_loss_weight
+        self.alpha = alpha
 
     def validate(self):
         self.model.eval()
@@ -125,7 +126,7 @@ class Trainer(object):
             data_var, target_var = Variable(data), Variable(target)
             output = self.model(data_var)
 
-            center_loss, self.model.centers = get_center_loss(self.model.centers, self.model.features, target_var, 1, self.model.num_classes)
+            center_loss, self.model.centers = get_center_loss(self.model.centers, self.model.features, target_var, self.alpha, self.model.num_classes)
             softmax_loss = self.criterion(output, target_var)
             loss = self.center_loss_weight*center_loss + softmax_loss
 
@@ -139,14 +140,17 @@ class Trainer(object):
             loss.backward()
             self.optim.step()
 
+            self.iteration = self.iteration + 1
+
             if self.iteration >= self.max_iter:
                 break
 
-        print('Epoch: [{0}][{1}/{2}]\t'
-        'Train Loss {3:.2f} ({4:.2f})\t'
-        'Train Prec@1 {5:.2f} ({6:.2f})\t'.format(
-        self.epoch, batch_idx, len(self.train_loader),
-        float(self.losses.val), float(self.losses.avg), float(self.top1.val[0]), float(self.top1.avg[0])))
+            if self.iteration % 100 == 0:
+                print('Epoch: [{0}][{1}/{2}]\t'
+                'Train Loss {3:.2f} ({4:.2f})\t'
+                'Train Prec@1 {5:.2f} ({6:.2f})\t'.format(
+                self.epoch, batch_idx, len(self.train_loader),
+                float(self.losses.val), float(self.losses.avg), float(self.top1.val[0]), float(self.top1.avg[0])))
         self.losses.reset()
         self.top1.reset()
 
