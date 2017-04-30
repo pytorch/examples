@@ -231,7 +231,7 @@ def weights_init(m):
 
 cv2_scale = lambda x: cv2.resize(x, dsize=(32, 32),
                                  interpolation=cv2.INTER_LINEAR)
-np_reshape = lambda x: np.reshape(x, (1, 32, 32))
+np_reshape = lambda x: np.reshape(x, (32, 32, 1))
 
 kwargs = {'num_workers': 2, 'pin_memory': True} if args.cuda else {}
 train_loader = torch.utils.data.DataLoader(
