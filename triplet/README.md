@@ -9,7 +9,7 @@ After every epoch, the model is saved to: `LOG_DIR/checkpoint_%d.pth`
 ```
 usage: main.py [-h] [--dataroot DATAROOT] [--log-dir LOG_DIR]
                [--imageSize IMAGESIZE] [--resume PATH] [--start-epoch N]
-               [--epochs E] [--batch-size BS] [--test-batch-size BST]
+               [--epochs E] [--batch-size BS] [--test-batch-size BST] [--anchorswap]
                [--n-triplets N] [--margin MARGIN] [--lr LR] [--lr-decay LRD]
                [--wd W] [--optimizer OPT] [--no-cuda] [--gpu-id GPU_ID]
                [--seed S] [--log-interval LI]
@@ -28,6 +28,7 @@ optional arguments:
   --batch-size BS       input batch size for training (default: 128)
   --test-batch-size BST
                         input batch size for testing (default: 1000)
+  --anchorswap          turns on anchor swap mode for triplet margin loss
   --n-triplets N        how many triplets will generate from the dataset
   --margin MARGIN       the margin value for the triplet loss function
                         (default: 2.0
