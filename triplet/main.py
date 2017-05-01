@@ -303,9 +303,7 @@ def train(train_loader, model, optimizer, epoch):
 
         # compute output
         out_a, out_p, out_n = model(data_a), model(data_p), model(data_n)
-        loss = F.triplet_margin_loss(out_a, out_p, out_n, margin=args.margin)
-        if args.anchorswap:
-            loss += F.triplet_margin_loss(out_p, out_a, out_n, margin=args.margin)
+        loss = F.triplet_margin_loss(out_p, out_a, out_n, margin=args.margin, swap=args.anchorswap) 
         # compute gradient and update weights
         optimizer.zero_grad()
         loss.backward()
