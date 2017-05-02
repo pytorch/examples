@@ -49,47 +49,63 @@ parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
                     help='evaluate model on validation set')
 parser.add_argument('--pretrained', dest='pretrained', action='store_true',
                     help='use pre-trained model')
-parser.add_argument('--finetune', dest='finetune', action='store_true',
-                    help='fine tune pre-trained model')
 
 best_prec1 = 0
 
 class FineTuneModel(nn.Module):
+    """ Finetunes just the last layer
+
+    This freezes the weights of all layers except the last one.
+    You should also look into finetuning previous layers, but slowly
+    Ideally, do this first, then unfreeze all layers and tune further with small lr
+    
+    Arguments:
+        original_model: Model to finetune
+        arch: Name of model architecture
+        num_classes: Number of classes to tune for
+
+    """
     def __init__(self, original_model, arch, num_classes):
         super(FineTuneModel, self).__init__()
 
-        if arch.startswith('alexnet') :
+        if arch.startswith('alexnet') or arch.startswith('vgg'):
             self.features = original_model.features
+            self.fc = nn.Sequential(*list(original_model.classifier.children())[:-1])
             self.classifier = nn.Sequential(
-                nn.Dropout(),
-                nn.Linear(256 * 6 * 6, 4096),
-                nn.ReLU(inplace=True),
-                nn.Dropout(),
-                nn.Linear(4096, 4096),
-                nn.ReLU(inplace=True),
-                nn.Linear(4096, num_classes),
+                nn.Linear(4096, num_classes)
             )
-            self.modelName = 'alexnet'
+            self.modelArchType = 'separate'
         elif arch.startswith('resnet') :
             # Everything except the last linear layer
             self.features = nn.Sequential(*list(original_model.children())[:-1])
             self.classifier = nn.Sequential(
                 nn.Linear(512, num_classes)
             )
-            self.modelName = 'resnet'
+            self.modelArchType = 'together'
+        elif arch.startswith('inception') :
+            # Everything except the last linear layer
+            self.features = nn.Sequential(*list(original_model.children())[:-1])
+            self.classifier = nn.Sequential(
+                nn.Linear(2048, num_classes)
+            )
+            self.modelArchType = 'together'
         else :
-            raise("Finetuning not supported on this architecture yet")
+            raise("Finetuning not supported on this architecture yet. Feel free to add")
 
         # Freeze those weights
         for p in self.features.parameters():
             p.requires_grad = False
-
+        if hasattr(self, 'fc'): 
+            for p in self.fc.parameters():
+                p.requires_grad = False
 
     def forward(self, x):
         f = self.features(x)
-        if self.modelName == 'alexnet' :
-            f = f.view(f.size(0), 256 * 6 * 6)
-        elif self.modelName == 'resnet' :
+        if self.modelArchType == 'separate' :
+            f = f.view(f.size(0), -1)
+            f = self.fc(f)
+            f = f.view(f.size(0), -1)
+        elif self.modelArchType == 'together' :
             f = f.view(f.size(0), -1)
         y = self.classifier(f)
         return y
@@ -119,6 +135,15 @@ def main():
     else:
         model = torch.nn.DataParallel(model).cuda()
 
+    # define loss function (criterion) and optimizer
+    criterion = nn.CrossEntropyLoss().cuda()
+
+    optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), # Only finetunable params
+                                args.lr,
+                                momentum=args.momentum,
+                                weight_decay=args.weight_decay)
+
+
     # optionally resume from a checkpoint
     if args.resume:
         if os.path.isfile(args.resume):
@@ -127,6 +152,7 @@ def main():
             args.start_epoch = checkpoint['epoch']
             best_prec1 = checkpoint['best_prec1']
             model.load_state_dict(checkpoint['state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer'])
             print("=> loaded checkpoint '{}' (epoch {})"
                   .format(args.evaluate, checkpoint['epoch']))
         else:
@@ -158,14 +184,6 @@ def main():
         batch_size=args.batch_size, shuffle=False,
         num_workers=args.workers, pin_memory=True)
 
-    # define loss function (criterion) and pptimizer
-    criterion = nn.CrossEntropyLoss().cuda()
-
-    optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), # Only finetunable params
-                                args.lr,
-                                momentum=args.momentum,
-                                weight_decay=args.weight_decay)
-
     if args.evaluate:
         validate(val_loader, model, criterion)
         return
@@ -187,6 +205,7 @@ def main():
             'arch': args.arch,
             'state_dict': model.state_dict(),
             'best_prec1': best_prec1,
+            'optimizer' : optimizer.state_dict(),
         }, is_best)
 
 
