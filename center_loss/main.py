@@ -99,7 +99,6 @@ def main():
             trainer.iteration =  trainer.epoch * len(train_loader)
             trainer.best_prec1 = checkpoint['best_prec1']
             trainer.model.load_state_dict(checkpoint['state_dict'])
-            #trainer.model.centers = checkpoint['centers']
             print("=> loaded checkpoint '{}' (epoch {})"
                   .format(args.resume, checkpoint['epoch']))
         else:

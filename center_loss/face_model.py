@@ -6,7 +6,7 @@ from torchvision.models.resnet import BasicBlock, ResNet, model_urls
 import math
 
 class FaceModel(nn.Module):
-    def __init__(self,num_classes, pretrained=True, **kwargs):
+    def __init__(self,num_classes, pretrained=False, **kwargs):
         super(FaceModel, self).__init__()
         self.model = ResNet(BasicBlock, [2, 2, 2, 2], **kwargs)
         if pretrained:
