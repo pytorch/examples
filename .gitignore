@@ -1,3 +1,4 @@
 dcgan/data
 data
 *.pyc
+OpenNMT/data

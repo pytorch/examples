@@ -2,7 +2,6 @@ import argparse
 import gym
 import numpy as np
 from itertools import count
-from collections import namedtuple
 
 import torch
 import torch.nn as nn
@@ -10,17 +9,16 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.autograd as autograd
 from torch.autograd import Variable
-import torchvision.transforms as T
 
 
 parser = argparse.ArgumentParser(description='PyTorch REINFORCE example')
-parser.add_argument('--gamma', type=int, default=0.99, metavar='G',
+parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
                     help='discount factor (default: 0.99)')
 parser.add_argument('--seed', type=int, default=543, metavar='N',
-                    help='random seed (default: 1)')
+                    help='random seed (default: 543)')
 parser.add_argument('--render', action='store_true',
                     help='render the environment')
-parser.add_argument('--log-interval', type=int, default=10, metavar='N',
+parser.add_argument('--log_interval', type=int, default=10, metavar='N',
                     help='interval between training status logs (default: 10)')
 args = parser.parse_args()
 
@@ -45,34 +43,33 @@ class Policy(nn.Module):
         return F.softmax(action_scores)
 
 
-model = Policy()
-optimizer = optim.Adam(model.parameters(), lr=1e-2)
+policy = Policy()
+optimizer = optim.Adam(policy.parameters(), lr=1e-2)
 
 
 def select_action(state):
     state = torch.from_numpy(state).float().unsqueeze(0)
-    probs = model(Variable(state))
+    probs = policy(Variable(state))
     action = probs.multinomial()
-    model.saved_actions.append(action)
+    policy.saved_actions.append(action)
     return action.data
 
 
 def finish_episode():
     R = 0
-    saved_actions = model.saved_actions
     rewards = []
-    for r in model.rewards[::-1]:
+    for r in policy.rewards[::-1]:
         R = r + args.gamma * R
         rewards.insert(0, R)
     rewards = torch.Tensor(rewards)
-    rewards = (rewards - rewards.mean()) / rewards.std()
-    for action, r in zip(model.saved_actions, rewards):
+    rewards = (rewards - rewards.mean()) / (rewards.std() + np.finfo(np.float32).eps)
+    for action, r in zip(policy.saved_actions, rewards):
         action.reinforce(r)
     optimizer.zero_grad()
-    autograd.backward(model.saved_actions, [None for _ in model.saved_actions])
+    autograd.backward(policy.saved_actions, [None for _ in policy.saved_actions])
     optimizer.step()
-    del model.rewards[:]
-    del model.saved_actions[:]
+    del policy.rewards[:]
+    del policy.saved_actions[:]
 
 
 running_reward = 10
@@ -83,7 +80,7 @@ for i_episode in count(1):
         state, reward, done, _ = env.step(action[0,0])
         if args.render:
             env.render()
-        model.rewards.append(reward)
+        policy.rewards.append(reward)
         if done:
             break
 

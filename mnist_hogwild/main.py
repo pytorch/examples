@@ -1,5 +1,5 @@
 from __future__ import print_function
-import os, argparse
+import argparse
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -41,7 +41,7 @@ class Net(nn.Module):
         x = x.view(-1, 320)
         x = F.relu(self.fc1(x))
         x = F.dropout(x, training=self.training)
-        x = F.relu(self.fc2(x))
+        x = self.fc2(x)
         return F.log_softmax(x)
 
 if __name__ == '__main__':

@@ -20,7 +20,7 @@ parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
 parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
                     help='SGD momentum (default: 0.5)')
 parser.add_argument('--no-cuda', action='store_true', default=False,
-                    help='enables CUDA training')
+                    help='disables CUDA training')
 parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
 parser.add_argument('--log-interval', type=int, default=10, metavar='N',
@@ -64,7 +64,7 @@ class Net(nn.Module):
         x = x.view(-1, 320)
         x = F.relu(self.fc1(x))
         x = F.dropout(x, training=self.training)
-        x = F.relu(self.fc2(x))
+        x = self.fc2(x)
         return F.log_softmax(x)
 
 model = Net()

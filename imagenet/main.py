@@ -16,7 +16,8 @@ import torchvision.models as models
 
 
 model_names = sorted(name for name in models.__dict__
-    if name.islower() and not name.startswith("__"))
+    if name.islower() and not name.startswith("__")
+    and callable(models.__dict__[name]))
 
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
@@ -154,7 +155,7 @@ def main():
             model.load_state_dict(checkpoint['state_dict'])
             optimizer.load_state_dict(checkpoint['optimizer'])
             print("=> loaded checkpoint '{}' (epoch {})"
-                  .format(args.evaluate, checkpoint['epoch']))
+                  .format(args.resume, checkpoint['epoch']))
         else:
             print("=> no checkpoint found at '{}'".format(args.resume))
 
@@ -329,7 +330,7 @@ class AverageMeter(object):
 def adjust_learning_rate(optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
     lr = args.lr * (0.1 ** (epoch // 30))
-    for param_group in optimizer.state_dict()['param_groups']:
+    for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
 
