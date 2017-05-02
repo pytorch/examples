@@ -97,7 +97,6 @@ class Trainer(object):
                 desc='Testing on epoch %d' % self.epoch, ncols=80, leave=False):
             if self.cuda:
                 data, target = data.cuda(), target.cuda(async=True)
-                self.model.centers = self.model.centers.cuda()
 
             data_var = Variable(data, volatile=True)
             target_var = Variable(target, volatile=True)
@@ -110,7 +109,7 @@ class Trainer(object):
             losses.update(loss.data[0], data.size(0))
             top1.update(prec1[0], data.size(0))
 
-        print(' * Prec@1 {0:.2f}'.format(float(top1.avg[0])))
+        print(' * Prec@1 {0:.2f}\t validation Loss {1:.2f}'.format(float(top1.avg[0]), float(losses.avg)))
 
         return top1.avg[0]
 
@@ -121,12 +120,11 @@ class Trainer(object):
                 desc='Train epoch=%d' % self.epoch, ncols=80, leave=False):
             if self.cuda:
                 data, target = data.cuda(), target.cuda()
-                self.model.centers = self.model.centers.cuda()
 
             data_var, target_var = Variable(data), Variable(target)
             output = self.model(data_var)
 
-            center_loss, self.model.centers = get_center_loss(self.model.centers, self.model.features, target_var, self.alpha, self.model.num_classes)
+            center_loss, self.model._buffers['centers'] = get_center_loss(self.model._buffers['centers'], self.model.features, target_var, self.alpha, self.model.num_classes)
             softmax_loss = self.criterion(output, target_var)
             loss = self.center_loss_weight*center_loss + softmax_loss
 
@@ -146,9 +144,9 @@ class Trainer(object):
                 break
 
             if self.iteration % 100 == 0:
-                print('Epoch: [{0}][{1}/{2}]\t'
+                print('\r\nEpoch: [{0}][{1}/{2}]\t'
                 'Train Loss {3:.2f} ({4:.2f})\t'
-                'Train Prec@1 {5:.2f} ({6:.2f})\t'.format(
+                'Train Prec@1 {5:.2f} ({6:.2f})'.format(
                 self.epoch, batch_idx, len(self.train_loader),
                 float(self.losses.val), float(self.losses.avg), float(self.top1.val[0]), float(self.top1.avg[0])))
         self.losses.reset()

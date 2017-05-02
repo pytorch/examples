@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import datasets, transforms
-from face_model import FaceModel, Net
+from face_model import FaceModel
 from data import ImageDataset
 import trainer as tn
 import math
@@ -74,20 +74,6 @@ def main():
     train_loader = torch.utils.data.DataLoader(train_dataset,batch_size=args.batch_size, shuffle=True, **kwargs)
     val_loader = torch.utils.data.DataLoader(val_dataset,batch_size=args.test_batch_size, shuffle=False, **kwargs)
 
-    # train_loader = torch.utils.data.DataLoader(
-    # datasets.MNIST('../data', train=True, download=True,
-    #                transform=transforms.Compose([
-    #                    transforms.ToTensor(),
-    #                    transforms.Normalize((0.1307,), (0.3081,))
-    #                ])),
-    # batch_size=args.batch_size, shuffle=True, **kwargs)
-    # val_loader = torch.utils.data.DataLoader(
-    # datasets.MNIST('../data', train=False, transform=transforms.Compose([
-    #                    transforms.ToTensor(),
-    #                    transforms.Normalize((0.1307,), (0.3081,))
-    #                ])),
-    # batch_size=args.batch_size, shuffle=True, **kwargs)
-
     # 2. model
     model = FaceModel(len(train_dataset.classes))
     if cuda:
@@ -113,7 +99,7 @@ def main():
             trainer.iteration =  trainer.epoch * len(train_loader)
             trainer.best_prec1 = checkpoint['best_prec1']
             trainer.model.load_state_dict(checkpoint['state_dict'])
-            trainer.model.centers = checkpoint['centers']
+            #trainer.model.centers = checkpoint['centers']
             print("=> loaded checkpoint '{}' (epoch {})"
                   .format(args.resume, checkpoint['epoch']))
         else:

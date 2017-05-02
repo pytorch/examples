@@ -10,7 +10,7 @@ import codecs
 import numpy as np
 import random
 
-class ImageClass():
+class ImageClass(object):
     "Stores the paths to images for a given class"
     def __init__(self, name, image_paths):
         self.name = name
@@ -29,7 +29,7 @@ def get_dataset(paths):
         classes = os.listdir(path_exp)
         classes.sort()
         nrof_classes = len(classes)
-        for i in range(1000):
+        for i in range(nrof_classes):
             class_name = classes[i]
             facedir = os.path.join(path_exp, class_name)
             if os.path.isdir(facedir):
@@ -60,7 +60,6 @@ def split_train_test(image_paths, labels, split=0.1):
     selected_train = [(image_paths[i], labels[i]) for i in sorted(train_indices)]
     val_image_paths, val_labels = tuple([list(tup) for tup in zip(*selected_val)])
     train_image_paths, train_labels = tuple([list(tup) for tup in zip(*selected_train)])
-
     assert len(set(val_labels) - set(train_labels)) == 0, "validation labels should be a subset of the train labels"
 
     return train_image_paths, train_labels, val_image_paths, val_labels
