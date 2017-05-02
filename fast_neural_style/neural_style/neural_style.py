@@ -36,7 +36,7 @@ def train(args):
     optimizer = Adam(transformer.parameters(), args.lr)
     mse_loss = torch.nn.MSELoss()
 
-    vgg = Vgg16()
+    vgg = Vgg16(requires_grad=False)
     style_transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Lambda(lambda x: x.mul(255))
@@ -50,10 +50,10 @@ def train(args):
         vgg.cuda()
         style = style.cuda()
 
-    style_v = Variable(style, volatile=True)
+    style_v = Variable(style)
     style_v = utils.normalize_batch(style_v)
     features_style = vgg(style_v)
-    gram_style = [utils.gram_matrix(y).data for y in features_style]
+    gram_style = [utils.gram_matrix(y) for y in features_style]
 
     for e in range(args.epochs):
         transformer.train()
@@ -70,23 +70,18 @@ def train(args):
 
             y = transformer(x)
 
-            xc = Variable(x.data.clone(), volatile=True)
-
             y = utils.normalize_batch(y)
-            xc = utils.normalize_batch(xc)
+            x = utils.normalize_batch(x)
 
             features_y = vgg(y)
-            features_xc = vgg(xc)
+            features_x = vgg(x)
 
-            f_xc_c = Variable(features_xc.relu2_2.data, requires_grad=False)
-
-            content_loss = args.content_weight * mse_loss(features_y.relu2_2, f_xc_c)
+            content_loss = args.content_weight * mse_loss(features_y.relu2_2, features_x.relu2_2)
 
             style_loss = 0.
-            for ft_y, gm_style in zip(features_y, gram_style):
-                gram_s = Variable(gm_style, requires_grad=False)
-                gram_y = utils.gram_matrix(ft_y)
-                style_loss += mse_loss(gram_y, gram_s[:n_batch, :, :])
+            for ft_y, gm_s in zip(features_y, gram_style):
+                gm_y = utils.gram_matrix(ft_y)
+                style_loss += mse_loss(gm_y, gm_s[:n_batch, :, :])
             style_loss *= args.style_weight
 
             total_loss = content_loss + style_loss
