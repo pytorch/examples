@@ -5,6 +5,19 @@ triplets and shallow convolutional neural
 networks](http://www.iis.ee.ic.ac.uk/%7Evbalnt/shallow_descr/TFeat_paper.pdf)
 
 After every epoch, the model is saved to: `LOG_DIR/checkpoint_%d.pth`
+
+## Requirements
+
+You must install OpenCV with Python support
+
+`apt-get install python-opencv`
+
+**or**
+
+from source
+http://docs.opencv.org/master/d7/d9f/tutorial_linux_install.html
+
+
 ## Usage
 ```
 usage: main.py [-h] [--dataroot DATAROOT] [--log-dir LOG_DIR]
