@@ -18,7 +18,7 @@ Stylize image
 python neural_style/neural_style.py eval --content-image </path/to/content/image> --model </path/to/saved/model> --output-image </path/to/output/image> --cuda 0
 ```
 * `--content-image`: path to content image you want to stylize.
-* `--model`: saved model to be used for stylizing the image (eg: `mosaic.model` present under `saved-models/`)
+* `--model`: saved model to be used for stylizing the image (eg: `mosaic.pth`)
 * `--output-image`: path for saving the output image.
 * `--content-scale`: factor for scaling down the content image if memory is an issue (eg: value of 2 will halve the height and width of content-image)
 * `--cuda`: set it to 1 for running on GPU, 0 for CPU.
