@@ -75,39 +75,37 @@ class FineTuneModel(nn.Module):
             self.classifier = nn.Sequential(
                 nn.Linear(4096, num_classes)
             )
-            self.modelArchType = 'separate'
         elif arch.startswith('resnet') :
             # Everything except the last linear layer
             self.features = nn.Sequential(*list(original_model.children())[:-1])
             self.classifier = nn.Sequential(
                 nn.Linear(512, num_classes)
             )
-            self.modelArchType = 'together'
         elif arch.startswith('inception') :
             # Everything except the last linear layer
             self.features = nn.Sequential(*list(original_model.children())[:-1])
             self.classifier = nn.Sequential(
                 nn.Linear(2048, num_classes)
             )
-            self.modelArchType = 'together'
         else :
             raise("Finetuning not supported on this architecture yet. Feel free to add")
 
+        self.unfreeze(False) # Freeze weights except last layer
+
+    def unfreeze(self, unfreeze):
         # Freeze those weights
         for p in self.features.parameters():
-            p.requires_grad = False
+            p.requires_grad = unfreeze
         if hasattr(self, 'fc'): 
             for p in self.fc.parameters():
-                p.requires_grad = False
+                p.requires_grad = unfreeze
 
     def forward(self, x):
         f = self.features(x)
-        if self.modelArchType == 'separate' :
+        if hasattr(self, 'fc'): 
             f = f.view(f.size(0), -1)
             f = self.fc(f)
-            f = f.view(f.size(0), -1)
-        elif self.modelArchType == 'together' :
-            f = f.view(f.size(0), -1)
+        f = f.view(f.size(0), -1)
         y = self.classifier(f)
         return y
 
