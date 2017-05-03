@@ -2,5 +2,4 @@ torch
 torchvision
 tqdm
 numpy
-cv2
 tensorboard_logger
