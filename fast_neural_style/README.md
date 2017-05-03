@@ -20,7 +20,7 @@ python neural_style/neural_style.py eval --content-image </path/to/content/image
 * `--content-image`: path to content image you want to stylize.
 * `--model`: saved model to be used for stylizing the image (eg: `mosaic.model` present under `saved-models/`)
 * `--output-image`: path for saving the output image.
-* `--content-scale`: factor for scaling down the content image if memory is an issue (eg: value of 2 will half the height and width of content-image)
+* `--content-scale`: factor for scaling down the content image if memory is an issue (eg: value of 2 will halve the height and width of content-image)
 * `--cuda`: set it to 1 for running on GPU, 0 for CPU.
 
 Train model
