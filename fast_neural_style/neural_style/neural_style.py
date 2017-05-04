@@ -16,6 +16,17 @@ from transformer_net import TransformerNet
 from vgg import Vgg16
 
 
+def check_paths(args):
+    try:
+        if not os.path.exists(args.save_model_dir):
+            os.makedirs(args.save_model_dir)
+        if args.checkpoint_model_dir is not None and not (os.path.exists(args.checkpoint_model_dir)):
+            os.makedirs(args.checkpoint_model_dir)
+    except OSError as e:
+        print(e)
+        sys.exit(1)
+
+
 def train(args):
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -120,17 +131,6 @@ def train(args):
     torch.save(transformer.state_dict(), save_model_path)
 
     print("\nDone, trained model saved at", save_model_path)
-
-
-def check_paths(args):
-    try:
-        if not os.path.exists(args.save_model_dir):
-            os.makedirs(args.save_model_dir)
-        if args.checkpoint_model_dir is not None and not (os.path.exists(args.checkpoint_model_dir)):
-            os.makedirs(args.checkpoint_model_dir)
-    except OSError as e:
-        print(e)
-        sys.exit(1)
 
 
 def stylize(args):
