@@ -120,6 +120,7 @@ def train(args):
                 torch.save(transformer.state_dict(), ckpt_model_path)
                 if args.cuda:
                     transformer.cuda()
+                transformer.train()
 
     # save model
     transformer.eval()
@@ -143,7 +144,7 @@ def stylize(args):
     content_image = content_image.unsqueeze(0)
     if args.cuda:
         content_image = content_image.cuda()
-    content_image = Variable(content_image)
+    content_image = Variable(content_image, volatile=True)
 
     style_model = TransformerNet()
     style_model.load_state_dict(torch.load(args.model))
