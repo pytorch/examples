@@ -150,9 +150,7 @@ def stylize(args):
     style_model.load_state_dict(torch.load(args.model))
     if args.cuda:
         style_model.cuda()
-
     output = style_model(content_image)
-
     if args.cuda:
         output = output.cpu()
     output_data = output.data[0]
