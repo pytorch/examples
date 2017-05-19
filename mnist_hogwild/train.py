@@ -7,10 +7,6 @@ from torchvision import datasets, transforms
 
 def train(rank, args, model):
     torch.manual_seed(args.seed + rank)
-    for param in model.parameters():
-        # Break gradient sharing
-        if param.grad is not None:
-            param.grad.data = param.grad.data.clone()
 
     train_loader = torch.utils.data.DataLoader(
         datasets.MNIST('../data', train=True, download=True,
