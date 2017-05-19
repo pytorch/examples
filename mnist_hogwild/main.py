@@ -50,7 +50,7 @@ if __name__ == '__main__':
     torch.manual_seed(args.seed)
 
     model = Net()
-    model.share_memory()
+    model.share_memory() # gradients are allocated lazily, so they are not shared here
 
     processes = []
     for rank in range(args.num_processes):
