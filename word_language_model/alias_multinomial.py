@@ -1,4 +1,5 @@
 import torch
+import numpy as np
  
 class alias_multinomial(object):
     '''
@@ -44,7 +45,7 @@ class alias_multinomial(object):
         '''
         K  = self.J.size(0)
     
-        r = torch.Tensor(N).uniform_(0, K).floor().long().cuda()
+        r = torch.LongTensor(np.random.randint(0,K, size=N)).cuda()
         q = self.q.index_select(0, r)
         j = self.J.index_select(0, r)
         b = torch.bernoulli(q)
