@@ -3,13 +3,15 @@ import torch.nn as nn
 from torch.autograd import Variable
 from torch.nn import functional as F
 import math, time
+from alias_multinomial import alias_multinomial
 
 class linear_nce(nn.Module):
     def __init__(self, idim, odim, unigram_prob):
         super(linear_nce, self).__init__()
         self.idim = idim
         self.odim = odim
-        self.unigram_prob = Variable(torch.Tensor(unigram_prob)).cuda()
+        self.unigram_prob = Variable(torch.Tensor(unigram_prob), requires_grad=False).cuda()
+        self.alias_multi = alias_multinomial(unigram_prob)
         self.weight = nn.Parameter(torch.Tensor(self.odim, self.idim))   # typically V x H
         self.bias = nn.Parameter(torch.Tensor(self.odim))
 
@@ -36,20 +38,20 @@ class linear_nce(nn.Module):
         elif mode == 'train':
             assert(input.size(0) == target.size(0))
             num_input = input.size(0)
-            noise = self.unigram_prob.multinomial(num_noise, with_replacement=True).cuda()
+            noise = Variable(self.alias_multi.draw(num_noise))
+
             w_target = self.weight.index_select(0, target)                      # N x H
             b_target = self.bias.index_select(0, target)                        # N
             w_noise = self.weight.index_select(0, noise)                        # K x H
-            w_noise = w_noise.unsqueeze(1).repeat(1, num_input, 1).view(-1, self.idim) # KN x H
             b_noise = self.bias.index_select(0, noise)                          # K
-            b_noise = b_noise.unsqueeze(1).repeat(1, num_input).view(-1)               # KN
 
             pmt = torch.sum(torch.mul(input, w_target), 1) + b_target  # N x 1
             pmt = pmt.squeeze(1).exp() # N
             pnt = self.unigram_prob.index_select(0, target) # N
 
-            pmn = torch.sum(torch.mul(input.repeat(num_noise, 1), w_noise), 1).unsqueeze(1) + b_noise # KN x 1
-            pmn = pmn.exp().view(-1, num_input).t()  # N x K
+            tstart = time.time()
+            pmn = F.linear(input, w_noise, b_noise)
+            pmn = pmn.exp()
             pnn = self.unigram_prob.index_select(0, noise).unsqueeze(1).repeat(1, num_input, 1).view(num_input, -1) #  N x K
 
             return pmt, pnt, pmn, pnn

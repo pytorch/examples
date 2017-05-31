@@ -1,6 +1,7 @@
 import torch.nn as nn
 from torch.autograd import Variable
 from linear_nce import linear_nce
+import time
 
 class RNNModel(nn.Module):
     """Container module with an encoder, a recurrent module, and a decoder."""
@@ -59,6 +60,7 @@ class RNNModel(nn.Module):
         emb = self.drop(self.encoder(input))
         output, hidden = self.rnn(emb, hidden)
         output = self.drop(output)
+
         if self.loss_type == 'nce':
             if self.mode == 'eval':
                 decoded = self.decoder(output.view(output.size(0)*output.size(1), output.size(2)), mode='eval_full')

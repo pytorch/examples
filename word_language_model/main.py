@@ -138,9 +138,9 @@ def train():
     model.train()
     model.set_mode('train')   # TODO: clean this up
     total_loss = 0
-    start_time = time.time()
     ntokens = len(corpus.dictionary)
     hidden = model.init_hidden(args.batch_size)
+    start_time = time.time()
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
         data, targets = get_batch(train_data, i)
         # Starting each batch, we detach the hidden state from how it was previously produced.
@@ -176,6 +176,7 @@ def train():
                         'loss {:5.2f} | ppl {:8.2f}'.format(
                     epoch, batch, len(train_data) // args.bptt, lr,
                     elapsed * 1000 / args.log_interval, cur_loss, math.exp(cur_loss)))
+
             total_loss = 0
             start_time = time.time()
 
@@ -188,7 +189,10 @@ try:
     for epoch in range(1, args.epochs+1):
         epoch_start_time = time.time()
         train()
+        #print('training time for an epoch:{0}'.format(time.time() - epoch_start_time))
+        val_start_time = time.time()
         val_loss = evaluate(val_data)
+        #print('validation time:{0}'.format(time.time() - val_start_time))
         print('-' * 89)
         print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
                 'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
