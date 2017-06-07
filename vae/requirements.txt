@@ -2,3 +2,4 @@ torch
 torchvision
 tqdm
 six
+pillow
