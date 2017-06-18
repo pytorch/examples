@@ -6,4 +6,6 @@ pip install -r requirements.txt
 python reinforce.py
 # For actor critic:
 python actor_critic.py
+# For Deep Q Learning:
+python dqn.py
 ```
