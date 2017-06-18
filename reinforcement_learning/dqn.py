@@ -23,7 +23,8 @@ class LinearOutputMLP(nn.Module):
             n_out = all_layers_dim[idx + 1]
 
             layers.append(nn.Linear(n_in, n_out))
-            layers.append(nn.ReLU())
+            layers.append(nn.PReLU())
+            # layers.append(nn.BatchNorm1d(n_out))
             layers.append(nn.Dropout(0.5))
         layers.append(nn.Linear(n_out, output_dim))
 
@@ -40,8 +41,8 @@ class QNetwork(object):
             n_actions,
             replay_len=1000,
             gamma=0.9,
-            epsilon=0.2,
-            epsilon_decay=0.999,
+            epsilon=0.1,
+            epsilon_decay=0.99,
             n_samples=100,
     ):
         self.input_dim = input_dim
@@ -53,7 +54,8 @@ class QNetwork(object):
 
         # the Q network
         self.model = LinearOutputMLP(input_dim, [128, 128], n_actions)
-        self.optim = optim.Adam(self.model.parameters(), lr=1e-2)
+        self.model_eval = LinearOutputMLP(input_dim, [128, 128], n_actions)
+        self.optim = optim.Adam(self.model.parameters(), lr=1e-3)
 
         self.experience = deque(maxlen=replay_len)
 
@@ -69,6 +71,7 @@ class QNetwork(object):
         for _ in range(self.n_samples):
             sampled_experience.append(random.choice(self.experience))
 
+        self.model_eval.load_state_dict(self.model.state_dict())
         loss = Variable(
             T.FloatTensor([0.]),
             requires_grad=True,
@@ -79,7 +82,7 @@ class QNetwork(object):
             if done:
                 next_q = reward
             else:
-                next_q = self.model(next_state).max() + reward
+                next_q = self.gamma * self.model_eval(next_state).max() + reward
             current_q = current_q = self.model(state)[0][action[0][0]]
             loss = loss + (next_q - current_q) ** 2
 
@@ -97,7 +100,7 @@ def main():
     parser = argparse.ArgumentParser(description='PyTorch DQN example')
     parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
                         help='discount factor (default: 0.99)')
-    parser.add_argument('--epsilon', type=float, default=0.1, metavar='G',
+    parser.add_argument('--epsilon', type=float, default=0.5, metavar='G',
                         help='proportion of randomly selected actions (default: 0.1)')
     parser.add_argument('--epsilon_decay', type=float, default=0.99, metavar='G',
                         help='decay of epsilon (default: 0.99)')
@@ -122,11 +125,11 @@ def main():
         gamma=args.gamma,
         epsilon=args.epsilon,
         epsilon_decay=args.epsilon_decay,
-        replay_len=1000,
-        n_samples=100,
+        replay_len=50000,
+        n_samples=64,
     )
 
-    running_reward = 1
+    running_reward = 0
     for i_episode in range(1000):
         state = env.reset()
         for time in range(10000):
@@ -136,25 +139,39 @@ def main():
             new_state, reward, done, _ = env.step(action[0][0])
             if args.render:
                 env.render()
+
+            x, x_dot, theta, theta_dot = new_state
+
+            # Reward modification reference:
+            # https://morvanzhou.github.io/tutorials/machine-learning/torch/4-05-DQN/
+            r1 = (env.env.x_threshold - abs(x)) / env.env.x_threshold - 0.8
+            r2 = (env.env.theta_threshold_radians - abs(theta)) / env.env.theta_threshold_radians - 0.5
+            reward = r1 + r2
+
             new_state = Variable(T.from_numpy(new_state).float().unsqueeze(0))
             q_value.record(state, action, reward, new_state, done)
             state = new_state
-            q_value.update()
+
+            # use the first 20 episode to collect data
+            if i_episode > 100:
+                q_value.update()
 
             if done:
                 break
 
-        running_reward = running_reward * 0.99 + time * 0.01
+        # logging
+        running_reward += time
         if i_episode % args.log_interval == 0:
             print('Episode {}\tLast length: {:5d}\tAverage length: {:.2f}'.format(
                 i_episode,
                 time,
-                running_reward,
+                running_reward / args.log_interval,
             ))
-        if running_reward > 200:
-            print("Solved! Running reward is now {} and "
-                  "the last episode runs to {} time steps!".format(running_reward, time))
-            break
+            running_reward = 0
+            if running_reward > 200:
+                print("Solved! Running reward is now {} and "
+                      "the last episode runs to {} time steps!".format(running_reward, time))
+                break
 
 
 if __name__ == '__main__':
