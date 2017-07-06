@@ -89,7 +89,7 @@ def train(epoch):
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), loss.data[0]))
 
-def test(epoch):
+def test():
     model.eval()
     test_loss = 0
     correct = 0
