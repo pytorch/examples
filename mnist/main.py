@@ -97,9 +97,8 @@ def test():
         if args.cuda:
             data, target = data.cuda(), target.cuda()
         data, target = Variable(data, volatile=True), Variable(target)
-        current_batch_size = data.data.size()[0]
         output = model(data)
-        test_loss += F.nll_loss(output, target).data[0] * current_batch_size # sum up batch loss
+        test_loss += F.nll_loss(output, target, size_average=False).data[0] # sum up batch loss
         pred = output.data.max(1)[1] # get the index of the max log-probability
         correct += pred.eq(target.data).cpu().sum()
 
