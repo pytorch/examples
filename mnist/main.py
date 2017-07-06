@@ -97,13 +97,15 @@ def test():
         if args.cuda:
             data, target = data.cuda(), target.cuda()
         data, target = Variable(data, volatile=True), Variable(target)
+        current_batch_size = data.data.size()[0]
         output = model(data)
-        test_loss += F.nll_loss(output, target).data[0]
+        # F.nll_loss is averaged among each batch
+        test_loss += F.nll_loss(output, target).data[0] * current_batch_size
         pred = output.data.max(1)[1] # get the index of the max log-probability
         correct += pred.eq(target.data).cpu().sum()
 
-    test_loss = test_loss
-    test_loss /= len(test_loader) # loss function already averages over batch size
+    test_loss = test_loss # sum of loss function
+    test_loss /= len(test_loader.dataset)
     print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
         test_loss, correct, len(test_loader.dataset),
         100. * correct / len(test_loader.dataset)))
@@ -111,4 +113,4 @@ def test():
 
 for epoch in range(1, args.epochs + 1):
     train(epoch)
-    test(epoch)
+    test()
