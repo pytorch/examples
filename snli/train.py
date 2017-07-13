@@ -10,7 +10,7 @@ from torchtext import data
 from torchtext import datasets
 
 from model import SNLIClassifier
-from util import get_args
+from util import get_args, makedirs
 
 
 args = get_args()
@@ -27,7 +27,7 @@ if args.word_vectors:
         inputs.vocab.vectors = torch.load(args.vector_cache)
     else:
         inputs.vocab.load_vectors(wv_dir=args.data_cache, wv_type=args.word_vectors, wv_dim=args.d_embed)
-        os.makedirs(os.path.dirname(args.vector_cache), exist_ok=True)
+        makedirs(os.path.dirname(args.vector_cache))
         torch.save(inputs.vocab.vectors, args.vector_cache)
 answers.build_vocab(train)
 
@@ -61,7 +61,7 @@ train_iter.repeat = False
 header = '  Time Epoch Iteration Progress    (%Epoch)   Loss   Dev/Loss     Accuracy  Dev/Accuracy'
 dev_log_template = ' '.join('{:>6.0f},{:>5.0f},{:>9.0f},{:>5.0f}/{:<5.0f} {:>7.0f}%,{:>8.6f},{:8.6f},{:12.4f},{:12.4f}'.split(','))
 log_template =     ' '.join('{:>6.0f},{:>5.0f},{:>9.0f},{:>5.0f}/{:<5.0f} {:>7.0f}%,{:>8.6f},{},{:12.4f},{}'.split(','))
-os.makedirs(args.save_path, exist_ok=True)
+makedirs(args.save_path)
 print(header)
 
 for epoch in range(args.epochs):
