@@ -55,7 +55,7 @@ def test_epoch(model, data_loader):
         pred = output.data.max(1)[1] # get the index of the max log-probability
         correct += pred.eq(target.data).cpu().sum()
 
-    test_loss /= len(test_loader.dataset)
+    test_loss /= len(data_loader.dataset)
     print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
         test_loss, correct, len(data_loader.dataset),
         100. * correct / len(data_loader.dataset)))
