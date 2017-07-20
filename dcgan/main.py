@@ -15,7 +15,7 @@ from torch.autograd import Variable
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataset', required=True, help='cifar10 | lsun | imagenet | folder | lfw ')
+parser.add_argument('--dataset', required=True, help='cifar10 | lsun | imagenet | folder | lfw | fake')
 parser.add_argument('--dataroot', required=True, help='path to dataset')
 parser.add_argument('--workers', type=int, help='number of data loading workers', default=2)
 parser.add_argument('--batchSize', type=int, default=64, help='input batch size')
@@ -77,8 +77,10 @@ elif opt.dataset == 'cifar10':
                                transforms.Scale(opt.imageSize),
                                transforms.ToTensor(),
                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-                           ])
-    )
+                           ]))
+elif opt.dataset == 'fake':
+    dataset = dset.FakeData(image_size=(3, opt.imageSize, opt.imageSize),
+                            transform=transforms.ToTensor())
 assert dataset
 dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize,
                                          shuffle=True, num_workers=int(opt.workers))
@@ -173,7 +175,7 @@ class _netD(nn.Module):
         else:
             output = self.main(input)
 
-        return output.view(-1, 1)
+        return output.view(-1, 1).squeeze(1)
 
 
 netD = _netD(ngpu)
