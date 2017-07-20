@@ -7,6 +7,7 @@ from torch.autograd import Variable
 
 import data
 import model
+import nce_loss
 
 parser = argparse.ArgumentParser(description='PyTorch PennTreeBank RNN/LSTM Language Model')
 parser.add_argument('--data', type=str, default='./data/penn',
@@ -37,6 +38,10 @@ parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
 parser.add_argument('--cuda', action='store_true',
                     help='use CUDA')
+parser.add_argument('--loss', type=str, default='ce',
+                    help='ce|nce')
+parser.add_argument('--num_noise', type=int, default=25,
+                    help='number of noise samples per target for nce')
 parser.add_argument('--log-interval', type=int, default=200, metavar='N',
                     help='report interval')
 parser.add_argument('--save', type=str,  default='model.pt',
@@ -78,11 +83,17 @@ test_data = batchify(corpus.test, eval_batch_size)
 ###############################################################################
 
 ntokens = len(corpus.dictionary)
-model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied)
+if args.loss == 'nce':
+    model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied, args.loss, corpus.dictionary.unigram, args.num_noise)
+    criterion = nce_loss.nce_loss()
+    criterion_test = nn.CrossEntropyLoss()
+else:
+    model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied)
+    criterion = nn.CrossEntropyLoss()
+
 if args.cuda:
     model.cuda()
 
-criterion = nn.CrossEntropyLoss()
 
 ###############################################################################
 # Training code
@@ -106,6 +117,7 @@ def get_batch(source, i, evaluation=False):
 def evaluate(data_source):
     # Turn on evaluation mode which disables dropout.
     model.eval()
+    model.set_mode('eval')   # TODO: clean this up
     total_loss = 0
     ntokens = len(corpus.dictionary)
     hidden = model.init_hidden(eval_batch_size)
@@ -113,7 +125,10 @@ def evaluate(data_source):
         data, targets = get_batch(data_source, i, evaluation=True)
         output, hidden = model(data, hidden)
         output_flat = output.view(-1, ntokens)
-        total_loss += len(data) * criterion(output_flat, targets).data
+        if args.loss == 'nce':
+            total_loss += len(data) * criterion_test(output_flat, targets).data
+        else:
+            total_loss += len(data) * criterion(output_flat, targets).data
         hidden = repackage_hidden(hidden)
     return total_loss[0] / len(data_source)
 
@@ -121,19 +136,25 @@ def evaluate(data_source):
 def train():
     # Turn on training mode which enables dropout.
     model.train()
+    model.set_mode('train')   # TODO: clean this up
     total_loss = 0
-    start_time = time.time()
     ntokens = len(corpus.dictionary)
     hidden = model.init_hidden(args.batch_size)
+    start_time = time.time()
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
         data, targets = get_batch(train_data, i)
         # Starting each batch, we detach the hidden state from how it was previously produced.
         # If we didn't, the model would try backpropagating all the way to start of the dataset.
         hidden = repackage_hidden(hidden)
         model.zero_grad()
-        output, hidden = model(data, hidden)
-        loss = criterion(output.view(-1, ntokens), targets)
-        loss.backward()
+        if args.loss == 'nce':
+            output, hidden = model(data, hidden, targets)
+            loss = criterion(output)
+            loss.backward()
+        else:
+            output, hidden = model(data, hidden)
+            loss = criterion(output.view(-1, ntokens), targets)
+            loss.backward()
 
         # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
         torch.nn.utils.clip_grad_norm(model.parameters(), args.clip)
@@ -145,10 +166,17 @@ def train():
         if batch % args.log_interval == 0 and batch > 0:
             cur_loss = total_loss[0] / args.log_interval
             elapsed = time.time() - start_time
-            print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | '
-                    'loss {:5.2f} | ppl {:8.2f}'.format(
-                epoch, batch, len(train_data) // args.bptt, lr,
-                elapsed * 1000 / args.log_interval, cur_loss, math.exp(cur_loss)))
+            if args.loss == 'nce':
+                print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | '
+                        'nce_loss {:5.2f}'.format(
+                    epoch, batch, len(train_data) // args.bptt, lr,
+                    elapsed * 1000 / args.log_interval, cur_loss))
+            else:
+                print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | '
+                        'loss {:5.2f} | ppl {:8.2f}'.format(
+                    epoch, batch, len(train_data) // args.bptt, lr,
+                    elapsed * 1000 / args.log_interval, cur_loss, math.exp(cur_loss)))
+
             total_loss = 0
             start_time = time.time()
 
@@ -161,7 +189,10 @@ try:
     for epoch in range(1, args.epochs+1):
         epoch_start_time = time.time()
         train()
+        #print('training time for an epoch:{0}'.format(time.time() - epoch_start_time))
+        val_start_time = time.time()
         val_loss = evaluate(val_data)
+        #print('validation time:{0}'.format(time.time() - val_start_time))
         print('-' * 89)
         print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
                 'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
