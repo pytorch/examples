@@ -14,11 +14,6 @@ import torchvision.datasets as datasets
 import torchvision.models as models
 
 
-model_names = sorted(name for name in models.__dict__
-    if name.islower() and not name.startswith("__")
-    and callable(models.__dict__[name]))
-
-
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
@@ -280,7 +275,7 @@ def accuracy(output, target, topk=(1,)):
 
     res = []
     for k in topk:
-        correct_k = correct[:k].view(-1).float().sum(0)
+        correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
         res.append(correct_k.mul_(100.0 / batch_size))
     return res
 
