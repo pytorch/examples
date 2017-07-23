@@ -1,9 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.init as init
-from numpy.random import normal
-from numpy.linalg import svd
-from math import sqrt
 
 
 class Net(nn.Module):
