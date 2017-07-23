@@ -1,6 +1,6 @@
 # PyTorch Examples
 
-A repository showcasing examples of using pytorch
+A repository showcasing examples of using [PyTorch](https://github.com/pytorch/pytorch)
 
 - MNIST Convnets
 - Word level Language Modeling using LSTM RNNs
