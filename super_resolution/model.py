@@ -1,20 +1,9 @@
 import torch
 import torch.nn as nn
+import torch.nn.init as init
 from numpy.random import normal
 from numpy.linalg import svd
 from math import sqrt
-
-
-def _get_orthogonal_init_weights(weights):
-    fan_out = weights.size(0)
-    fan_in = weights.size(1) * weights.size(2) * weights.size(3)
-
-    u, _, v = svd(normal(0.0, 1.0, (fan_out, fan_in)), full_matrices=False)
-
-    if u.shape == (fan_out, fan_in):
-        return torch.Tensor(u.reshape(weights.size()))
-    else:
-        return torch.Tensor(v.reshape(weights.size()))
 
 
 class Net(nn.Module):
@@ -38,7 +27,7 @@ class Net(nn.Module):
         return x
 
     def _initialize_weights(self):
-        self.conv1.weight.data.copy_(_get_orthogonal_init_weights(self.conv1.weight) * sqrt(2))
-        self.conv2.weight.data.copy_(_get_orthogonal_init_weights(self.conv2.weight) * sqrt(2))
-        self.conv3.weight.data.copy_(_get_orthogonal_init_weights(self.conv3.weight) * sqrt(2))
-        self.conv4.weight.data.copy_(_get_orthogonal_init_weights(self.conv4.weight))
+        init.orthogonal(self.conv1.weight, init.gain('relu'))
+        init.orthogonal(self.conv2.weight, init.gain('relu'))
+        init.orthogonal(self.conv3.weight, init.gain('relu'))
+        init.orthogonal(self.conv4.weight)
