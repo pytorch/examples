@@ -5,7 +5,7 @@ The model uses the method described in [End-To-End Memory Networks](http://arxiv
 
 The tasks are from the [bAbl](http://arxiv.org/abs/1502.05698) dataset.
 
-![MemN2N picture](https://www.dropbox.com/s/s9txttvrdkhmtkt/memn2n.png?dl=0)
+![MemN2N picture](https://camo.githubusercontent.com/ba1c7dbbccc5dd51d4a76cc6ef849bca65a9bf4d/687474703a2f2f692e696d6775722e636f6d2f6e7638394a4c632e706e67)
 
 ## Requirements
 The program is written in Python, and uses [pytorch](http://pytorch.org/), [scikit-learn](https://scikit-learn.org/). A GPU is not necessary, but can provide a significant speed up especially during training.
