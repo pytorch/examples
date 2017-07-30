@@ -1,8 +1,9 @@
 import torch
 from torch import nn
 from torch.autograd import Variable
-
+from torch.nn import functional as F
 from util import get_position_encoding, long_tensor_type
+
 
 class N2N(torch.nn.Module):
     def __init__(self, batch_size, embed_size, vocab_size, hops, story_size):
@@ -12,6 +13,12 @@ class N2N(torch.nn.Module):
         self.batch_size = batch_size
         self.story_size = story_size
         self.hops = hops
+
+        if self.hops <= 0:
+            raise ValueError("Number of hops have to be greater than 0")
+
+        if self.hops > 3:
+            raise ValueError("Number of hops should be less than 4")
 
         # story and query embedding
         self.A1 = nn.Embedding(vocab_size, embed_size)
@@ -25,50 +32,48 @@ class N2N(torch.nn.Module):
         self.A2.weight = nn.Parameter(torch.randn(vocab_size, embed_size).normal_(0, 0.1))
         self.TA2 = nn.Parameter(torch.randn(self.batch_size, self.story_size, self.embed_size).normal_(0, 0.1))
 
-        self.p1 = nn.Softmax()
-
-        if (self.hops >= 2):
+        if self.hops >= 2:
             self.A3 = nn.Embedding(vocab_size, embed_size)
             self.A3.weight = nn.Parameter(torch.randn(vocab_size, embed_size).normal_(0, 0.1))
-            self.p2 = nn.Softmax()
             self.TA3 = nn.Parameter(torch.randn(self.batch_size, self.story_size, self.embed_size).normal_(0, 0.1))
 
-        if (self.hops >= 3):
+        if self.hops >= 3:
             self.A4 = nn.Embedding(vocab_size, embed_size)
             self.A4.weight = nn.Parameter(torch.randn(vocab_size, embed_size).normal_(0, 0.1))
-            self.p3 = nn.Softmax()
             self.TA4 = nn.Parameter(torch.randn(self.batch_size, self.story_size, self.embed_size).normal_(0, 0.1))
 
         # final weight matrix
         self.W = nn.Parameter(torch.randn(embed_size, vocab_size), requires_grad=True)
-
-        # final softmax layer
-        self.m = nn.Softmax()
 
     def forward(self, trainS, trainQ):
         S = Variable(trainS, requires_grad=False)
         Q = Variable(torch.squeeze(trainQ, 1), requires_grad=False)
 
         queries_emb = self.A1(Q)
-        # position_encoding = get_position_encoding(queries_emb.size()[0], queries_emb.size()[1], queries_emb.size()[2])
-        position_encoding = get_position_encoding(queries_emb.size()[0], queries_emb.size()[1], self.embed_size)
+        position_encoding = get_position_encoding(queries_emb.size(0), queries_emb.size(1), self.embed_size)
         queries = queries_emb * position_encoding
         queries_sum = torch.sum(queries, dim=1)
 
-        w_u = self.one_hop(S, queries_sum, self.A1, self.A2, self.p1, self.TA, self.TA2)
+        # w_u = queries_sum
+        # for i in range(self.hops):
+        #     w_u = self.one_hop(S, w_u, self.A[i], self.A[i + 1], self.TA[i], self.TA[i + 1])
 
-        if (self.hops >= 2):
-            w_u = self.one_hop(S, w_u, self.A2, self.A3, self.p2, self.TA, self.TA3)
+        w_u = self.hop(S, queries_sum, self.A1, self.A2, self.TA, self.TA2)
 
-        if (self.hops >= 3):
-            w_u = self.one_hop(S, w_u, self.A3, self.A4, self.p3, self.TA, self.TA4)
+        if self.hops >= 2:
+            w_u = self.hop(S, w_u, self.A2, self.A3, self.TA, self.TA3)
+
+        if self.hops >= 3:
+            w_u = self.hop(S, w_u, self.A3, self.A4, self.TA, self.TA4)
 
         wx = torch.mm(w_u, self.W)
-        y_pred = self.m(wx)
+
+        # Final softmax layer
+        y_pred = F.softmax(wx)
 
         return y_pred
 
-    def one_hop(self, trainS, u_k_1, A_k, C_k, softmax_layer, temp_A_k, temp_C_k):
+    def hop(self, trainS, u_k_1, A_k, C_k, temp_A_k, temp_C_k):
         mem_emb_A = self.embed_story(trainS, A_k)
         mem_emb_C = self.embed_story(trainS, C_k)
 
@@ -80,7 +85,7 @@ class N2N(torch.nn.Module):
         queries_temp = torch.squeeze(torch.stack(u_k_1_list, dim=1), 2)
         probabs = mem_emb_A_temp * queries_temp
 
-        probabs = softmax_layer(torch.squeeze(torch.sum(probabs, dim=2)))
+        probabs = F.softmax(torch.squeeze(torch.sum(probabs, dim=2)))
 
         mem_emb_C_temp = mem_emb_C_temp.permute(0, 2, 1)
         probabs_temp = probabs.unsqueeze(1).expand_as(mem_emb_C_temp)

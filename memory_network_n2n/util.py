@@ -78,7 +78,8 @@ def load_data(data_dir, joint_training, task_number):
 
 
 def load_task(data_dir, task_id, only_supporting=False):
-    '''Load the nth task. There are 20 tasks in total.
+    '''
+    Load the nth task. There are 20 tasks in total.
 
     Returns a tuple containing the training and testing data for the task.
     '''
@@ -95,7 +96,8 @@ def load_task(data_dir, task_id, only_supporting=False):
 
 
 def get_stories(f, only_supporting=False):
-    '''Given a file name, read the file, retrieve the stories, and then convert the sentences into a single story.
+    '''
+    Given a file name, read the file, retrieve the stories, and then convert the sentences into a single story.
     If max_length is supplied, any stories longer than max_length tokens will be discarded.
     '''
     with open(f) as f:
@@ -103,7 +105,8 @@ def get_stories(f, only_supporting=False):
 
 
 def parse_stories(lines, only_supporting=False):
-    '''Parse stories provided in the bAbI tasks format
+    '''
+    Parse stories provided in the bAbI tasks format
     If only_supporting is true, only the sentences that support the answer are kept.
     '''
     data = []
@@ -146,7 +149,8 @@ def parse_stories(lines, only_supporting=False):
 
 
 def tokenize(sent):
-    '''Return the tokens of a sentence including punctuation.
+    '''
+    Return the tokens of a sentence including punctuation.
     >>> tokenize('Bob dropped the apple. Where is the apple?')
     ['Bob', 'dropped', 'the', 'apple', '.', 'Where', 'is', 'the', 'apple', '?']
     '''
@@ -215,7 +219,7 @@ def vectorize_task_data(batch_size, data, debug, memory_size, random_state, sent
 
 
 def vectorize_data(data, word_idx, sentence_size, memory_size):
-    """
+    '''
     Vectorize stories and queries.
 
     If a sentence length < sentence_size, the sentence will be padded with 0's.
@@ -224,7 +228,7 @@ def vectorize_data(data, word_idx, sentence_size, memory_size):
     Empty memories are 1-D arrays of length sentence_size filled with 0's.
 
     The answer array is returned as a one-hot encoding.
-    """
+    '''
     S = []
     Q = []
     A = []
@@ -239,7 +243,6 @@ def vectorize_data(data, word_idx, sentence_size, memory_size):
 
         if len(ss) > memory_size:
 
-            # print("Memory size exceeded !")
             # Use Jaccard similarity to determine the most relevant sentences
             q_words = (q)
             least_like_q = sorted(ss, key=functools.cmp_to_key(
@@ -292,14 +295,14 @@ def extract_tensors(A, Q, S):
 def construct_s_q_a_batch(batches, batched_objects, S, Q, A):
     for batch in batches:
         # batches are of form : [(0,2), (2,4),...]
-        _answer_batch = []
-        _story_batch = []
-        _query_batch = []
+        answer_batch = []
+        story_batch = []
+        query_batch = []
         for j in range(batch[0], batch[1]):
-            _answer_batch.append(A[j])
-            _story_batch.append(S[j])
-            _query_batch.append(Q[j])
-        batched_objects.append([_story_batch, _query_batch, _answer_batch])
+            answer_batch.append(A[j])
+            story_batch.append(S[j])
+            query_batch.append(Q[j])
+        batched_objects.append([story_batch, query_batch, answer_batch])
 
     return batched_objects
 
@@ -322,9 +325,9 @@ def process_eval_data(data_dir, task_num, word_idx, sentence_size, vocab_size, m
 
 
 def get_position_encoding(batch_size, sentence_size, embedding_size):
-    """
+    '''
     Position Encoding 
-    """
+    '''
     encoding = np.ones((embedding_size, sentence_size), dtype=np.float32)
     ls = sentence_size + 1
     le = embedding_size + 1
@@ -343,6 +346,4 @@ def get_position_encoding(batch_size, sentence_size, embedding_size):
 def weight_update(name, param):
     update = param.grad
     weight = param.data
-    # print(update)
-    # print(weight)
     print(name, (torch.norm(update) / torch.norm(weight)).data[0])

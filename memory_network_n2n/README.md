@@ -28,13 +28,13 @@ python main.py --train 1 --lr 0.001 --hops 3 --eval 1 --saved-model-dir ./saved/
 There are several command line arguments, the important ones are listed below
 * `--joint-training`: enable joint training, default: 0
 * `--batch-size`: batch-size for training, default: 32
-* `--embed_size`: embedding dimensions, default: 25
+* `--embed-size`: embedding dimensions, default: 25
 * `--anneal-factor`: factor to anneal by every 'anneal-epoch(s)', default: 2
 * `--anneal-epoch`: anneal every `anneal-epoch` epoch, default: 25
 * `--log-epochs`: Number of epochs after which to log progress, default: 4
 * `--debug`: Set to 1 for debugging purposes - print weight and other matrices, default : 0
-* `--calc-weight-update`: calculate ratio of weight update - used in debugging, default : False
-* `--save-model-dir`: path to folder where trained model will be saved.
+* `--saved-model-dir`: path to folder where trained model will be saved.
+* `--cuda`: set it to 1 for running on GPU, 0 for CPU.
 
 Refer to ``memory_network_n2n/main.py`` for other command line arguments.
 
