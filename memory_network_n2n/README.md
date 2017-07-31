@@ -3,7 +3,7 @@ This repository contains a pytorch implementation of an End to End Memory Networ
 
 The model uses the method described in [End-To-End Memory Networks](http://arxiv.org/abs/1503.08895).
 
-The tasks are from the [bAbl](http://arxiv.org/abs/1502.05698) dataset.
+The tasks are from the [bAbI](http://arxiv.org/abs/1502.05698) dataset.
 
 ![MemN2N picture](https://camo.githubusercontent.com/ba1c7dbbccc5dd51d4a76cc6ef849bca65a9bf4d/687474703a2f2f692e696d6775722e636f6d2f6e7638394a4c632e706e67)
 
