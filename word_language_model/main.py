@@ -4,7 +4,7 @@ import math
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-
+from fp16util import *
 import data
 import model
 
@@ -41,6 +41,11 @@ parser.add_argument('--log-interval', type=int, default=200, metavar='N',
                     help='report interval')
 parser.add_argument('--save', type=str,  default='model.pt',
                     help='path to save the final model')
+parser.add_argument('--fp16', action='store_true',
+                    help='Run model in pseudo-fp16 mode (fp16 storage fp32 math).')
+parser.add_argument('--loss_scale', type=float, default=1,
+                    help='Loss scaling, positive power of 2 values can improve fp16 convergence.')
+
 args = parser.parse_args()
 
 # Set the random seed manually for reproducibility.
@@ -50,12 +55,15 @@ if torch.cuda.is_available():
         print("WARNING: You have a CUDA device, so you should probably run with --cuda")
     else:
         torch.cuda.manual_seed(args.seed)
+if args.fp16 and not args.cuda:
+    print("WARNING: --fp16 requires --cuda, ignoring --fp16 option")
 
 ###############################################################################
 # Load data
 ###############################################################################
 
 corpus = data.Corpus(args.data)
+
 
 def batchify(data, bsz):
     # Work out how cleanly we can divide the dataset into bsz parts.
@@ -68,6 +76,7 @@ def batchify(data, bsz):
         data = data.cuda()
     return data
 
+
 eval_batch_size = 10
 train_data = batchify(corpus.train, args.batch_size)
 val_data = batchify(corpus.valid, eval_batch_size)
@@ -79,14 +88,18 @@ test_data = batchify(corpus.test, eval_batch_size)
 
 ntokens = len(corpus.dictionary)
 model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied)
-if args.cuda:
-    model.cuda()
 
+if args.cuda and args.fp16:
+    model.type(torch.cuda.HalfTensor)
+    param_copy = params_to_32(clone_params(model))
+elif args.cuda:
+    model.cuda()
 criterion = nn.CrossEntropyLoss()
 
 ###############################################################################
 # Training code
 ###############################################################################
+
 
 def repackage_hidden(h):
     """Wraps hidden states in new Variables, to detach them from their history."""
@@ -133,12 +146,20 @@ def train():
         model.zero_grad()
         output, hidden = model(data, hidden)
         loss = criterion(output.view(-1, ntokens), targets)
+        loss = loss * args.loss_scale
         loss.backward()
-
+        loss = loss / args.loss_scale
         # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
         torch.nn.utils.clip_grad_norm(model.parameters(), args.clip)
-        for p in model.parameters():
-            p.data.add_(-lr, p.grad.data)
+
+        if args.fp16 and args.cuda:
+            grad = params_to_32(clone_grads(model))
+            for i, _ in enumerate(param_copy):
+                param_copy[i] = param_copy[i] - grad[i] * (lr/args.loss_scale)
+            copy_in_params(model, params_to_16(param_copy))
+        else:
+            for p in model.parameters():
+                p.data.add_(-lr/args.loss_scale, p.grad.data)
 
         total_loss += loss.data
 
@@ -146,11 +167,12 @@ def train():
             cur_loss = total_loss[0] / args.log_interval
             elapsed = time.time() - start_time
             print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | '
-                    'loss {:5.2f} | ppl {:8.2f}'.format(
-                epoch, batch, len(train_data) // args.bptt, lr,
-                elapsed * 1000 / args.log_interval, cur_loss, math.exp(cur_loss)))
+                  'loss {:5.2f} | ppl {:8.2f}'.format(
+                      epoch, batch, len(train_data) // args.bptt, lr,
+                      elapsed * 1000 / args.log_interval, cur_loss, math.exp(min(cur_loss, 20))))
             total_loss = 0
             start_time = time.time()
+
 
 # Loop over epochs.
 lr = args.lr
@@ -164,8 +186,8 @@ try:
         val_loss = evaluate(val_data)
         print('-' * 89)
         print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
-                'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
-                                           val_loss, math.exp(val_loss)))
+              'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
+                                         val_loss, math.exp(min(val_loss, 20))))
         print('-' * 89)
         # Save the model if the validation loss is the best we've seen so far.
         if not best_val_loss or val_loss < best_val_loss:

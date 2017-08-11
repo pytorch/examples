@@ -14,10 +14,11 @@ import torch.utils.data.distributed
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
+from fp16util import *
 
 model_names = sorted(name for name in models.__dict__
-    if name.islower() and not name.startswith("__")
-    and callable(models.__dict__[name]))
+                     if name.islower() and not name.startswith("__")
+                     and callable(models.__dict__[name]))
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
@@ -25,8 +26,8 @@ parser.add_argument('data', metavar='DIR',
 parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet18',
                     choices=model_names,
                     help='model architecture: ' +
-                        ' | '.join(model_names) +
-                        ' (default: resnet18)')
+                    ' | '.join(model_names) +
+                    ' (default: resnet18)')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=90, type=int, metavar='N',
@@ -55,8 +56,13 @@ parser.add_argument('--dist-url', default='tcp://224.66.41.62:23456', type=str,
                     help='url used to set up distributed training')
 parser.add_argument('--dist-backend', default='gloo', type=str,
                     help='distributed backend')
+parser.add_argument('--fp16', action='store_true',
+                    help='Run model in pseudo-fp16 mode (fp16 storage fp32 math).')
+parser.add_argument('--loss-scale', type=float, default=1,
+                    help='Loss scaling, positive power of 2 values can improve fp16 convergence.')
 
 best_prec1 = 0
+cudnn.benchmark = True
 
 
 def main():
@@ -69,6 +75,13 @@ def main():
         dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url,
                                 world_size=args.world_size)
 
+    if args.fp16 and args.distributed:
+        print("Warning: fp16 not supported with distributed, ignoring fp16.")
+        args.fp16 = False
+
+    if args.fp16 and not args.distributed:
+        replace_with_BN16()
+
     # create model
     if args.pretrained:
         print("=> using pre-trained model '{}'".format(args.arch))
@@ -78,19 +91,33 @@ def main():
         model = models.__dict__[args.arch]()
 
     if not args.distributed:
+
         if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
-            model.features = torch.nn.DataParallel(model.features)
-            model.cuda()
+            if args.fp16:
+                model.features = torch.nn.DataParallel(
+                    nn.Sequential(tofp16(), model.features.cuda().half())
+                ).cuda()
+                model.classifier.cuda().half()
+            else:
+                model.features = torch.nn.DataParallel(model.features)
+                model.cuda()
         else:
+            if args.fp16:
+                model = nn.Sequential(tofp16(), model.cuda().half())
             model = torch.nn.DataParallel(model).cuda()
+
+    if args.fp16:
+        global param_copy
+        param_copy = [param.clone().type(torch.cuda.FloatTensor).detach() for param in model.parameters()]
+        for param in param_copy:
+            param.requires_grad = True
     else:
-        model.cuda()
-        model = torch.nn.parallel.DistributedDataParallel(model)
+        param_copy = list(model.parameters())
 
     # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda()
 
-    optimizer = torch.optim.SGD(model.parameters(), args.lr,
+    optimizer = torch.optim.SGD(param_copy, args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
 
@@ -107,8 +134,6 @@ def main():
                   .format(args.resume, checkpoint['epoch']))
         else:
             print("=> no checkpoint found at '{}'".format(args.resume))
-
-    cudnn.benchmark = True
 
     # Data loading code
     traindir = os.path.join(args.data, 'train')
@@ -200,16 +225,29 @@ def train(train_loader, model, criterion, optimizer, epoch):
         top1.update(prec1[0], input.size(0))
         top5.update(prec5[0], input.size(0))
 
+        loss = loss*args.loss_scale
         # compute gradient and do SGD step
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+
+        if args.fp16:
+            model.zero_grad()
+            loss.backward()
+            if args.loss_scale != 1:
+                for param in model.parameters():
+                    param.grad.data = param.grad.data/args.loss_scale
+
+            set_grad(param_copy, list(model.parameters()))
+            optimizer.step()
+            copy_in_params(model, param_copy)
+        else:
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
         # measure elapsed time
         batch_time.update(time.time() - end)
         end = time.time()
 
-        if i % args.print_freq == 0:
+        if i % args.print_freq == 0 and i > 0:
             print('Epoch: [{0}][{1}/{2}]\t'
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                   'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
