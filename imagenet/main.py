@@ -1,3 +1,4 @@
+
 import argparse
 import os
 import shutil
@@ -55,14 +56,19 @@ parser.add_argument('--dist-url', default='tcp://224.66.41.62:23456', type=str,
                     help='url used to set up distributed training')
 parser.add_argument('--dist-backend', default='gloo', type=str,
                     help='distributed backend')
+parser.add_argument('--dist-start-dev', default=0, type=int, metavar='N',
+                    help='Starting device for distributed.')
+parser.add_argument('--dist-num-devs', default=0, type=int, metavar='N',
+                    help='Number of devices for each process, 0 will use all devices on Node.')
 
 best_prec1 = 0
+
 
 
 def main():
     global args, best_prec1
     args = parser.parse_args()
-
+    
     args.distributed = args.world_size > 1
 
     if args.distributed:
@@ -84,8 +90,14 @@ def main():
         else:
             model = torch.nn.DataParallel(model).cuda()
     else:
+        if args.dist_num_devs > 0:
+            torch.cuda.set_device(args.dist_start_dev)
+            dev_ids = range(args.dist_start_dev, args.dist_start_dev+args.dist_num_devs)
+        else:
+            dev_ids = None
         model.cuda()
-        model = torch.nn.parallel.DistributedDataParallel(model)
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=dev_ids)
+
 
     # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda()
