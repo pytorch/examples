@@ -90,30 +90,37 @@ def main():
         print("=> creating model '{}'".format(args.arch))
         model = models.__dict__[args.arch]()
 
-    if not args.distributed:
 
-        if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
+        if not args.distributed:
             if args.fp16:
-                model.features = torch.nn.DataParallel(
-                    nn.Sequential(tofp16(), model.features.cuda().half())
-                ).cuda()
-                model.classifier.cuda().half()
+                if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
+                    model.features = torch.nn.DataParallel(
+                        nn.Sequential(tofp16(), model.features.cuda().half())
+                    ).cuda()
+                    model.classifier.cuda().half()
+                else:
+                    model = nn.Sequential(tofp16(), model.cuda().half())
+                    model = torch.nn.DataParallel(model).cuda()
+                    
+                global param_copy
+                param_copy = [param.clone().type(torch.cuda.FloatTensor).detach() for param in model.parameters()]
+                for param in param_copy:
+                    param.requires_grad = True
+
             else:
-                model.features = torch.nn.DataParallel(model.features)
-                model.cuda()
-        else:
-            if args.fp16:
-                model = nn.Sequential(tofp16(), model.cuda().half())
-            model = torch.nn.DataParallel(model).cuda()
+                if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
+                    model.features = torch.nn.DataParallel(model.features)
+                    model.cuda()
+                else:
+                    model = torch.nn.DataParallel(model).cuda()
 
-    if args.fp16:
-        global param_copy
-        param_copy = [param.clone().type(torch.cuda.FloatTensor).detach() for param in model.parameters()]
-        for param in param_copy:
-            param.requires_grad = True
-    else:
-        param_copy = list(model.parameters())
-
+            param_copy = list(model.parameters())
+            
+        if args.distributed:
+            model.cuda()
+            model = torch.nn.parallel.DistributedDataParallel(model)
+            param_copy = list(model.parameters())
+        
     # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda()
 
