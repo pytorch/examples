@@ -113,8 +113,7 @@ def main():
                     model.cuda()
                 else:
                     model = torch.nn.DataParallel(model).cuda()
-
-            param_copy = list(model.parameters())
+                param_copy = list(model.parameters())
             
         if args.distributed:
             model.cuda()
