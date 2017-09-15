@@ -15,7 +15,7 @@ The model uses the `nn.RNN` module (and its sister modules `nn.GRU` and `nn.LSTM
 which will automatically use the cuDNN backend if run on CUDA with cuDNN installed.
 
 During training, if a keyboard interrupt (Ctrl-C) is received,
-training is stopped and the current model is evaluted against the test dataset.
+training is stopped and the current model is evaluated against the test dataset.
 
 The `main.py` script accepts the following arguments:
 
