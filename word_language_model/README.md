@@ -25,7 +25,7 @@ optional arguments:
   --data DATA        location of the data corpus
   --model MODEL      type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)
   --emsize EMSIZE    size of word embeddings
-  --nhid NHID        humber of hidden units per layer
+  --nhid NHID        number of hidden units per layer
   --nlayers NLAYERS  number of layers
   --lr LR            initial learning rate
   --clip CLIP        gradient clipping
