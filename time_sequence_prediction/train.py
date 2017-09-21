@@ -1,6 +1,6 @@
 from __future__ import print_function
 import torch
-import torch.nn as nn 
+import torch.nn as nn
 from torch.autograd import Variable
 import torch.optim as optim
 import numpy as np
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     seq.double()
     criterion = nn.MSELoss()
     # use LBFGS as optimizer since we can load the whole data to train
-    optimizer = optim.LBFGS(seq.parameters())
+    optimizer = optim.LBFGS(seq.parameters(), lr=0.8)
     #begin to train
     for i in range(15):
         print('STEP: ', i)
@@ -69,7 +69,7 @@ if __name__ == '__main__':
         y = pred.data.numpy()
         # draw the result
         plt.figure(figsize=(30,10))
-        plt.title('Predict future values for time sequences\n(Dashlines are predicted values)', fontsize=30) 
+        plt.title('Predict future values for time sequences\n(Dashlines are predicted values)', fontsize=30)
         plt.xlabel('x', fontsize=20)
         plt.ylabel('y', fontsize=20)
         plt.xticks(fontsize=20)
@@ -82,4 +82,3 @@ if __name__ == '__main__':
         draw(y[2], 'b')
         plt.savefig('predict%d.pdf'%i)
         plt.close()
-
