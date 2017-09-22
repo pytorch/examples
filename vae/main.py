@@ -56,11 +56,7 @@ class VAE(nn.Module):
 
     def reparametrize(self, mu, logvar):
         std = logvar.mul(0.5).exp_()
-        if args.cuda:
-            eps = torch.cuda.FloatTensor(std.size()).normal_()
-        else:
-            eps = torch.FloatTensor(std.size()).normal_()
-        eps = Variable(eps)
+        eps = Variable(std.data.new(std.size()).normal_())
         return eps.mul(std).add_(mu)
 
     def decode(self, z):
