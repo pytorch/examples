@@ -82,7 +82,7 @@ reconstruction_function.size_average = False
 
 
 def loss_function(recon_x, x, mu, logvar):
-    BCE = reconstruction_function(recon_x, x)
+    BCE = reconstruction_function(recon_x, x.view(-1, 784))
 
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
