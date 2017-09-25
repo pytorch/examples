@@ -23,12 +23,12 @@ class Sequence(nn.Module):
 
         for i, input_t in enumerate(input.chunk(input.size(1), dim=1)):
             h_t, c_t = self.lstm1(input_t, (h_t, c_t))
-            h_t2, c_t2 = self.lstm2(c_t, (h_t2, c_t2))
-            outputs += [c_t2]
+            h_t2, c_t2 = self.lstm2(h_t, (h_t2, c_t2))
+            outputs += [h_t2]
         for i in range(future):# if we should predict the future
-            h_t, c_t = self.lstm1(c_t2, (h_t, c_t))
-            h_t2, c_t2 = self.lstm2(c_t, (h_t2, c_t2))
-            outputs += [c_t2]
+            h_t, c_t = self.lstm1(h_t2, (h_t, c_t))
+            h_t2, c_t2 = self.lstm2(h_t, (h_t2, c_t2))
+            outputs += [h_t2]
         outputs = torch.stack(outputs, 1).squeeze(2)
         return outputs
 
