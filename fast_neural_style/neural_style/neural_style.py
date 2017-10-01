@@ -35,7 +35,7 @@ def train(args):
         torch.cuda.manual_seed(args.seed)
 
     transform = transforms.Compose([
-        transforms.Scale(args.image_size),
+        transforms.Resize(args.image_size),
         transforms.CenterCrop(args.image_size),
         transforms.ToTensor(),
         transforms.Lambda(lambda x: x.mul(255))
