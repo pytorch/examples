@@ -4,6 +4,7 @@ import shutil
 import time
 
 import torch
+from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.parallel
 import torch.backends.cudnn as cudnn
@@ -100,6 +101,8 @@ def main():
                     model.classifier.cuda().half()
                 else:
                     model = nn.Sequential(tofp16(), model.cuda().half())
+                    model(Variable(torch.randn(int(args.batch_size/torch.cuda.device_count()), 3, 224,224).cuda().half()))
+
                     model = torch.nn.DataParallel(model).cuda()
                     
                 global param_copy
