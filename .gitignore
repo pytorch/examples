@@ -1,4 +1,4 @@
 dcgan/data
-data
+#data
 *.pyc
 OpenNMT/data
