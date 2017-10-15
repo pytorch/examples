@@ -47,4 +47,12 @@ idxs = [predicted_idxs[i][0] for i in range(len(predicted_idxs))]
 words = [corpus.dictionary.idx2word[idx] for idx in idxs]
 print("Words summary ({}) ({}) ({})".format(len(words), type(words[0]), words[0]))
 print("Words Begin ({}) Words End".format(words))
+
+str = ''
+for i, w in enumerate(words):
+    nw = w if w != '<eos>' else '\n'
+    str += ' '
+    str += nw
+
+print("Words Formatted Begin ({}) Words Formatted End".format(str))
 torch.set_printoptions(threshold=1000)
