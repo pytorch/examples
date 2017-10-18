@@ -70,8 +70,8 @@ def finish_episode():
     rewards = torch.Tensor(rewards)
     rewards = (rewards - rewards.mean()) / (rewards.std() + np.finfo(np.float32).eps)
     for (action, value), r in zip(saved_actions, rewards):
-        reward = r - value.data[0,0]
-        action.reinforce(reward)
+        advantage = r - value.data[0,0]
+        action.reinforce(advantage)
         value_loss += F.smooth_l1_loss(value, Variable(torch.Tensor([r])))
     optimizer.zero_grad()
     final_nodes = [value_loss] + list(map(lambda p: p.action, saved_actions))
