@@ -13,13 +13,13 @@ import torchvision.transforms as transforms
 import torchvision.utils as vutils
 from torch.autograd import Variable
 
-
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', required=True, help='cifar10 | lsun | imagenet | folder | lfw | fake')
 parser.add_argument('--dataroot', required=True, help='path to dataset')
 parser.add_argument('--workers', type=int, help='number of data loading workers', default=2)
 parser.add_argument('--batchSize', type=int, default=64, help='input batch size')
 parser.add_argument('--imageSize', type=int, default=64, help='the height / width of the input image to network')
+parser.add_argument('--nc', type=int, default=3, help='number of channels of the input image')
 parser.add_argument('--nz', type=int, default=100, help='size of the latent z vector')
 parser.add_argument('--ngf', type=int, default=64)
 parser.add_argument('--ndf', type=int, default=64)
@@ -58,7 +58,7 @@ if opt.dataset in ['imagenet', 'folder', 'lfw']:
     # folder dataset
     dataset = dset.ImageFolder(root=opt.dataroot,
                                transform=transforms.Compose([
-                                   transforms.Scale(opt.imageSize),
+                                   transforms.Resize((opt.imageSize,opt.imageSize)),
                                    transforms.CenterCrop(opt.imageSize),
                                    transforms.ToTensor(),
                                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
@@ -66,7 +66,7 @@ if opt.dataset in ['imagenet', 'folder', 'lfw']:
 elif opt.dataset == 'lsun':
     dataset = dset.LSUN(db_path=opt.dataroot, classes=['bedroom_train'],
                         transform=transforms.Compose([
-                            transforms.Scale(opt.imageSize),
+                            transforms.Resize((opt.imageSize,opt.imageSize)),
                             transforms.CenterCrop(opt.imageSize),
                             transforms.ToTensor(),
                             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
@@ -74,12 +74,20 @@ elif opt.dataset == 'lsun':
 elif opt.dataset == 'cifar10':
     dataset = dset.CIFAR10(root=opt.dataroot, download=True,
                            transform=transforms.Compose([
-                               transforms.Scale(opt.imageSize),
+                               transforms.Resize((opt.imageSize,opt.imageSize)),
                                transforms.ToTensor(),
                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                            ]))
+elif opt.dataset == 'mnist':
+    dataset = dset.MNIST(root=opt.dataroot, download=True,
+                         transform=transforms.Compose([
+                            transforms.Resize((opt.imageSize,opt.imageSize)),
+                            transforms.ToTensor(),
+                            transforms.Normalize((0,),(255,))
+                         ])
+                    )
 elif opt.dataset == 'fake':
-    dataset = dset.FakeData(image_size=(3, opt.imageSize, opt.imageSize),
+    dataset = dset.FakeData(image_size=(int(opt.nc), opt.imageSize, opt.imageSize),
                             transform=transforms.ToTensor())
 assert dataset
 dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize,
@@ -89,7 +97,7 @@ ngpu = int(opt.ngpu)
 nz = int(opt.nz)
 ngf = int(opt.ngf)
 ndf = int(opt.ndf)
-nc = 3
+nc = int(opt.nc)
 
 
 # custom weights initialization called on netG and netD
@@ -186,7 +194,7 @@ print(netD)
 
 criterion = nn.BCELoss()
 
-input = torch.FloatTensor(opt.batchSize, 3, opt.imageSize, opt.imageSize)
+input = torch.FloatTensor(opt.batchSize, nc, opt.imageSize, opt.imageSize)
 noise = torch.FloatTensor(opt.batchSize, nz, 1, 1)
 fixed_noise = torch.FloatTensor(opt.batchSize, nz, 1, 1).normal_(0, 1)
 label = torch.FloatTensor(opt.batchSize)
@@ -221,7 +229,6 @@ for epoch in range(opt.niter):
         label.resize_(batch_size).fill_(real_label)
         inputv = Variable(input)
         labelv = Variable(label)
-
         output = netD(inputv)
         errD_real = criterion(output, labelv)
         errD_real.backward()
