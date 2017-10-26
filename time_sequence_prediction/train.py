@@ -35,7 +35,7 @@ class Sequence(nn.Module):
 
 
 if __name__ == '__main__':
-    # set ramdom seed to 0
+    # set random seed to 0
     np.random.seed(0)
     torch.manual_seed(0)
     # load data and make training set
