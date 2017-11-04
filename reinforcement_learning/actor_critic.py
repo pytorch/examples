@@ -8,8 +8,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-import torch.autograd as autograd
 from torch.autograd import Variable
+from torch.distributions import Multinomial
 
 
 parser = argparse.ArgumentParser(description='PyTorch actor-critic example')
@@ -29,7 +29,9 @@ env.seed(args.seed)
 torch.manual_seed(args.seed)
 
 
-SavedAction = namedtuple('SavedAction', ['action', 'value'])
+SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
+
+
 class Policy(nn.Module):
     def __init__(self):
         super(Policy, self).__init__()
@@ -54,29 +56,28 @@ optimizer = optim.Adam(model.parameters(), lr=3e-2)
 def select_action(state):
     state = torch.from_numpy(state).float().unsqueeze(0)
     probs, state_value = model(Variable(state))
-    action = probs.multinomial()
-    model.saved_actions.append(SavedAction(action, state_value))
+    m = Multinomial(probs)
+    action = m.sample()
+    model.saved_actions.append(SavedAction(m.log_prob(action), state_value))
     return action.data
 
 
 def finish_episode():
     R = 0
     saved_actions = model.saved_actions
-    value_loss = 0
+    policy_loss, value_loss = 0, 0
     rewards = []
     for r in model.rewards[::-1]:
         R = r + args.gamma * R
         rewards.insert(0, R)
     rewards = torch.Tensor(rewards)
     rewards = (rewards - rewards.mean()) / (rewards.std() + np.finfo(np.float32).eps)
-    for (action, value), r in zip(saved_actions, rewards):
-        reward = r - value.data[0,0]
-        action.reinforce(reward)
+    for (log_prob, value), r in zip(saved_actions, rewards):
+        reward = r - value.data[0, 0]
+        policy_loss -= (log_prob * reward).sum()
         value_loss += F.smooth_l1_loss(value, Variable(torch.Tensor([r])))
     optimizer.zero_grad()
-    final_nodes = [value_loss] + list(map(lambda p: p.action, saved_actions))
-    gradients = [torch.ones(1)] + [None] * len(saved_actions)
-    autograd.backward(final_nodes, gradients)
+    (policy_loss + value_loss).backward()
     optimizer.step()
     del model.rewards[:]
     del model.saved_actions[:]
@@ -85,9 +86,9 @@ def finish_episode():
 running_reward = 10
 for i_episode in count(1):
     state = env.reset()
-    for t in range(10000): # Don't infinite loop while learning
+    for t in range(10000):  # Don't infinite loop while learning
         action = select_action(state)
-        state, reward, done, _ = env.step(action[0,0])
+        state, reward, done, _ = env.step(action[0, 0])
         if args.render:
             env.render()
         model.rewards.append(reward)
