@@ -7,8 +7,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-import torch.autograd as autograd
 from torch.autograd import Variable
+from torch.distributions import Multinomial
 
 
 parser = argparse.ArgumentParser(description='PyTorch REINFORCE example')
@@ -50,23 +50,25 @@ optimizer = optim.Adam(policy.parameters(), lr=1e-2)
 def select_action(state):
     state = torch.from_numpy(state).float().unsqueeze(0)
     probs = policy(Variable(state))
-    action = probs.multinomial()
-    policy.saved_actions.append(action)
+    m = Multinomial(probs)
+    action = m.sample()
+    policy.saved_actions.append(m.log_prob(action))
     return action.data
 
 
 def finish_episode():
     R = 0
+    policy_loss = 0
     rewards = []
     for r in policy.rewards[::-1]:
         R = r + args.gamma * R
         rewards.insert(0, R)
     rewards = torch.Tensor(rewards)
     rewards = (rewards - rewards.mean()) / (rewards.std() + np.finfo(np.float32).eps)
-    for action, r in zip(policy.saved_actions, rewards):
-        action.reinforce(r)
+    for log_prob, r in zip(policy.saved_actions, rewards):
+        policy_loss -= (log_prob * reward).sum()
     optimizer.zero_grad()
-    autograd.backward(policy.saved_actions, [None for _ in policy.saved_actions])
+    policy_loss.backward()
     optimizer.step()
     del policy.rewards[:]
     del policy.saved_actions[:]
@@ -75,9 +77,9 @@ def finish_episode():
 running_reward = 10
 for i_episode in count(1):
     state = env.reset()
-    for t in range(10000): # Don't infinite loop while learning
+    for t in range(10000):  # Don't infinite loop while learning
         action = select_action(state)
-        state, reward, done, _ = env.step(action[0,0])
+        state, reward, done, _ = env.step(action[0, 0])
         if args.render:
             env.render()
         policy.rewards.append(reward)
