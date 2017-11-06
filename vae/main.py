@@ -2,16 +2,18 @@ from __future__ import print_function
 import argparse
 import torch
 import torch.utils.data
-import torch.nn as nn
-import torch.optim as optim
+from torch import nn, optim
 from torch.autograd import Variable
+from torch.nn import functional as F
 from torchvision import datasets, transforms
+from torchvision.utils import save_image
 
-parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
+
+parser = argparse.ArgumentParser(description='VAE MNIST Example')
 parser.add_argument('--batch-size', type=int, default=128, metavar='N',
-                    help='input batch size for training (default: 64)')
+                    help='input batch size for training (default: 128)')
 parser.add_argument('--epochs', type=int, default=10, metavar='N',
-                    help='number of epochs to train (default: 2)')
+                    help='number of epochs to train (default: 10)')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='enables CUDA training')
 parser.add_argument('--seed', type=int, default=1, metavar='S',
@@ -54,14 +56,13 @@ class VAE(nn.Module):
         h1 = self.relu(self.fc1(x))
         return self.fc21(h1), self.fc22(h1)
 
-    def reparametrize(self, mu, logvar):
-        std = logvar.mul(0.5).exp_()
-        if args.cuda:
-            eps = torch.cuda.FloatTensor(std.size()).normal_()
+    def reparameterize(self, mu, logvar):
+        if self.training:
+          std = logvar.mul(0.5).exp_()
+          eps = Variable(std.data.new(std.size()).normal_())
+          return eps.mul(std).add_(mu)
         else:
-            eps = torch.FloatTensor(std.size()).normal_()
-        eps = Variable(eps)
-        return eps.mul(std).add_(mu)
+          return mu
 
     def decode(self, z):
         h3 = self.relu(self.fc3(z))
@@ -69,7 +70,7 @@ class VAE(nn.Module):
 
     def forward(self, x):
         mu, logvar = self.encode(x.view(-1, 784))
-        z = self.reparametrize(mu, logvar)
+        z = self.reparameterize(mu, logvar)
         return self.decode(z), mu, logvar
 
 
@@ -77,19 +78,17 @@ model = VAE()
 if args.cuda:
     model.cuda()
 
-reconstruction_function = nn.BCELoss()
-reconstruction_function.size_average = False
-
 
 def loss_function(recon_x, x, mu, logvar):
-    BCE = reconstruction_function(recon_x, x)
+    BCE = F.binary_cross_entropy(recon_x, x.view(-1, 784))
 
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
-    KLD_element = mu.pow(2).add_(logvar.exp()).mul_(-1).add_(1).add_(logvar)
-    KLD = torch.sum(KLD_element).mul_(-0.5)
+    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    # Normalise by same number of elements as in reconstruction
+    KLD /= args.batch_size * 784
 
     return BCE + KLD
 
@@ -123,12 +122,18 @@ def train(epoch):
 def test(epoch):
     model.eval()
     test_loss = 0
-    for data, _ in test_loader:
+    for i, (data, _) in enumerate(test_loader):
         if args.cuda:
             data = data.cuda()
         data = Variable(data, volatile=True)
         recon_batch, mu, logvar = model(data)
         test_loss += loss_function(recon_batch, data, mu, logvar).data[0]
+        if i == 0:
+          n = min(data.size(0), 8)
+          comparison = torch.cat([data[:n],
+                                  recon_batch.view(args.batch_size, 1, 28, 28)[:n]])
+          save_image(comparison.data.cpu(),
+                     'results/reconstruction_' + str(epoch) + '.png', nrow=n)
 
     test_loss /= len(test_loader.dataset)
     print('====> Test set loss: {:.4f}'.format(test_loss))
@@ -137,3 +142,9 @@ def test(epoch):
 for epoch in range(1, args.epochs + 1):
     train(epoch)
     test(epoch)
+    sample = Variable(torch.randn(64, 20))
+    if args.cuda:
+       sample = sample.cuda()
+    sample = model.decode(sample).cpu()
+    save_image(sample.data.view(64, 1, 28, 28),
+               'results/sample_' + str(epoch) + '.png')
