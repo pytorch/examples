@@ -46,7 +46,7 @@ class Policy(nn.Module):
         x = F.relu(self.affine1(x))
         action_scores = self.action_head(x)
         state_values = self.value_head(x)
-        return F.softmax(action_scores), state_values
+        return F.softmax(action_scores, dim=1), state_values
 
 
 model = Policy()
@@ -59,7 +59,7 @@ def select_action(state):
     m = Multinomial(probs)
     action = m.sample()
     model.saved_actions.append(SavedAction(m.log_prob(action), state_value))
-    return action.data
+    return action.data[0]
 
 
 def finish_episode():
@@ -88,7 +88,7 @@ for i_episode in count(1):
     state = env.reset()
     for t in range(10000):  # Don't infinite loop while learning
         action = select_action(state)
-        state, reward, done, _ = env.step(action[0, 0])
+        state, reward, done, _ = env.step(action)
         if args.render:
             env.render()
         model.rewards.append(reward)

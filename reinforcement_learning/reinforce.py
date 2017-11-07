@@ -40,7 +40,7 @@ class Policy(nn.Module):
     def forward(self, x):
         x = F.relu(self.affine1(x))
         action_scores = self.affine2(x)
-        return F.softmax(action_scores)
+        return F.softmax(action_scores, dim=1)
 
 
 policy = Policy()
@@ -53,7 +53,7 @@ def select_action(state):
     m = Multinomial(probs)
     action = m.sample()
     policy.saved_actions.append(m.log_prob(action))
-    return action.data
+    return action.data[0]
 
 
 def finish_episode():
@@ -79,7 +79,7 @@ for i_episode in count(1):
     state = env.reset()
     for t in range(10000):  # Don't infinite loop while learning
         action = select_action(state)
-        state, reward, done, _ = env.step(action[0, 0])
+        state, reward, done, _ = env.step(action)
         if args.render:
             env.render()
         policy.rewards.append(reward)
