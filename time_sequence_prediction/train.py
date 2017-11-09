@@ -10,25 +10,18 @@ import matplotlib.pyplot as plt
 
 
 class Sequence(nn.Module):
-    def __init__(self, use_cuda=False):
+    def __init__(self):
         super(Sequence, self).__init__()
         self.lstm1 = nn.LSTMCell(1, 51)
         self.lstm2 = nn.LSTMCell(51, 51)
         self.linear = nn.Linear(51, 1)
-        self.use_cuda = use_cuda
 
     def forward(self, input, future = 0):
         outputs = []
-        if (self.use_cuda):
-            h_t = Variable(torch.zeros(input.size(0), 51).cuda(), requires_grad=False)
-            c_t = Variable(torch.zeros(input.size(0), 51).cuda(), requires_grad=False)
-            h_t2 = Variable(torch.zeros(input.size(0), 51).cuda(), requires_grad=False)
-            c_t2 = Variable(torch.zeros(input.size(0), 51).cuda(), requires_grad=False)
-        else:
-            h_t = Variable(torch.zeros(input.size(0), 51).double(), requires_grad=False)
-            c_t = Variable(torch.zeros(input.size(0), 51).double(), requires_grad=False)
-            h_t2 = Variable(torch.zeros(input.size(0), 51).double(), requires_grad=False)
-            c_t2 = Variable(torch.zeros(input.size(0), 51).double(), requires_grad=False)
+        h_t = Variable(input.data.new(input.size(0),51).zero_())
+        c_t = Variable(input.data.new(input.size(0),51).zero_())
+        h_t2 = Variable(input.data.new(input.size(0),51).zero_())
+        c_t2 = Variable(input.data.new(input.size(0),51).zero_())
 
         for i, input_t in enumerate(input.chunk(input.size(1), dim=1)):
             h_t, c_t = self.lstm1(input_t, (h_t, c_t))
@@ -64,7 +57,7 @@ if __name__ == '__main__':
         test_target = Variable(torch.from_numpy(data[:3, 1:]).double(), requires_grad=False)
 
     # build the model
-    seq = Sequence(use_cuda=use_cuda)
+    seq = Sequence()
     if (use_cuda):
         seq.cuda()
     else:
