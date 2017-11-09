@@ -8,19 +8,27 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
+
 class Sequence(nn.Module):
-    def __init__(self):
+    def __init__(self, use_cuda=False):
         super(Sequence, self).__init__()
         self.lstm1 = nn.LSTMCell(1, 51)
         self.lstm2 = nn.LSTMCell(51, 51)
         self.linear = nn.Linear(51, 1)
+        self.use_cuda = use_cuda
 
     def forward(self, input, future = 0):
         outputs = []
-        h_t = Variable(torch.zeros(input.size(0), 51).double(), requires_grad=False)
-        c_t = Variable(torch.zeros(input.size(0), 51).double(), requires_grad=False)
-        h_t2 = Variable(torch.zeros(input.size(0), 51).double(), requires_grad=False)
-        c_t2 = Variable(torch.zeros(input.size(0), 51).double(), requires_grad=False)
+        if (self.use_cuda):
+            h_t = Variable(torch.zeros(input.size(0), 51).cuda(), requires_grad=False)
+            c_t = Variable(torch.zeros(input.size(0), 51).cuda(), requires_grad=False)
+            h_t2 = Variable(torch.zeros(input.size(0), 51).cuda(), requires_grad=False)
+            c_t2 = Variable(torch.zeros(input.size(0), 51).cuda(), requires_grad=False)
+        else:
+            h_t = Variable(torch.zeros(input.size(0), 51).double(), requires_grad=False)
+            c_t = Variable(torch.zeros(input.size(0), 51).double(), requires_grad=False)
+            h_t2 = Variable(torch.zeros(input.size(0), 51).double(), requires_grad=False)
+            c_t2 = Variable(torch.zeros(input.size(0), 51).double(), requires_grad=False)
 
         for i, input_t in enumerate(input.chunk(input.size(1), dim=1)):
             h_t, c_t = self.lstm1(input_t, (h_t, c_t))
@@ -42,14 +50,25 @@ if __name__ == '__main__':
     np.random.seed(0)
     torch.manual_seed(0)
     # load data and make training set
-    data = torch.load('traindata.pt')
-    input = Variable(torch.from_numpy(data[3:, :-1]), requires_grad=False)
-    target = Variable(torch.from_numpy(data[3:, 1:]), requires_grad=False)
-    test_input = Variable(torch.from_numpy(data[:3, :-1]), requires_grad=False)
-    test_target = Variable(torch.from_numpy(data[:3, 1:]), requires_grad=False)
+    data = torch.load('traindata.pt').astype('float32')
+    use_cuda = torch.cuda.is_available()
+    if (use_cuda):
+        input = Variable(torch.from_numpy(data[3:, :-1]).cuda(), requires_grad=False)
+        target = Variable(torch.from_numpy(data[3:, 1:]).cuda(), requires_grad=False)
+        test_input = Variable(torch.from_numpy(data[:3, :-1]).cuda(), requires_grad=False)
+        test_target = Variable(torch.from_numpy(data[:3, 1:]).cuda(), requires_grad=False)
+    else:
+        input = Variable(torch.from_numpy(data[3:, :-1]).double(), requires_grad=False)
+        target = Variable(torch.from_numpy(data[3:, 1:]).double(), requires_grad=False)
+        test_input = Variable(torch.from_numpy(data[:3, :-1]).double(), requires_grad=False)
+        test_target = Variable(torch.from_numpy(data[:3, 1:]).double(), requires_grad=False)
+
     # build the model
-    seq = Sequence()
-    seq.double()
+    seq = Sequence(use_cuda=use_cuda)
+    if (use_cuda):
+        seq.cuda()
+    else:
+        seq.double()
     criterion = nn.MSELoss()
     # use LBFGS as optimizer since we can load the whole data to train
     optimizer = optim.LBFGS(seq.parameters(), lr=0.8)
@@ -60,7 +79,7 @@ if __name__ == '__main__':
             optimizer.zero_grad()
             out = seq(input)
             loss = criterion(out, target)
-            print('loss:', loss.data.numpy()[0])
+            print('loss:', loss.data.cpu().numpy()[0])
             loss.backward()
             return loss
         optimizer.step(closure)
@@ -68,8 +87,8 @@ if __name__ == '__main__':
         future = 1000
         pred = seq(test_input, future = future)
         loss = criterion(pred[:, :-future], test_target)
-        print('test loss:', loss.data.numpy()[0])
-        y = pred.data.numpy()
+        print('test loss:', loss.data.cpu().numpy()[0])
+        y = pred.data.cpu().numpy()
         # draw the result
         plt.figure(figsize=(30,10))
         plt.title('Predict future values for time sequences\n(Dashlines are predicted values)', fontsize=30)
@@ -83,5 +102,5 @@ if __name__ == '__main__':
         draw(y[0], 'r')
         draw(y[1], 'g')
         draw(y[2], 'b')
-        plt.savefig('predict%d.pdf'%i)
+        plt.savefig('predict%d.png'%i)
         plt.close()
