@@ -25,5 +25,5 @@ def set_grad(params, params_with_grad):
 
 
 def replace_with_BN16():
-    import torch.nn.contrib
-    nn.BatchNorm2d = torch.nn.contrib.BatchNorm2dFP16
+    from batchnormfp16 import BatchNorm2dFP16 as bnfp16
+    nn.BatchNorm2d = bnfp16
