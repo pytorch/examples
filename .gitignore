@@ -2,3 +2,4 @@ dcgan/data
 data
 *.pyc
 OpenNMT/data
+fast_neural_style/saved_models
