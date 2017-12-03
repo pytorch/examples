@@ -14,6 +14,8 @@ import torch.utils.data.distributed
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
+from torch.nn.parameter import Parameter
+from torchvision.models.resnet import BasicBlock, Bottleneck
 
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
@@ -84,6 +86,28 @@ def main():
         else:
             model = torch.nn.DataParallel(model).cuda()
     else:
+        # Distributed training uses 4 tricks to maintain the accuracy
+        # with much larger batchsize, see
+        # https://arxiv.org/pdf/1706.02677.pdf
+        # for more details
+        if args.arch.startswith('resnet'):
+            for m in model.modules():
+                # Trick 1: the last BatchNorm layer in each block need to
+                # be initialized as zero gamma
+                if isinstance(m, BasicBlock):
+                    num_features = m.bn2.num_features
+                    m.bn2.weight = Parameter(torch.zeros(num_features))
+                if isinstance(m, Bottleneck):
+                    num_features = m.bn3.num_features
+                    m.bn3.weight = Parameter(torch.zeros(num_features))
+                # Trick 2: linear layers are initialized by
+                # drawing weights from a zero-mean Gaussian with
+                # standard deviation of 0.01. In the paper it was only
+                # fc layer, but in practice we found this better for
+                # accuracy.
+                if isinstance(m, nn.Linear):
+                    m.weight.data.normal_(0, 0.01)
+
         model.cuda()
         model = torch.nn.parallel.DistributedDataParallel(model)
 
@@ -151,7 +175,6 @@ def main():
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             train_sampler.set_epoch(epoch)
-        adjust_learning_rate(optimizer, epoch)
 
         # train for one epoch
         train(train_loader, model, criterion, optimizer, epoch)
@@ -183,6 +206,10 @@ def train(train_loader, model, criterion, optimizer, epoch):
 
     end = time.time()
     for i, (input, target) in enumerate(train_loader):
+        adjust_learning_rate(optimizer,
+                             epoch,
+                             len(train_loader),
+                             i)
         # measure data loading time
         data_time.update(time.time() - end)
 
@@ -203,6 +230,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
         # compute gradient and do SGD step
         optimizer.zero_grad()
         loss.backward()
+
         optimizer.step()
 
         # measure elapsed time
@@ -288,11 +316,30 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-def adjust_learning_rate(optimizer, epoch):
+def adjust_learning_rate(optimizer, epoch, num_iter, iter_index):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-    lr = args.lr * (0.1 ** (epoch // 30))
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
+    if args.distributed:
+        # Trick 3: lr scales linearly with world size with warmup
+        if epoch < 5:
+            lr_step = (args.world_size - 1) * args.lr / (5.0 * num_iter)
+            lr = args.lr + (epoch * num_iter + iter_index) * lr_step
+        elif epoch < 80:
+            lr = args.world_size * args.lr * (0.1 ** (epoch // 30))
+        else:
+            lr = args.world_size * args.lr * (0.1 ** 3)
+        for param_group in optimizer.param_groups:
+            lr_old = param_group['lr']
+            param_group['lr'] = lr
+            # Trick 4: apply momentum correction when lr is updated
+            if lr > lr_old:
+                param_group['momentum'] = lr / lr_old * args.momentum
+            else:
+                param_group['momentum'] = args.momentum
+    else:
+        lr = args.lr * (0.1 ** (epoch // 30))
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+    return
 
 
 def accuracy(output, target, topk=(1,)):
