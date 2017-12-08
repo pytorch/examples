@@ -9,7 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
-from torch.distributions import Multinomial
+from torch.distributions import Categorical
 
 
 parser = argparse.ArgumentParser(description='PyTorch actor-critic example')
@@ -56,7 +56,7 @@ optimizer = optim.Adam(model.parameters(), lr=3e-2)
 def select_action(state):
     state = torch.from_numpy(state).float().unsqueeze(0)
     probs, state_value = model(Variable(state))
-    m = Multinomial(probs)
+    m = Categorical(probs)
     action = m.sample()
     model.saved_actions.append(SavedAction(m.log_prob(action), state_value))
     return action.data[0]

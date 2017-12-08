@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
-from torch.distributions import Multinomial
+from torch.distributions import Categorical
 
 
 parser = argparse.ArgumentParser(description='PyTorch REINFORCE example')
@@ -50,7 +50,7 @@ optimizer = optim.Adam(policy.parameters(), lr=1e-2)
 def select_action(state):
     state = torch.from_numpy(state).float().unsqueeze(0)
     probs = policy(Variable(state))
-    m = Multinomial(probs)
+    m = Categorical(probs)
     action = m.sample()
     policy.saved_log_probs.append(m.log_prob(action))
     return action.data[0]
