@@ -44,7 +44,7 @@ if config.birnn:
     config.n_cells *= 2
 
 if args.resume_snapshot:
-    model = torch.load(args.resume_snapshot, map_location=lambda storage, locatoin: storage.cuda(args.gpu))
+    model = torch.load(args.resume_snapshot, map_location=lambda storage, _: storage.cuda(args.gpu))
 else:
     model = SNLIClassifier(config)
     if args.word_vectors:
@@ -136,5 +136,3 @@ for epoch in range(args.epochs):
             print(log_template.format(time.time()-start,
                 epoch, iterations, 1+batch_idx, len(train_iter),
                 100. * (1+batch_idx) / len(train_iter), loss.data[0], ' '*8, n_correct/n_total*100, ' '*12))
-
-
