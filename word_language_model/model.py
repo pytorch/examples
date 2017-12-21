@@ -4,6 +4,7 @@ from torch.autograd import Variable
 from torch.nn import functional as F
 
 # run one step of an lstm, assuming premultiplied input
+@torch.jit.compile(nderivs=1)
 def lstm_cell(input_, hidden, w_hh, b_hh=None):
     hx, cx = hidden
     gates = input_ + F.linear(hx, w_hh, b_hh)
@@ -30,6 +31,9 @@ def lstm(input, hidden, w_ih, w_hh, b_ih, b_hh):
         hx, cx = lstm_cell(input_[i], (hx, cx), w_hh, b_hh)
         output.append(hx)
     output = torch.cat(output, 0).view(input_.size(0), *output[0].size())
+
+    # to see details about the trace, unncomment:
+    # print(lstm_cell.jit_debug_info())
 
     return output, (hx.view(1, *hx.size()), cx.view(1, *cx.size()))
 
@@ -85,7 +89,7 @@ class RNNModel(nn.Module):
 
         # original model, using cudnn
         # output, hidden = self.rnn(emb, hidden)
-        # modified model, using our custom lstm
+        # modified model, using our compiled lstm
         output, hidden = lstm(emb, hidden, *self.rnn.all_weights[0])
 
         output = self.drop(output)
