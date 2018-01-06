@@ -144,7 +144,7 @@ for epoch in range(1, args.epochs + 1):
     test(epoch)
     sample = Variable(torch.randn(64, 20))
     if args.cuda:
-       sample = sample.cuda()
+        sample = sample.cuda()
     sample = model.decode(sample).cpu()
     save_image(sample.data.view(64, 1, 28, 28),
                'results/sample_' + str(epoch) + '.png')
