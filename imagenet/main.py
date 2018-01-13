@@ -55,6 +55,8 @@ parser.add_argument('--dist-url', default='tcp://224.66.41.62:23456', type=str,
                     help='url used to set up distributed training')
 parser.add_argument('--dist-backend', default='gloo', type=str,
                     help='distributed backend')
+parser.add_argument('--dist-rank', default=0, type=int,
+                    help='rank of distributed processes')
 
 best_prec1 = 0
 
@@ -67,7 +69,7 @@ def main():
 
     if args.distributed:
         dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url,
-                                world_size=args.world_size)
+                                world_size=args.world_size, rank=args.dist_rank)
 
     # create model
     if args.pretrained:
