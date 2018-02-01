@@ -1,13 +1,13 @@
 # Word-level language modeling RNN
 
 This example trains a multi-layer RNN (Elman, GRU, or LSTM) on a language modeling task.
-By default, the training script uses the PTB dataset, provided.
+By default, the training script uses the Wikitext-2 dataset, provided.
 The trained model can then be used by the generate script to generate new text.
 
 ```bash
-python main.py --cuda --epochs 6        # Train a LSTM on PTB with CUDA, reaching perplexity of 117.61
-python main.py --cuda --epochs 6 --tied # Train a tied LSTM on PTB with CUDA, reaching perplexity of 110.44
-python main.py --cuda --tied            # Train a tied LSTM on PTB with CUDA for 40 epochs, reaching perplexity of 87.17
+python main.py --cuda --epochs 6        # Train a LSTM on Wikitext-2 with CUDA, reaching perplexity of 117.61
+python main.py --cuda --epochs 6 --tied # Train a tied LSTM on Wikitext-2 with CUDA, reaching perplexity of 110.44
+python main.py --cuda --tied            # Train a tied LSTM on Wikitext-2 with CUDA for 40 epochs, reaching perplexity of 87.17
 python generate.py                      # Generate samples from the trained LSTM model.
 ```
 
@@ -51,6 +51,6 @@ python main.py --cuda --emsize 1500 --nhid 1500 --dropout 0.65 --epochs 40      
 python main.py --cuda --emsize 1500 --nhid 1500 --dropout 0.65 --epochs 40 --tied # Test perplexity of 72.30
 ```
 
-These perplexities are equal or better than
+Perplexities on PTB are equal or better than
 [Recurrent Neural Network Regularization (Zaremba et al. 2014)](https://arxiv.org/pdf/1409.2329.pdf)
 and are similar to [Using the Output Embedding to Improve Language Models (Press & Wolf 2016](https://arxiv.org/abs/1608.05859) and [Tying Word Vectors and Word Classifiers: A Loss Framework for Language Modeling (Inan et al. 2016)](https://arxiv.org/pdf/1611.01462.pdf), though both of these papers have improved perplexities by using a form of recurrent dropout [(variational dropout)](http://papers.nips.cc/paper/6241-a-theoretically-grounded-application-of-dropout-in-recurrent-neural-networks).

@@ -26,7 +26,7 @@ if args.word_vectors:
     if os.path.isfile(args.vector_cache):
         inputs.vocab.vectors = torch.load(args.vector_cache)
     else:
-        inputs.vocab.load_vectors(wv_dir=args.data_cache, wv_type=args.word_vectors, wv_dim=args.d_embed)
+        inputs.vocab.load_vectors(args.word_vectors)
         makedirs(os.path.dirname(args.vector_cache))
         torch.save(inputs.vocab.vectors, args.vector_cache)
 answers.build_vocab(train)

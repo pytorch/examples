@@ -1,3 +1,4 @@
+# coding: utf-8
 import argparse
 import time
 import math
@@ -8,8 +9,8 @@ from torch.autograd import Variable
 import data
 import model
 
-parser = argparse.ArgumentParser(description='PyTorch PennTreeBank RNN/LSTM Language Model')
-parser.add_argument('--data', type=str, default='./data/penn',
+parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
+parser.add_argument('--data', type=str, default='./data/wikitext-2',
                     help='location of the data corpus')
 parser.add_argument('--model', type=str, default='LSTM',
                     help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
@@ -57,6 +58,18 @@ if torch.cuda.is_available():
 
 corpus = data.Corpus(args.data)
 
+# Starting from sequential data, batchify arranges the dataset into columns.
+# For instance, with the alphabet as the sequence and batch size 4, we'd get
+# ┌ a g m s ┐
+# │ b h n t │
+# │ c i o u │
+# │ d j p v │
+# │ e k q w │
+# └ f l r x ┘.
+# These columns are treated as independent by the model, which means that the
+# dependence of e. g. 'g' on 'f' can not be learned, but allows more efficient
+# batch processing.
+
 def batchify(data, bsz):
     # Work out how cleanly we can divide the dataset into bsz parts.
     nbatch = data.size(0) // bsz
@@ -95,6 +108,16 @@ def repackage_hidden(h):
     else:
         return tuple(repackage_hidden(v) for v in h)
 
+
+# get_batch subdivides the source data into chunks of length args.bptt.
+# If source is equal to the example output of the batchify function, with
+# a bptt-limit of 2, we'd get the following two Variables for i = 0:
+# ┌ a g m s ┐ ┌ b h n t ┐
+# └ b h n t ┘ └ c i o u ┘
+# Note that despite the name of the function, the subdivison of data is not
+# done along the batch dimension (i.e. dimension 1), since that was handled
+# by the batchify function. The chunks are along dimension 0, corresponding
+# to the seq_len dimension in the LSTM.
 
 def get_batch(source, i, evaluation=False):
     seq_len = min(args.bptt, len(source) - 1 - i)
