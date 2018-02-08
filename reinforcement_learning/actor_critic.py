@@ -46,7 +46,7 @@ class Policy(nn.Module):
         x = F.relu(self.affine1(x))
         action_scores = self.action_head(x)
         state_values = self.value_head(x)
-        return F.softmax(action_scores, dim=1), state_values
+        return F.softmax(action_scores, dim=-1), state_values
 
 
 model = Policy()
@@ -54,7 +54,7 @@ optimizer = optim.Adam(model.parameters(), lr=3e-2)
 
 
 def select_action(state):
-    state = torch.from_numpy(state).float().unsqueeze(0)
+    state = torch.from_numpy(state).float()
     probs, state_value = model(Variable(state))
     m = Categorical(probs)
     action = m.sample()
@@ -74,11 +74,11 @@ def finish_episode():
     rewards = torch.Tensor(rewards)
     rewards = (rewards - rewards.mean()) / (rewards.std() + np.finfo(np.float32).eps)
     for (log_prob, value), r in zip(saved_actions, rewards):
-        reward = r - value.data[0, 0]
+        reward = r - value.data[0]
         policy_losses.append(-log_prob * reward)
         value_losses.append(F.smooth_l1_loss(value, Variable(torch.Tensor([r]))))
     optimizer.zero_grad()
-    loss = torch.cat(policy_losses).sum() + torch.cat(value_losses).sum()
+    loss = torch.stack(policy_losses).sum() + torch.stack(value_losses).sum()
     loss.backward()
     optimizer.step()
     del model.rewards[:]
