@@ -89,7 +89,7 @@ def train(epoch):
             if batch_idx % args.log_interval == 0:
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                     epoch, batch_idx * len(data), len(train_loader.dataset),
-                    100. * batch_idx / len(train_loader), loss.data[0]))
+                    100. * batch_idx / len(train_loader), float(loss)))
 
 def test():
     model.eval()
@@ -101,9 +101,9 @@ def test():
         data, target = Variable(data), Variable(target)
         with torch.no_grad():
             output = model(data)
-            test_loss += F.nll_loss(output, target, size_average=False).data[0] # sum up batch loss
+            test_loss += float(F.nll_loss(output, target, size_average=False)) # sum up batch loss
             pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
-            correct += pred.eq(target.data.view_as(pred)).cpu().sum()
+            correct += int(pred.eq(target.data.view_as(pred)).cpu().long().sum())
 
     test_loss /= len(test_loader.dataset)
     if not args.no_log:
