@@ -55,6 +55,9 @@ parser.add_argument('--dist-url', default='tcp://224.66.41.62:23456', type=str,
                     help='url used to set up distributed training')
 parser.add_argument('--dist-backend', default='gloo', type=str,
                     help='distributed backend')
+parser.add_argument('--device', default=-1, type=int,
+                    help='If specified, the training will only run on the '
+                         'single given device')
 
 best_prec1 = 0
 
@@ -63,11 +66,23 @@ def main():
     global args, best_prec1
     args = parser.parse_args()
 
+    if args.dist_url == "env://" and os.environ.get("WORLD_SIZE") is not None:
+        args.world_size = int(os.environ.get("WORLD_SIZE"))
+
     args.distributed = args.world_size > 1
 
     if args.distributed:
         dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url,
                                 world_size=args.world_size)
+
+    if args.device > -1 and args.device < torch.cuda.device_count():
+        print("=> using single device: {} for training".format(args.device))
+        dp_device_ids = [args.device]
+    else:
+        dp_device_ids = None
+
+    if dp_device_ids:
+        torch.cuda.set_device(args.device)
 
     # create model
     if args.pretrained:
@@ -79,13 +94,14 @@ def main():
 
     if not args.distributed:
         if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
-            model.features = torch.nn.DataParallel(model.features)
+            model.features = torch.nn.DataParallel(model.features,
+                                                   device_ids=dp_device_ids)
             model.cuda()
         else:
-            model = torch.nn.DataParallel(model).cuda()
+            model = torch.nn.DataParallel(model, device_ids=dp_device_ids).cuda()
     else:
         model.cuda()
-        model = torch.nn.parallel.DistributedDataParallel(model)
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=dp_device_ids)
 
     # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda()
