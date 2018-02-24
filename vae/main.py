@@ -90,7 +90,7 @@ def loss_function(recon_x, x, mu, logvar):
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
-    return BCE + KLD
+    return (BCE + KLD) / x.size(0)
 
 
 def train(epoch):
@@ -110,7 +110,7 @@ def train(epoch):
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader),
-                loss.data[0] / len(data)))
+                loss.data[0]))
 
     print('====> Epoch: {} Average loss: {:.4f}'.format(
           epoch, train_loss / len(train_loader.dataset)))
