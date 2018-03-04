@@ -91,8 +91,8 @@ def train(epoch):
 
 def test():
     model.eval()
-    test_loss = 0
-    correct = 0
+    test_loss = 0.0
+    misclass = 0.0
     for data, target in test_loader:
         if args.cuda:
             data, target = data.cuda(), target.cuda()
@@ -100,12 +100,14 @@ def test():
         output = model(data)
         test_loss += F.nll_loss(output, target, size_average=False).data[0] # sum up batch loss
         pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
-        correct += pred.eq(target.data.view_as(pred)).cpu().sum()
+        num_misclass = (pred.view(-1).long() - target.long()).cpu().ne(int(0)).long() # compute number of misclassifications
+
+        misclass += num_misclass.data.sum().item()
 
     test_loss /= len(test_loader.dataset)
-    print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-        test_loss, correct, len(test_loader.dataset),
-        100. * correct / len(test_loader.dataset)))
+    print('\nTest set: Average loss: {:.4f}, Error Rate: {}/{} ({:.0f}%)\n'.format(
+        test_loss, misclass, len(test_loader.dataset),
+        100. * misclass / len(test_loader.dataset)))
 
 
 for epoch in range(1, args.epochs + 1):
