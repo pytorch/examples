@@ -55,9 +55,9 @@ parser.add_argument('--dist-url', default='tcp://224.66.41.62:23456', type=str,
                     help='url used to set up distributed training')
 parser.add_argument('--dist-backend', default='gloo', type=str,
                     help='distributed backend')
-parser.add_argument('--device', default=-1, type=int,
+parser.add_argument('--local_rank', default=-1, type=int,
                     help='If specified, the training will only run on the '
-                         'single given device')
+                         'single given GPU device of the local_rank')
 
 best_prec1 = 0
 
@@ -75,14 +75,14 @@ def main():
         dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url,
                                 world_size=args.world_size)
 
-    if args.device > -1 and args.device < torch.cuda.device_count():
-        print("=> using single device: {} for training".format(args.device))
-        dp_device_ids = [args.device]
+    if args.local_rank > -1 and args.local_rank < torch.cuda.device_count():
+        print("=> using single device: {} for training".format(args.local_rank))
+        dp_device_ids = [args.local_rank]
     else:
         dp_device_ids = None
 
     if dp_device_ids:
-        torch.cuda.set_device(args.device)
+        torch.cuda.set_device(args.local_rank)
 
     # create model
     if args.pretrained:
