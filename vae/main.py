@@ -135,13 +135,13 @@ def test(epoch):
     test_loss /= len(test_loader.dataset)
     print('====> Test set loss: {:.4f}'.format(test_loss))
 
-
-for epoch in range(1, args.epochs + 1):
-    train(epoch)
-    test(epoch)
-    sample = Variable(torch.randn(64, 20))
-    if args.cuda:
-        sample = sample.cuda()
-    sample = model.decode(sample).cpu()
-    save_image(sample.data.view(64, 1, 28, 28),
-               'results/sample_' + str(epoch) + '.png')
+if __name__ == '__main__':
+    for epoch in range(1, args.epochs + 1):
+        train(epoch)
+        test(epoch)
+        sample = Variable(torch.randn(64, 20))
+        if args.cuda:
+            sample = sample.cuda()
+        sample = model.decode(sample).cpu()
+        save_image(sample.data.view(64, 1, 28, 28),
+                'results/sample_' + str(epoch) + '.png')

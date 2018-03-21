@@ -33,7 +33,7 @@ if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
 
-kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
+kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 train_loader = torch.utils.data.DataLoader(
     datasets.MNIST('../data', train=True, download=True,
                    transform=transforms.Compose([
@@ -107,7 +107,7 @@ def test():
         test_loss, correct, len(test_loader.dataset),
         100. * correct / len(test_loader.dataset)))
 
-
-for epoch in range(1, args.epochs + 1):
-    train(epoch)
-    test()
+if __name__ == '__main__':
+    for epoch in range(1, args.epochs + 1):
+        train(epoch)
+        test()
