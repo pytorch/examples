@@ -5,7 +5,6 @@ from math import log10
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from model import Net
 from data import get_training_set, get_test_set
@@ -52,34 +51,35 @@ optimizer = optim.Adam(model.parameters(), lr=opt.lr)
 def train(epoch):
     epoch_loss = 0
     for iteration, batch in enumerate(training_data_loader, 1):
-        input, target = Variable(batch[0]), Variable(batch[1])
+        input, target = batch
         if cuda:
             input = input.cuda()
             target = target.cuda()
 
         optimizer.zero_grad()
         loss = criterion(model(input), target)
-        epoch_loss += loss.data[0]
+        epoch_loss += loss.item()
         loss.backward()
         optimizer.step()
 
-        print("===> Epoch[{}]({}/{}): Loss: {:.4f}".format(epoch, iteration, len(training_data_loader), loss.data[0]))
+        print("===> Epoch[{}]({}/{}): Loss: {:.4f}".format(epoch, iteration, len(training_data_loader), loss.item()))
 
     print("===> Epoch {} Complete: Avg. Loss: {:.4f}".format(epoch, epoch_loss / len(training_data_loader)))
 
 
 def test():
     avg_psnr = 0
-    for batch in testing_data_loader:
-        input, target = Variable(batch[0]), Variable(batch[1])
-        if cuda:
-            input = input.cuda()
-            target = target.cuda()
+    with torch.no_grad():
+        for batch in testing_data_loader:
+            input, target = batch
+            if cuda:
+                input = input.cuda()
+                target = target.cuda()
 
-        prediction = model(input)
-        mse = criterion(prediction, target)
-        psnr = 10 * log10(1 / mse.data[0])
-        avg_psnr += psnr
+            prediction = model(input)
+            mse = criterion(prediction, target)
+            psnr = 10 * log10(1 / mse.item())
+            avg_psnr += psnr
     print("===> Avg. PSNR: {:.4f} dB".format(avg_psnr / len(testing_data_loader)))
 
 

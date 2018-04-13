@@ -5,7 +5,6 @@ import time
 
 import numpy as np
 import torch
-from torch.autograd import Variable
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 from torchvision import datasets
@@ -61,9 +60,7 @@ def train(args):
         vgg.cuda()
         style = style.cuda()
 
-    style_v = Variable(style)
-    style_v = utils.normalize_batch(style_v)
-    features_style = vgg(style_v)
+    features_style = vgg(utils.normalize_batch(style))
     gram_style = [utils.gram_matrix(y) for y in features_style]
 
     for e in range(args.epochs):
@@ -75,7 +72,6 @@ def train(args):
             n_batch = len(x)
             count += n_batch
             optimizer.zero_grad()
-            x = Variable(x)
             if args.cuda:
                 x = x.cuda()
 
@@ -99,8 +95,8 @@ def train(args):
             total_loss.backward()
             optimizer.step()
 
-            agg_content_loss += content_loss.data[0]
-            agg_style_loss += style_loss.data[0]
+            agg_content_loss += content_loss.item()
+            agg_style_loss += style_loss.item()
 
             if (batch_id + 1) % args.log_interval == 0:
                 mesg = "{}\tEpoch {}:\t[{}/{}]\tcontent: {:.6f}\tstyle: {:.6f}\ttotal: {:.6f}".format(
@@ -144,17 +140,21 @@ def stylize(args):
     content_image = content_image.unsqueeze(0)
     if args.cuda:
         content_image = content_image.cuda()
-    content_image = Variable(content_image, volatile=True)
 
-    style_model = TransformerNet()
-    style_model.load_state_dict(torch.load(args.model))
-    if args.cuda:
-        style_model.cuda()
-    output = style_model(content_image)
-    if args.cuda:
-        output = output.cpu()
-    output_data = output.data[0]
-    utils.save_image(args.output_image, output_data)
+    with torch.no_grad():
+        style_model = TransformerNet()
+        state_dict = torch.load(args.model)
+        # remove saved deprecated running_* keys from InstanceNorm
+        for k in list(state_dict.keys()):
+            if k.endswith('running_mean') or k.endswith('running_var'):
+                del state_dict[k]
+        style_model.load_state_dict(state_dict)
+        if args.cuda:
+            style_model.cuda()
+        output = style_model(content_image)
+        if args.cuda:
+            output = output.cpu()
+        utils.save_image(args.output_image, output[0])
 
 
 def main():
