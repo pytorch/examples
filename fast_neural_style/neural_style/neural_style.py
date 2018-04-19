@@ -2,6 +2,7 @@ import argparse
 import os
 import sys
 import time
+import re
 
 import numpy as np
 import torch
@@ -146,7 +147,7 @@ def stylize(args):
         state_dict = torch.load(args.model)
         # remove saved deprecated running_* keys from InstanceNorm
         for k in list(state_dict.keys()):
-            if k.endswith('running_mean') or k.endswith('running_var'):
+            if re.search(r'in\d+\.running_(mean|var)$', k):
                 del state_dict[k]
         style_model.load_state_dict(state_dict)
         if args.cuda:
