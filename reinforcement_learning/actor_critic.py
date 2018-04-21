@@ -59,7 +59,7 @@ def select_action(state):
     m = Categorical(probs)
     action = m.sample()
     model.saved_actions.append(SavedAction(m.log_prob(action), state_value))
-    return action.tensor()
+    return action.item()
 
 
 def finish_episode():
