@@ -49,7 +49,7 @@ else:
     model = SNLIClassifier(config)
     if args.word_vectors:
         model.embed.weight.data.copy_(inputs.vocab.vectors)
-        model.cuda()
+        model.cuda(args.gpu)
 
 criterion = nn.CrossEntropyLoss()
 opt = O.Adam(model.parameters(), lr=args.lr)

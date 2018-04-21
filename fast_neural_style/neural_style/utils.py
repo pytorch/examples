@@ -1,6 +1,5 @@
 import torch
 from PIL import Image
-from torch.autograd import Variable
 
 
 def load_image(filename, size=None, scale=None):

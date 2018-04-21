@@ -62,7 +62,7 @@ if __name__ == '__main__':
             loss.backward()
             return loss
         optimizer.step(closure)
-        # begin to predict
+        # begin to predict, no need to track gradient here
         with torch.no_grad():
             future = 1000
             pred = seq(test_input, future=future)

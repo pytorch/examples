@@ -24,9 +24,8 @@ args.cuda = not args.no_cuda and torch.cuda.is_available()
 
 
 torch.manual_seed(args.seed)
-if args.cuda:
-    torch.cuda.manual_seed(args.seed)
 
+device = torch.device("cuda" if args.cuda else "cpu")
 
 kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
 train_loader = torch.utils.data.DataLoader(
@@ -73,9 +72,7 @@ class VAE(nn.Module):
         return self.decode(z), mu, logvar
 
 
-model = VAE()
-if args.cuda:
-    model.cuda()
+model = VAE().to(device)
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
 
@@ -96,8 +93,7 @@ def train(epoch):
     model.train()
     train_loss = 0
     for batch_idx, (data, _) in enumerate(train_loader):
-        if args.cuda:
-            data = data.cuda()
+        data = data.to(device)
         optimizer.zero_grad()
         recon_batch, mu, logvar = model(data)
         loss = loss_function(recon_batch, data, mu, logvar)
@@ -119,8 +115,7 @@ def test(epoch):
     test_loss = 0
     with torch.no_grad():
         for i, (data, _) in enumerate(test_loader):
-            if args.cuda:
-                data = data.cuda()
+            data = data.to(device)
             recon_batch, mu, logvar = model(data)
             test_loss += loss_function(recon_batch, data, mu, logvar).item()
             if i == 0:
@@ -138,9 +133,7 @@ for epoch in range(1, args.epochs + 1):
     train(epoch)
     test(epoch)
     with torch.no_grad():
-        sample = torch.randn(64, 20)
-        if args.cuda:
-            sample = sample.cuda()
+        sample = torch.randn(64, 20).to(device)
         sample = model.decode(sample).cpu()
         save_image(sample.view(64, 1, 28, 28),
                    'results/sample_' + str(epoch) + '.png')

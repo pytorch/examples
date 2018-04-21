@@ -84,6 +84,7 @@ assert dataset
 dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize,
                                          shuffle=True, num_workers=int(opt.workers))
 
+device = torch.device("cuda:0" if opt.cuda else "cpu")
 ngpu = int(opt.ngpu)
 nz = int(opt.nz)
 ngf = int(opt.ngf)
@@ -101,9 +102,9 @@ def weights_init(m):
         m.bias.data.fill_(0)
 
 
-class _netG(nn.Module):
+class Generator(nn.Module):
     def __init__(self, ngpu):
-        super(_netG, self).__init__()
+        super(Generator, self).__init__()
         self.ngpu = ngpu
         self.main = nn.Sequential(
             # input is Z, going into a convolution
@@ -129,23 +130,23 @@ class _netG(nn.Module):
         )
 
     def forward(self, input):
-        if isinstance(input.data, torch.cuda.FloatTensor) and self.ngpu > 1:
+        if input.is_cuda and self.ngpu > 1:
             output = nn.parallel.data_parallel(self.main, input, range(self.ngpu))
         else:
             output = self.main(input)
         return output
 
 
-netG = _netG(ngpu)
+netG = Generator(ngpu).to(device)
 netG.apply(weights_init)
 if opt.netG != '':
     netG.load_state_dict(torch.load(opt.netG))
 print(netG)
 
 
-class _netD(nn.Module):
+class Discriminator(nn.Module):
     def __init__(self, ngpu):
-        super(_netD, self).__init__()
+        super(Discriminator, self).__init__()
         self.ngpu = ngpu
         self.main = nn.Sequential(
             # input is (nc) x 64 x 64
@@ -169,7 +170,7 @@ class _netD(nn.Module):
         )
 
     def forward(self, input):
-        if isinstance(input.data, torch.cuda.FloatTensor) and self.ngpu > 1:
+        if input.is_cuda and self.ngpu > 1:
             output = nn.parallel.data_parallel(self.main, input, range(self.ngpu))
         else:
             output = self.main(input)
@@ -177,7 +178,7 @@ class _netD(nn.Module):
         return output.view(-1, 1).squeeze(1)
 
 
-netD = _netD(ngpu)
+netD = Discriminator(ngpu).to(device)
 netD.apply(weights_init)
 if opt.netD != '':
     netD.load_state_dict(torch.load(opt.netD))
@@ -185,19 +186,9 @@ print(netD)
 
 criterion = nn.BCELoss()
 
-input = torch.FloatTensor(opt.batchSize, 3, opt.imageSize, opt.imageSize)
-noise = torch.FloatTensor(opt.batchSize, nz, 1, 1)
-fixed_noise = torch.FloatTensor(opt.batchSize, nz, 1, 1).normal_(0, 1)
-label = torch.FloatTensor(opt.batchSize)
+fixed_noise = torch.randn(opt.batchSize, nz, 1, 1, device=device)
 real_label = 1
 fake_label = 0
-
-if opt.cuda:
-    netD.cuda()
-    netG.cuda()
-    criterion.cuda()
-    input, label = input.cuda(), label.cuda()
-    noise, fixed_noise = noise.cuda(), fixed_noise.cuda()
 
 # setup optimizer
 optimizerD = optim.Adam(netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
@@ -210,24 +201,23 @@ for epoch in range(opt.niter):
         ###########################
         # train with real
         netD.zero_grad()
-        real_cpu, _ = data
+        real_cpu = data[0].to(device)
         batch_size = real_cpu.size(0)
-        input = real_cpu.cuda() if opt.cuda else real_cpu
-        label.resize_(batch_size).fill_(real_label)
+        label = torch.full((batch_size,), real_label, device=device)
 
-        output = netD(input)
+        output = netD(real_cpu)
         errD_real = criterion(output, label)
         errD_real.backward()
-        D_x = output.detach().mean()
+        D_x = output.mean().item()
 
         # train with fake
-        noise.resize_(batch_size, nz, 1, 1).normal_(0, 1)
+        noise = torch.randn(batch_size, nz, 1, 1, device=device)
         fake = netG(noise)
         label.fill_(fake_label)
         output = netD(fake.detach())
         errD_fake = criterion(output, label)
         errD_fake.backward()
-        D_G_z1 = output.detach().mean()
+        D_G_z1 = output.mean().item()
         errD = errD_real + errD_fake
         optimizerD.step()
 
@@ -239,7 +229,7 @@ for epoch in range(opt.niter):
         output = netD(fake)
         errG = criterion(output, label)
         errG.backward()
-        D_G_z2 = output.detach().mean()
+        D_G_z2 = output.mean().item()
         optimizerG.step()
 
         print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
