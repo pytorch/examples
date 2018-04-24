@@ -1,7 +1,6 @@
 from __future__ import print_function
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 import torch.optim as optim
 import numpy as np
 import matplotlib
@@ -17,10 +16,10 @@ class Sequence(nn.Module):
 
     def forward(self, input, future = 0):
         outputs = []
-        h_t = Variable(torch.zeros(input.size(0), 51).double(), requires_grad=False)
-        c_t = Variable(torch.zeros(input.size(0), 51).double(), requires_grad=False)
-        h_t2 = Variable(torch.zeros(input.size(0), 51).double(), requires_grad=False)
-        c_t2 = Variable(torch.zeros(input.size(0), 51).double(), requires_grad=False)
+        h_t = torch.zeros(input.size(0), 51, dtype=torch.double)
+        c_t = torch.zeros(input.size(0), 51, dtype=torch.double)
+        h_t2 = torch.zeros(input.size(0), 51, dtype=torch.double)
+        c_t2 = torch.zeros(input.size(0), 51, dtype=torch.double)
 
         for i, input_t in enumerate(input.chunk(input.size(1), dim=1)):
             h_t, c_t = self.lstm1(input_t, (h_t, c_t))
@@ -36,17 +35,16 @@ class Sequence(nn.Module):
         return outputs
 
 
-
 if __name__ == '__main__':
     # set random seed to 0
     np.random.seed(0)
     torch.manual_seed(0)
     # load data and make training set
     data = torch.load('traindata.pt')
-    input = Variable(torch.from_numpy(data[3:, :-1]), requires_grad=False)
-    target = Variable(torch.from_numpy(data[3:, 1:]), requires_grad=False)
-    test_input = Variable(torch.from_numpy(data[:3, :-1]), requires_grad=False)
-    test_target = Variable(torch.from_numpy(data[:3, 1:]), requires_grad=False)
+    input = torch.from_numpy(data[3:, :-1])
+    target = torch.from_numpy(data[3:, 1:])
+    test_input = torch.from_numpy(data[:3, :-1])
+    test_target = torch.from_numpy(data[:3, 1:])
     # build the model
     seq = Sequence()
     seq.double()
@@ -60,16 +58,17 @@ if __name__ == '__main__':
             optimizer.zero_grad()
             out = seq(input)
             loss = criterion(out, target)
-            print('loss:', loss.data.numpy()[0])
+            print('loss:', loss.item())
             loss.backward()
             return loss
         optimizer.step(closure)
-        # begin to predict
-        future = 1000
-        pred = seq(test_input, future = future)
-        loss = criterion(pred[:, :-future], test_target)
-        print('test loss:', loss.data.numpy()[0])
-        y = pred.data.numpy()
+        # begin to predict, no need to track gradient here
+        with torch.no_grad():
+            future = 1000
+            pred = seq(test_input, future=future)
+            loss = criterion(pred[:, :-future], test_target)
+            print('test loss:', loss.item())
+            y = pred.detach().numpy()
         # draw the result
         plt.figure(figsize=(30,10))
         plt.title('Predict future values for time sequences\n(Dashlines are predicted values)', fontsize=30)
