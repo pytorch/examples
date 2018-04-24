@@ -45,8 +45,6 @@ if opt.manualSeed is None:
 print("Random Seed: ", opt.manualSeed)
 random.seed(opt.manualSeed)
 torch.manual_seed(opt.manualSeed)
-if opt.cuda:
-    torch.cuda.manual_seed_all(opt.manualSeed)
 
 cudnn.benchmark = True
 
