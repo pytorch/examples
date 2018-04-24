@@ -3,7 +3,6 @@ import argparse
 import torch
 import torch.utils.data
 from torch import nn, optim
-from torch.autograd import Variable
 from torch.nn import functional as F
 from torchvision import datasets, transforms
 from torchvision.utils import save_image
@@ -25,9 +24,8 @@ args.cuda = not args.no_cuda and torch.cuda.is_available()
 
 
 torch.manual_seed(args.seed)
-if args.cuda:
-    torch.cuda.manual_seed(args.seed)
 
+device = torch.device("cuda" if args.cuda else "cpu")
 
 kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
 train_loader = torch.utils.data.DataLoader(
@@ -59,7 +57,7 @@ class VAE(nn.Module):
     def reparameterize(self, mu, logvar):
         if self.training:
             std = logvar.mul(0.5).exp_()
-            eps = Variable(std.data.new(std.size()).normal_())
+            eps = torch.randn_like(std)
             return eps.mul(std).add_(mu)
         else:
             return mu
@@ -74,9 +72,7 @@ class VAE(nn.Module):
         return self.decode(z), mu, logvar
 
 
-model = VAE()
-if args.cuda:
-    model.cuda()
+model = VAE().to(device)
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
 
@@ -97,20 +93,18 @@ def train(epoch):
     model.train()
     train_loss = 0
     for batch_idx, (data, _) in enumerate(train_loader):
-        data = Variable(data)
-        if args.cuda:
-            data = data.cuda()
+        data = data.to(device)
         optimizer.zero_grad()
         recon_batch, mu, logvar = model(data)
         loss = loss_function(recon_batch, data, mu, logvar)
         loss.backward()
-        train_loss += loss.data[0]
+        train_loss += loss.item()
         optimizer.step()
         if batch_idx % args.log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader),
-                loss.data[0] / len(data)))
+                loss.item() / len(data)))
 
     print('====> Epoch: {} Average loss: {:.4f}'.format(
           epoch, train_loss / len(train_loader.dataset)))
@@ -119,18 +113,17 @@ def train(epoch):
 def test(epoch):
     model.eval()
     test_loss = 0
-    for i, (data, _) in enumerate(test_loader):
-        if args.cuda:
-            data = data.cuda()
-        data = Variable(data, volatile=True)
-        recon_batch, mu, logvar = model(data)
-        test_loss += loss_function(recon_batch, data, mu, logvar).data[0]
-        if i == 0:
-            n = min(data.size(0), 8)
-            comparison = torch.cat([data[:n],
-                                  recon_batch.view(args.batch_size, 1, 28, 28)[:n]])
-            save_image(comparison.data.cpu(),
-                     'results/reconstruction_' + str(epoch) + '.png', nrow=n)
+    with torch.no_grad():
+        for i, (data, _) in enumerate(test_loader):
+            data = data.to(device)
+            recon_batch, mu, logvar = model(data)
+            test_loss += loss_function(recon_batch, data, mu, logvar).item()
+            if i == 0:
+                n = min(data.size(0), 8)
+                comparison = torch.cat([data[:n],
+                                      recon_batch.view(args.batch_size, 1, 28, 28)[:n]])
+                save_image(comparison.cpu(),
+                         'results/reconstruction_' + str(epoch) + '.png', nrow=n)
 
     test_loss /= len(test_loader.dataset)
     print('====> Test set loss: {:.4f}'.format(test_loss))
@@ -139,9 +132,8 @@ def test(epoch):
 for epoch in range(1, args.epochs + 1):
     train(epoch)
     test(epoch)
-    sample = Variable(torch.randn(64, 20))
-    if args.cuda:
-        sample = sample.cuda()
-    sample = model.decode(sample).cpu()
-    save_image(sample.data.view(64, 1, 28, 28),
-               'results/sample_' + str(epoch) + '.png')
+    with torch.no_grad():
+        sample = torch.randn(64, 20).to(device)
+        sample = model.decode(sample).cpu()
+        save_image(sample.view(64, 1, 28, 28),
+                   'results/sample_' + str(epoch) + '.png')
