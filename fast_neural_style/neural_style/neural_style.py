@@ -10,6 +10,7 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 from torchvision import datasets
 from torchvision import transforms
+import torch.onnx
 
 import utils
 from transformer_net import TransformerNet
@@ -128,17 +129,43 @@ def stylize(args):
     content_image = content_transform(content_image)
     content_image = content_image.unsqueeze(0).to(device)
 
-    with torch.no_grad():
-        style_model = TransformerNet()
-        state_dict = torch.load(args.model)
-        # remove saved deprecated running_* keys in InstanceNorm from the checkpoint
-        for k in list(state_dict.keys()):
-            if re.search(r'in\d+\.running_(mean|var)$', k):
-                del state_dict[k]
-        style_model.load_state_dict(state_dict)
-        style_model.to(device)
-        output = style_model(content_image).cpu()
-        utils.save_image(args.output_image, output[0])
+    if args.model.endswith(".onnx"):
+        output = stylize_onnx_caffe2(content_image, args)
+    else:
+        with torch.no_grad():
+            style_model = TransformerNet()
+            state_dict = torch.load(args.model)
+            # remove saved deprecated running_* keys in InstanceNorm from the checkpoint
+            for k in list(state_dict.keys()):
+                if re.search(r'in\d+\.running_(mean|var)$', k):
+                    del state_dict[k]
+            style_model.load_state_dict(state_dict)
+            style_model.to(device)
+            if args.export_onnx:
+                assert args.export_onnx.endswith(".onnx"), "Export model file should end with .onnx"
+                output = torch.onnx._export(style_model, content_image, args.export_onnx)
+            else:
+                output = style_model(content_image).cpu()
+    utils.save_image(args.output_image, output[0])
+
+
+def stylize_onnx_caffe2(content_image, args):
+    """
+    Read ONNX model and run it using Caffe2
+    """
+
+    assert not args.export_onnx
+
+    import onnx
+    import onnx_caffe2.backend
+
+    model = onnx.load(args.model)
+
+    prepared_backend = onnx_caffe2.backend.prepare(model, device='CUDA' if args.cuda else 'CPU')
+    inp = {model.graph.input[0].name: content_image.numpy()}
+    c2_out = prepared_backend.run(inp)[0]
+
+    return torch.from_numpy(c2_out)
 
 
 def main():
@@ -186,9 +213,11 @@ def main():
     eval_arg_parser.add_argument("--output-image", type=str, required=True,
                                  help="path for saving the output image")
     eval_arg_parser.add_argument("--model", type=str, required=True,
-                                 help="saved model to be used for stylizing the image")
+                                 help="saved model to be used for stylizing the image. If file ends in .pth - PyTorch path is used, if in .onnx - Caffe2 path")
     eval_arg_parser.add_argument("--cuda", type=int, required=True,
                                  help="set it to 1 for running on GPU, 0 for CPU")
+    eval_arg_parser.add_argument("--export_onnx", type=str,
+                                 help="export ONNX model to a given file")
 
     args = main_arg_parser.parse_args()
 
