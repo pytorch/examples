@@ -186,7 +186,8 @@ def train(train_loader, model, criterion, optimizer, epoch):
         # measure data loading time
         data_time.update(time.time() - end)
 
-        target = target.cuda(True)
+        input = input.cuda()
+        target = target.cuda(non_blocking=True)
 
         # compute output
         output = model(input)
@@ -230,7 +231,8 @@ def validate(val_loader, model, criterion):
     with torch.no_grad():
         end = time.time()
         for i, (input, target) in enumerate(val_loader):
-            target = target.cuda(True)
+            input = input.cuda()
+            target = target.cuda(non_blocking=True)
 
             # compute output
             output = model(input)
