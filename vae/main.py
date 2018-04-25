@@ -47,8 +47,6 @@ class VAE(nn.Module):
         self.fc3 = nn.Linear(20, 400)
         self.fc4 = nn.Linear(400, 784)
 
-        self.relu = nn.ReLU()
-
     def encode(self, x):
         h1 = self.relu(self.fc1(x))
         return self.fc21(h1), self.fc22(h1)
@@ -62,7 +60,7 @@ class VAE(nn.Module):
             return mu
 
     def decode(self, z):
-        h3 = self.relu(self.fc3(z))
+        h3 = F.relu(self.fc3(z))
         return F.sigmoid(self.fc4(h3))
 
     def forward(self, x):
