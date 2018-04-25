@@ -48,7 +48,6 @@ class VAE(nn.Module):
         self.fc4 = nn.Linear(400, 784)
 
         self.relu = nn.ReLU()
-        self.sigmoid = nn.Sigmoid()
 
     def encode(self, x):
         h1 = self.relu(self.fc1(x))
@@ -64,7 +63,7 @@ class VAE(nn.Module):
 
     def decode(self, z):
         h3 = self.relu(self.fc3(z))
-        return self.sigmoid(self.fc4(h3))
+        return F.sigmoid(self.fc4(h3))
 
     def forward(self, x):
         mu, logvar = self.encode(x.view(-1, 784))
