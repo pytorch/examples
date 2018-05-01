@@ -8,7 +8,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.autograd import Variable
 from torch.distributions import Categorical
 
 
@@ -51,15 +50,16 @@ class Policy(nn.Module):
 
 model = Policy()
 optimizer = optim.Adam(model.parameters(), lr=3e-2)
+eps = np.finfo(np.float32).eps.item()
 
 
 def select_action(state):
     state = torch.from_numpy(state).float()
-    probs, state_value = model(Variable(state))
+    probs, state_value = model(state)
     m = Categorical(probs)
     action = m.sample()
     model.saved_actions.append(SavedAction(m.log_prob(action), state_value))
-    return action.data[0]
+    return action.item()
 
 
 def finish_episode():
@@ -71,12 +71,12 @@ def finish_episode():
     for r in model.rewards[::-1]:
         R = r + args.gamma * R
         rewards.insert(0, R)
-    rewards = torch.Tensor(rewards)
-    rewards = (rewards - rewards.mean()) / (rewards.std() + np.finfo(np.float32).eps)
+    rewards = torch.tensor(rewards)
+    rewards = (rewards - rewards.mean()) / (rewards.std() + eps)
     for (log_prob, value), r in zip(saved_actions, rewards):
-        reward = r - value.data[0]
+        reward = r - value.item()
         policy_losses.append(-log_prob * reward)
-        value_losses.append(F.smooth_l1_loss(value, Variable(torch.Tensor([r]))))
+        value_losses.append(F.smooth_l1_loss(value, torch.tensor([r])))
     optimizer.zero_grad()
     loss = torch.stack(policy_losses).sum() + torch.stack(value_losses).sum()
     loss.backward()
