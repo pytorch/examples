@@ -3,6 +3,21 @@ import numpy as np
 import torch
 
 
+def select_threshold(distances, matches, thresholds):
+    best_threshold_true_predicts = 0
+    best_threshold = 0
+    for threshold in thresholds:
+        true_predicts = torch.sum((
+            distances < threshold
+        ) == matches)
+
+        if true_predicts > best_threshold_true_predicts:
+            best_threshold_true_predicts = true_predicts
+            best_threshold = threshold
+
+    return best_threshold
+
+
 def compute_roc(distances, matches, thresholds, fold_size=10):
     assert(len(distances) == len(matches))
 

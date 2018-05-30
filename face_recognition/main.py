@@ -11,8 +11,9 @@ from loss import compute_center_loss, get_center_delta
 from model import FaceModel
 from device import device
 from trainer import Trainer
-from utils import download, generate_roc_curve
-from metrics import compute_roc
+from utils import download, generate_roc_curve, image_loader
+from metrics import compute_roc, select_threshold
+from imageaug import transform_for_infer, transform_for_training
 
 parser = argparse.ArgumentParser(description='center loss example')
 parser.add_argument('--batch_size', type=int, default=256, metavar='N',
@@ -38,6 +39,12 @@ parser.add_argument('--pairs', type=str,
 parser.add_argument('--roc', type=str,
                     help='path of roc.png to generated '
                          '(default: $DATASET_DIR/roc.png)')
+parser.add_argument('--verify-model', type=str,
+                    help='verify 2 images of face belong to one person,'
+                         'the param is the model to use')
+parser.add_argument('--verify-images', type=str,
+                    help='verify 2 images of face belong to one person,'
+                         'split image pathes by comma')
 
 RESNET18_WEIGHTS = 'https://download.pytorch.org/models/resnet18-5c106cde.pth'
 
@@ -46,23 +53,9 @@ def train():
     global args, dataset_dir, log_dir
 
     training_set, validation_set, num_classes = create_datasets(dataset_dir)
-    train_transforms = transforms.Compose(
-        [transforms.ToPILImage(),
-         transforms.Resize((96, 128)),
-         transforms.RandomHorizontalFlip(),
-         transforms.ToTensor(),
-         transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])]
-     )
 
-    validation_transforms = transforms.Compose(
-        [transforms.ToPILImage(),
-         transforms.Resize((96, 128)),
-         transforms.ToTensor(),
-         transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])]
-    )
-
-    training_dataset = Dataset(training_set, train_transforms)
-    validation_dataset = Dataset(validation_set, validation_transforms)
+    training_dataset = Dataset(training_set, transform_for_training())
+    validation_dataset = Dataset(validation_set, transform_for_infer())
 
     training_dataloader = torch.utils.data.DataLoader(
         training_dataset,
@@ -116,14 +109,7 @@ def evaluate():
     if not os.path.isfile(pairs_path):
         download(dataset_dir, 'http://vis-www.cs.umass.edu/lfw/pairs.txt')
 
-    eval_transforms = transforms.Compose(
-        [transforms.ToPILImage(),
-         transforms.Resize((96, 128)),
-         transforms.ToTensor(),
-         transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])]
-     )
-
-    dataset = LFWPairedDataset(dataset_dir, pairs_path, eval_transforms)
+    dataset = LFWPairedDataset(dataset_dir, pairs_path, transform_for_infer())
     dataloader = DataLoader(dataset, batch_size=args.batch_size, num_workers=4)
     model = FaceModel().to(device)
 
@@ -164,17 +150,41 @@ def evaluate():
     print('Model accuracy is {}'.format(accuracy))
     print('ROC curve generated at {}'.format(roc_file))
 
+def verify():
+    global args, dataset_dir, log_dir
+
+    model = FaceModel().to(device)
+    checkpoint = torch.load(args.verify_model)
+    model.load_state_dict(checkpoint['state_dict'], strict=False)
+
+    image_a, image_b = args.verify_images.split(',')
+    image_a = transform_for_infer()(image_loader(image_a))
+    image_b = transform_for_infer()(image_loader(image_b))
+    images = torch.stack([image_a, image_b]).to(device)
+
+    _, (embedings_a, embedings_b) = model(images)
+
+    distance = torch.sum(torch.pow(embedings_a - embedings_b, 2)).item()
+    print("distance: {}".format(distance))
+
 
 if __name__ == '__main__':
     home = os.path.expanduser("~")
     args = parser.parse_args()
+
     dataset_dir = args.dataset_dir if args.dataset_dir else os.path.join(
         home, 'datasets', 'lfw')
     log_dir = args.log_dir if args.log_dir else os.path.join(
         os.path.dirname(os.path.realpath(__file__)), 'logs')
+
     if not os.path.isdir(dataset_dir):
         os.mkdir(dataset_dir)
     if not os.path.isdir(log_dir):
         os.mkdir(log_dir)
 
-    evaluate() if args.evaluate else train()
+    if args.evaluate:
+        evaluate()
+    elif args.verify_model:
+        verify()
+    else:
+        train()

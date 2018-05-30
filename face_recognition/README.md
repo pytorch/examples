@@ -61,22 +61,25 @@ Model accuracy is 0.8972221612930298
 ROC curve generated at /home/louis/center-loss.pytorch/logs/roc.png
 ```
 
-![](roc.png)
+![](images/roc.png)
 
 
-## TODOs
+## Random People Verification
 
-### Requirements
+2 images of Obama and 2 images of Trump. Verify 6 pairs together.
 
-- [x] Dataset and loader for `LFW` dataset.
-- [x] Feature networks.
-- [x] Loss functions.
-- [x] Training process.
-- [x] Evaluation metrics.
-- [ ] Inference.
+```shell
+python main.py --verify-model logs/models/epoch_50.pth.tar --verify-images images/obama_a.png,images/obama_b.png # distance: 1.322437763214111
+python main.py --verify-model logs/models/epoch_50.pth.tar --verify-images images/trump_a.png,images/trump_b.png # distance: 1.245901346206665
 
-### Enhancements
+python main.py --verify-model logs/models/epoch_50.pth.tar --verify-images images/obama_a.png,images/trump_a.png # distance: 1.967863798141479
+python main.py --verify-model logs/models/epoch_50.pth.tar --verify-images images/obama_a.png,images/trump_b.png # distance: 1.942347526550293
+python main.py --verify-model logs/models/epoch_50.pth.tar --verify-images images/obama_b.png,images/trump_a.png # distance: 1.716896772384643
+python main.py --verify-model logs/models/epoch_50.pth.tar --verify-images images/obama_b.png,images/trump_b.png # distance: 1.445886135101318
+```
 
-- [ ] Other datasets support.
-- [ ] Feature network replacement.
-- [ ] ReID.
+![](images/result.png)
+
+We can see that threshold of 1.4 will perfectly seperate them.
+
+Due to the small dataset and small feature extract network, this model is just for quick example reference. If one wants to use in production, change the feature extract network and train on a larger dataset.
