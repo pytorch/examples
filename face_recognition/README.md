@@ -12,7 +12,6 @@ for Deep Face Recognition](https://ydwen.github.io/papers/WenECCV16.pdf)
 **Training** No need to download anything. The following command will create directorys and download everything automatically.
 
 ```
-mkdir ~/datasets # if leave every thing as default
 python3 main.py
 ```
 

@@ -19,8 +19,8 @@ parser.add_argument('--batch_size', type=int, default=256, metavar='N',
                     help='input batch size for training (default: 256)')
 parser.add_argument('--log_dir', type=str,
                     help='log directory')
-parser.add_argument('--epochs', type=int, default=30, metavar='N',
-                    help='number of epochs to train (default: 30)')
+parser.add_argument('--epochs', type=int, default=50, metavar='N',
+                    help='number of epochs to train (default: 50)')
 parser.add_argument('--lr', type=float, default=0.001,
                     help='learning rate (default: 0.001)')
 parser.add_argument('--resume', type=str,
@@ -28,7 +28,8 @@ parser.add_argument('--resume', type=str,
 parser.add_argument('--dataset_dir', type=str,
                     help='directory with lfw dataset'
                          ' (default: $HOME/datasets/lfw)')
-parser.add_argument('--weights', type=str, help='pretrained weights to load')
+parser.add_argument('--weights', type=str, help='pretrained weights to load '
+                    'default: ($LOG_DIR/resnet18.pth)')
 parser.add_argument('--evaluate', type=str,
                     help='evaluate specified model on lfw dataset')
 parser.add_argument('--pairs', type=str,
@@ -37,6 +38,8 @@ parser.add_argument('--pairs', type=str,
 parser.add_argument('--roc', type=str,
                     help='path of roc.png to generated '
                          '(default: $DATASET_DIR/roc.png)')
+
+RESNET18_WEIGHTS = 'https://download.pytorch.org/models/resnet18-5c106cde.pth'
 
 
 def train():
@@ -76,8 +79,11 @@ def train():
     )
 
     model = FaceModel(num_classes).to(device)
-    if args.weights:
-        model.load_state_dict(torch.load(args.weights), strict=False)
+    if not args.resume:
+        weights = args.weights if args.weights else download(log_dir,
+                RESNET18_WEIGHTS, 'resnet18.pth')
+        model.load_state_dict(torch.load(weights), strict=False)
+        print('weights loaded from {}'.format(weights))
 
     trainables_wo_bn = [param for name, param in model.named_parameters() if
                         param.requires_grad and 'bn' not in name]
@@ -166,4 +172,9 @@ if __name__ == '__main__':
         home, 'datasets', 'lfw')
     log_dir = args.log_dir if args.log_dir else os.path.join(
         os.path.dirname(os.path.realpath(__file__)), 'logs')
+    if not os.path.isdir(dataset_dir):
+        os.mkdir(dataset_dir)
+    if not os.path.isdir(log_dir):
+        os.mkdir(log_dir)
+
     evaluate() if args.evaluate else train()
