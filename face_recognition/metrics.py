@@ -26,6 +26,7 @@ def compute_roc(distances, matches, thresholds, fold_size=10):
     tpr = torch.zeros(fold_size, len(thresholds))
     fpr = torch.zeros(fold_size, len(thresholds))
     accuracy = torch.zeros(fold_size)
+    best_thresholds = []
 
     for fold_index, (training_indices, val_indices) \
             in enumerate(kf.split(range(len(distances)))):
@@ -41,6 +42,7 @@ def compute_roc(distances, matches, thresholds, fold_size=10):
             ) == training_matches)
 
             if true_predicts > best_threshold_true_predicts:
+                best_threshold = threshold
                 best_threshold_true_predicts = true_predicts
 
         # 2. calculate tpr, fpr on validation set
@@ -57,6 +59,7 @@ def compute_roc(distances, matches, thresholds, fold_size=10):
             tpr[fold_index][threshold_index] = float(tp) / (tp + fn)
             fpr[fold_index][threshold_index] = float(fp) / (fp + tn)
 
+        best_thresholds.append(best_threshold)
         accuracy[fold_index] = best_threshold_true_predicts.item() / float(
             len(training_indices))
 
@@ -65,4 +68,4 @@ def compute_roc(distances, matches, thresholds, fold_size=10):
     fpr = torch.mean(fpr, dim=0).numpy()
     accuracy = torch.mean(accuracy, dim=0).item()
 
-    return tpr, fpr, accuracy
+    return tpr, fpr, accuracy, best_thresholds
