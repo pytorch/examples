@@ -70,7 +70,9 @@ optional arguments:
 
 ## Experiments
 
-Train the model with default configuration(just do `python3 main.py`, this will train resnet50 for 100 epochs), and then evaluate with:
+Trained a model with default configuration(resnet50 for 100 epochs). The model can be downloaded from [Baidu Yun](https://pan.baidu.com/s/138sQCpHqImPjevvZMsVz3w) or [Google Drive](https://drive.google.com/open?id=1cQFwneObMeRc1KZF8959YGVbbYGvUhkp).
+
+Results shown as follows:
 
 ```
 python main.py --evaluate logs/models/epoch_100.pth.tar --batch_size 128
@@ -84,7 +86,7 @@ ROC curve generated at /home/louis/center-loss.pytorch/logs/roc.png
 
 ## Random People Verification
 
-2 images of Obama and 2 images of Trump. Verify 4 pairs together.
+2 images of Obama and 2 images of Trump. Verify 4 pairs together using the model.
 
 ```shell
 ➜ python main.py --verify-model logs/models/epoch_100.pth.tar --verify-images images/obama_a.png,images/obama_b.png
