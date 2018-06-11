@@ -98,7 +98,7 @@ def main():
             if done:
                 break
 
-        running_reward = running_reward * 0.99 + t * 0.01
+        running_reward = running_reward * 0.99 + np.mean(model.rewards) * 0.01
         finish_episode()
         if i_episode % args.log_interval == 0:
             print('Episode {}\tLast length: {:5d}\tAverage length: {:.2f}'.format(
