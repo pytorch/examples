@@ -68,7 +68,8 @@ def train(args):
             n_batch = len(x)
             count += n_batch
             optimizer.zero_grad()
-
+            
+            x = x.to(device)
             y = transformer(x.to(device))
 
             y = utils.normalize_batch(y)
