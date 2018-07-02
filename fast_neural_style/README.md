@@ -38,7 +38,7 @@ Refer to ``neural_style/neural_style.py`` for other command line arguments. For 
 
 ## Models
 
-Models for the examples shown below can be downloaded from [here](https://www.dropbox.com/s/lrvwfehqdcxoza8/saved_models.zip?dl=0) or by running the script ``download_saved_models.sh``.
+Models for the examples shown below can be downloaded from [here](https://www.dropbox.com/s/lrvwfehqdcxoza8/saved_models.zip?dl=0) or by running the script ``download_saved_models.py``.
 
 <div align='center'>
   <img src='images/content-images/amber.jpg' height="174px">		
