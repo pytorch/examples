@@ -79,6 +79,7 @@ def finish_episode():
         value_losses.append(F.smooth_l1_loss(value, torch.tensor([r])))
     optimizer.zero_grad()
     loss = torch.stack(policy_losses).sum() + torch.stack(value_losses).sum()
+    loss /= rewards.numel()
     loss.backward()
     optimizer.step()
     del model.rewards[:]
