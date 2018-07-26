@@ -15,6 +15,7 @@ from util import get_args, makedirs
 
 args = get_args()
 torch.cuda.set_device(args.gpu)
+device = torch.device('cuda:{}'.format(args.gpu))
 
 inputs = data.Field(lower=args.lower)
 answers = data.Field(sequential=False)
@@ -32,7 +33,7 @@ if args.word_vectors:
 answers.build_vocab(train)
 
 train_iter, dev_iter, test_iter = data.BucketIterator.splits(
-            (train, dev, test), batch_size=args.batch_size, device=args.gpu)
+            (train, dev, test), batch_size=args.batch_size, device=device)
 
 config = args
 config.n_embed = len(inputs.vocab)
@@ -44,12 +45,12 @@ if config.birnn:
     config.n_cells *= 2
 
 if args.resume_snapshot:
-    model = torch.load(args.resume_snapshot, map_location=lambda storage, locatoin: storage.cuda(args.gpu))
+    model = torch.load(args.resume_snapshot, map_location=device)
 else:
     model = SNLIClassifier(config)
     if args.word_vectors:
         model.embed.weight.data.copy_(inputs.vocab.vectors)
-        model.cuda(args.gpu)
+        model.to(device)
 
 criterion = nn.CrossEntropyLoss()
 opt = O.Adam(model.parameters(), lr=args.lr)
