@@ -14,15 +14,15 @@ class Sequence(nn.Module):
         self.lstm2 = nn.LSTMCell(51, 51)
         self.linear = nn.Linear(51, 1)
 
-    def forward(self, input, future = 0):
+    def forward(self, trn_input, future = 0):
         outputs = []
-        h_t = torch.zeros(input.size(0), 51, dtype=torch.double)
-        c_t = torch.zeros(input.size(0), 51, dtype=torch.double)
-        h_t2 = torch.zeros(input.size(0), 51, dtype=torch.double)
-        c_t2 = torch.zeros(input.size(0), 51, dtype=torch.double)
+        h_t = torch.zeros(trn_input.size(0), 51, dtype=torch.double)
+        c_t = torch.zeros(trn_input.size(0), 51, dtype=torch.double)
+        h_t2 = torch.zeros(trn_input.size(0), 51, dtype=torch.double)
+        c_t2 = torch.zeros(trn_input.size(0), 51, dtype=torch.double)
 
-        for i, input_t in enumerate(input.chunk(input.size(1), dim=1)):
-            h_t, c_t = self.lstm1(input_t, (h_t, c_t))
+        for i, trn_input_t in enumerate(trn_input.chunk(trn_input.size(1), dim=1)):
+            h_t, c_t = self.lstm1(trn_input_t, (h_t, c_t))
             h_t2, c_t2 = self.lstm2(h_t, (h_t2, c_t2))
             output = self.linear(h_t2)
             outputs += [output]
@@ -41,8 +41,8 @@ if __name__ == '__main__':
     torch.manual_seed(0)
     # load data and make training set
     data = torch.load('traindata.pt')
-    input = torch.from_numpy(data[3:, :-1])
-    target = torch.from_numpy(data[3:, 1:])
+    trn_input = torch.from_numpy(data[3:, :-1])
+    trn_target = torch.from_numpy(data[3:, 1:])
     test_input = torch.from_numpy(data[:3, :-1])
     test_target = torch.from_numpy(data[:3, 1:])
     # build the model
@@ -56,8 +56,8 @@ if __name__ == '__main__':
         print('STEP: ', i)
         def closure():
             optimizer.zero_grad()
-            out = seq(input)
-            loss = criterion(out, target)
+            out = seq(trn_input)
+            loss = criterion(out, trn_target)
             print('loss:', loss.item())
             loss.backward()
             return loss
@@ -77,8 +77,8 @@ if __name__ == '__main__':
         plt.xticks(fontsize=20)
         plt.yticks(fontsize=20)
         def draw(yi, color):
-            plt.plot(np.arange(input.size(1)), yi[:input.size(1)], color, linewidth = 2.0)
-            plt.plot(np.arange(input.size(1), input.size(1) + future), yi[input.size(1):], color + ':', linewidth = 2.0)
+            plt.plot(np.arange(trn_input.size(1)), yi[:trn_input.size(1)], color, linewidth = 2.0)
+            plt.plot(np.arange(trn_input.size(1), trn_input.size(1) + future), yi[trn_input.size(1):], color + ':', linewidth = 2.0)
         draw(y[0], 'r')
         draw(y[1], 'g')
         draw(y[2], 'b')
