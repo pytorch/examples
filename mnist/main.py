@@ -101,7 +101,7 @@ def test():
         data, target = Variable(data), Variable(target)
         with torch.no_grad():
             output = model(data)
-            test_loss += float(F.nll_loss(output, target, size_average=False)) # sum up batch loss
+            test_loss += float(F.nll_loss(output, target, reduction='sum')) # sum up batch loss
             pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
             correct += int(pred.eq(target.data.view_as(pred)).cpu().long().sum())
 
