@@ -17,7 +17,7 @@ args = get_args()
 torch.cuda.set_device(args.gpu)
 device = torch.device('cuda:{}'.format(args.gpu))
 
-inputs = data.Field(lower=args.lower)
+inputs = data.Field(lower=args.lower, tokenize='spacy')
 answers = data.Field(sequential=False)
 
 train, dev, test = datasets.SNLI.splits(inputs, answers)
