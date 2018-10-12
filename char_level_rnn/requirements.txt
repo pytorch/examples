@@ -1,0 +1,6 @@
+torch==0.4.1
+click==6.7
+numpy==1.15.1
+tqdm==4.25.0
+logging==0.4.9.6
+coloredlogs==10.0
