@@ -15,8 +15,7 @@ def sequences_to_tensors(sequences, token_to_idx):
     sequences = [torch.LongTensor(x) for x in seq_idx]
     return nn.utils.rnn.pad_sequence(sequences, batch_first=True, padding_value=token_to_idx[PAD_TOKEN])
 
-def load_dataset(file_name='data/names'):
-
+def load_dataset(file_name='names'):
     with open(file_name) as file:
         sequences = file.read()[:-1].split('\n')
         sequences = [SOS_TOKEN + seq.lower() for seq in sequences]

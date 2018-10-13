@@ -18,8 +18,8 @@ PAD_TOKEN = '#'
 
 @click.command()
 @click.option(
-    '-f', '--filename', default='data/names',
-    type=click.Path(exists=True), help='path for the training data file [data/names]'
+    '-f', '--filename', default='names',
+    type=click.Path(exists=True), help='path for the training data file [names]'
 )
 @click.option(
     '-rt', '--rnn-type', default='lstm',
@@ -94,14 +94,11 @@ def train(filename, rnn_type, num_layers, dropout, emb_size,
                                                     factor=0.1, patience=7, verbose=True)
 
     # train-val-test split of the dataset
-    split_index = int(0.9 * inputs.size(0))
-    train_tensors, inputs = inputs[: split_index], inputs[split_index: ]
-    split_index = int(0.5 * inputs.size(0))
-    val_tensors, test_tensors = inputs[: split_index], inputs[split_index: ]
+    split_index = int(0.95 * inputs.size(0))
+    train_tensors, val_tensors = inputs[: split_index], inputs[split_index: ]
     del inputs
     logging.info('train tensors: {}'.format(train_tensors.size()))
     logging.info('val tensors: {}'.format(val_tensors.size()))
-    logging.info('test tensors: {}'.format(test_tensors.size()))
 
     logging.debug('training char-level RNN model')
     # loop over epochs
@@ -189,13 +186,13 @@ def generate_sample(model, token_to_idx, idx_to_token, max_length, n_tokens, see
         idx_to_token (list of `str`): index (token_id) to character mapping list (vocab).
         max_length (int): max length of a sequence to sample using model.
         seed_phrase (str): the initial seed characters to feed the model. If unspecified, defaults to `SOS_TOKEN`.
-    
     Returns:
         str: generated sample from the model using the seed_phrase.
     """
     model.eval()
+    seed_phrase = seed_phrase.lower()
     if seed_phrase[0] != SOS_TOKEN:
-        seed_phrase = SOS_TOKEN + seed_phrase.lower()
+        seed_phrase = SOS_TOKEN + seed_phrase
     try:
         # convert to token ids for model
         sequence = [token_to_idx[token] for token in seed_phrase]

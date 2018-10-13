@@ -22,7 +22,6 @@ Options:
   -n, --num-epochs INTEGER     number of epochs for training [50]
   -bz, --batch-size INTEGER    number of samples per mini-batch [32]
   -lr, --learning-rate FLOAT   learning rate for the adam optimizer [0.0002]
-  -se, --save-every INTEGER    epoch interval for saving the model [10]
   -ns, --num-samples INTEGER   number of samples to generate after epoch interval [5]
   -sp, --seed-phrase TEXT      seed phrase to feed the RNN for sampling [SOS_TOKEN]
   -sa, --sample-every INTEGER  epoch interval for sampling new sequences [5]

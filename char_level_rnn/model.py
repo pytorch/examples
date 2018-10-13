@@ -22,9 +22,12 @@ class CharRNN(nn.Module):
     Alternatively you can use `LSTM` and `GRU` recurrent modules.
 
     Args:
+        num_layers (int): number of layers in RNN.
+        rnn_type (int): type of RNN layer to use.
         n_tokens (int): number of unique tokens in corpus.
         emb_size (int): dimensionality of each embedding.
         hidden_size (int): number of hidden units in RNN hidden layer.
+        dropout (int): value of dropout for hidden layers.
         pad_id (int): token_id of the padding token.
     """
 
