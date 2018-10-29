@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.multiprocessing as mp
 
-from train import train
+from train import train, test
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
@@ -55,7 +55,13 @@ if __name__ == '__main__':
     processes = []
     for rank in range(args.num_processes):
         p = mp.Process(target=train, args=(rank, args, model))
+        # We first train the model across `num_processes` processes
         p.start()
         processes.append(p)
     for p in processes:
         p.join()
+
+    # Once training is complete, we can test the model
+    test(args, model)
+
+
