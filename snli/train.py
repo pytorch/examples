@@ -18,7 +18,7 @@ torch.cuda.set_device(args.gpu)
 device = torch.device('cuda:{}'.format(args.gpu))
 
 inputs = data.Field(lower=args.lower, tokenize='spacy')
-answers = data.Field(sequential=False)
+answers = data.Field(sequential=False, unk_token=None)
 
 train, dev, test = datasets.SNLI.splits(inputs, answers)
 
@@ -50,7 +50,7 @@ else:
     model = SNLIClassifier(config)
     if args.word_vectors:
         model.embed.weight.data.copy_(inputs.vocab.vectors)
-        model.to(device)
+model.to(device)
 
 criterion = nn.CrossEntropyLoss()
 opt = O.Adam(model.parameters(), lr=args.lr)
