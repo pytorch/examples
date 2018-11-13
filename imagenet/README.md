@@ -25,22 +25,24 @@ python main.py -a alexnet --lr 0.01 [imagenet-folder with train and val folders]
 
 ## Multi-processing Distributed Data Parallel Training
 
+You should always use the NCCL backend for multi-processing distributed training since it currently provides the best distributed training performance.
+
 ### Single node, multiple GPUs:
 
 ```bash
-python main.py -a resnet50 --lr 0.01 --dist-url 'tcp://127.0.0.1:FREEPORT' --multiprocessing-distributed [imagenet-folder with train and val folders]
+python main.py -a resnet50 --lr 0.01 --dist-url 'tcp://127.0.0.1:FREEPORT' --dist-backend 'nccl' --multiprocessing-distributed [imagenet-folder with train and val folders]
 ```
 
 ### Multiple nodes:
 
 Node 0:
 ```bash
-python main.py -a resnet50 --lr 0.01 --dist-url 'tcp://IP_OF_NODE0:FREEPORT' --multiprocessing-distributed --world-size 2 --rank 0 [imagenet-folder with train and val folders]
+python main.py -a resnet50 --lr 0.01 --dist-url 'tcp://IP_OF_NODE0:FREEPORT' --dist-backend 'nccl' --multiprocessing-distributed --world-size 2 --rank 0 [imagenet-folder with train and val folders]
 ```
 
 Node 1:
 ```bash
-python main.py -a resnet50 --lr 0.01 --dist-url 'tcp://IP_OF_NODE0:FREEPORT' --multiprocessing-distributed --world-size 2 --rank 1 [imagenet-folder with train and val folders]
+python main.py -a resnet50 --lr 0.01 --dist-url 'tcp://IP_OF_NODE0:FREEPORT' --dist-backend 'nccl' --multiprocessing-distributed --world-size 2 --rank 1 [imagenet-folder with train and val folders]
 ```
 
 ## Usage
@@ -51,8 +53,7 @@ usage: main.py [-h] [--arch ARCH] [-j N] [--epochs N] [--start-epoch N] [-b N]
                [--resume PATH] [-e] [--pretrained] [--world-size WORLD_SIZE]
                [--rank RANK] [--dist-url DIST_URL]
                [--dist-backend DIST_BACKEND] [--seed SEED] [--gpu GPU]
-               [--multiprocessing-distributed] [--benchmark]
-               [--benchmark-iter BENCHMARK_ITER]
+               [--multiprocessing-distributed]
                DIR
 
 PyTorch ImageNet Training
@@ -63,8 +64,8 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   --arch ARCH, -a ARCH  model architecture: alexnet | densenet121 |
-                        densenet161 | densenet169 | densenet201 | inception_v3
-                        | resnet101 | resnet152 | resnet18 | resnet34 |
+                        densenet161 | densenet169 | densenet201 |
+                        resnet101 | resnet152 | resnet18 | resnet34 |
                         resnet50 | squeezenet1_0 | squeezenet1_1 | vgg11 |
                         vgg11_bn | vgg13 | vgg13_bn | vgg16 | vgg16_bn | vgg19
                         | vgg19_bn (default: resnet18)
@@ -96,7 +97,4 @@ optional arguments:
                         processes per node, which has N GPUs. This is the
                         fastest way to use PyTorch for either single node or
                         multi node data parallel training
-  --benchmark           Benchmark mode, will use synthetic image data
-  --benchmark-iter BENCHMARK_ITER
-                        Number of iterations to benchmark
 ```

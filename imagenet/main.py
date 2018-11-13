@@ -73,10 +73,6 @@ parser.add_argument('--multiprocessing-distributed', action='store_true',
                          'N processes per node, which has N GPUs. This is the '
                          'fastest way to use PyTorch for either single node or '
                          'multi node data parallel training')
-parser.add_argument('--benchmark', action='store_true',
-                    help='Benchmark mode, will use synthetic image data')
-parser.add_argument('--benchmark-iter', default=100, type=int,
-                    help='Number of iterations to benchmark')
 
 best_acc1 = 0
 
@@ -84,10 +80,6 @@ best_acc1 = 0
 def main():
     args = parser.parse_args()
 
-    if args.benchmark:
-        if args.benchmark_iter < 20:
-            raise RuntimeError("Requires a minimum of 20 iterations to "
-                               "benchmark")
     if args.seed is not None:
         random.seed(args.seed)
         torch.manual_seed(args.seed)
@@ -119,14 +111,6 @@ def main():
         args.world_size = ngpus_per_node * args.world_size
         # Use torch.multiprocessing.spawn to launch distributed processes: the
         # main_worker process function
-        #
-        # Note: mp.spawn requires the called function (main_worker)'s first
-        # argument to be the local rank or the local GPU id that the main_worker
-        # will be operating on, and mp.spawn will set this up automatically.
-        # Therefore, the first argument of main_worker function does not need
-        # to be set in mp.spawn and it is your responsibility to ensure that
-        # the first argument of main_worker function (or any function passed to
-        # mp.spawn) is the gpu (device ID) the function should operate on.
         mp.spawn(
             main_worker,
             nprocs=ngpus_per_node,
@@ -146,15 +130,9 @@ def main_worker(gpu, ngpus_per_node, args):
 
     if args.distributed:
         if args.multiprocessing_distributed:
-            # For multiprocessing distributed training, rank needs to be the i
+            # For multiprocessing distributed training, rank needs to be the
             # global rank among all the processes
             args.rank = args.rank * ngpus_per_node + gpu
-            if args.dist_backend != 'nccl':
-                args.dist_backend = 'nccl'
-                warnings.warn('NCCL backend is the highly recommended backend '
-                              'for multiprocessing distributed training. Will '
-                              'automatically switch to using NCCL backend and '
-                              'continue the training.')
         dist.init_process_group(backend=args.dist_backend,
                                 init_method=args.dist_url,
                                 world_size=args.world_size,
@@ -205,10 +183,6 @@ def main_worker(gpu, ngpus_per_node, args):
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
-
-    if args.benchmark:
-        train_bench(model, criterion, optimizer, args)
-        return
 
     # optionally resume from a checkpoint
     if args.resume:
@@ -334,45 +308,6 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
                   'Acc@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
                    epoch, i, len(train_loader), batch_time=batch_time,
                    data_time=data_time, loss=losses, top1=top1, top5=top5))
-
-
-def train_bench(model, criterion, optimizer, args):
-    batch_time = AverageMeter()
-
-    # switch to train mode
-    model.train()
-
-    # synthetic image data
-    input = torch.cuda.FloatTensor(args.batch_size, 3, 224, 224).fill_(1)
-    target = torch.cuda.LongTensor(args.batch_size).fill_(1)
-
-    end = time.time()
-    for i in range(args.benchmark_iter):
-        # measure data loading time
-
-        input_var = torch.autograd.Variable(input)
-        target_var = torch.autograd.Variable(target)
-
-        # compute output
-        output = model(input_var)
-        loss = criterion(output, target_var)
-
-        # compute gradient and do SGD step
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        # measure elapsed time
-        if i >= 10 and i != args.benchmark_iter - 1 :
-            batch_time.update(time.time() - end)
-        end = time.time()
-
-        print('[{0}][{1}/{2}]\t'
-              'Time {batch_time.val:.3f} ({batch_time.avg:.3f})'.
-               format("Benchmark",
-                      i,
-                      args.benchmark_iter,
-                      batch_time=batch_time))
 
 
 def validate(val_loader, model, criterion, args):
