@@ -98,24 +98,12 @@ def main():
 
     ngpus_per_node = torch.cuda.device_count()
     if args.multiprocessing_distributed:
-        # python version check
-        if not ((sys.version_info[0] == 3 and sys.version_info[1] >= 4) or
-                sys.version_info[0] > 3):
-            raise RuntimeError("Requires python 3.4 or higher to use "
-                               "torch.multiprocessing.spawn helper to launch "
-                               "multiple processes for distributed training. "
-                               "If you have a lower version of Python, use "
-                               "torch.distributed.launch instead.")
         # Since we have ngpus_per_node processes per node, the total world_size
         # needs to be adjusted accordingly
         args.world_size = ngpus_per_node * args.world_size
         # Use torch.multiprocessing.spawn to launch distributed processes: the
         # main_worker process function
-        mp.spawn(
-            main_worker,
-            nprocs=ngpus_per_node,
-            args=(ngpus_per_node, args)
-        )
+        mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, args))
     else:
         # Simply call main_worker function
         main_worker(args.gpu, ngpus_per_node, args)
@@ -133,10 +121,8 @@ def main_worker(gpu, ngpus_per_node, args):
             # For multiprocessing distributed training, rank needs to be the
             # global rank among all the processes
             args.rank = args.rank * ngpus_per_node + gpu
-        dist.init_process_group(backend=args.dist_backend,
-                                init_method=args.dist_url,
-                                world_size=args.world_size,
-                                rank=args.rank)
+        dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url,
+                                world_size=args.world_size, rank=args.rank)
     # create model
     if args.pretrained:
         print("=> using pre-trained model '{}'".format(args.arch))
@@ -156,21 +142,17 @@ def main_worker(gpu, ngpus_per_node, args):
             # DistributedDataParallel, we need to divide the batch size
             # ourselves based on the total number of GPUs we have
             args.batch_size = int(args.batch_size / ngpus_per_node)
-            model = torch.nn.parallel.DistributedDataParallel(
-                model,
-                device_ids=[args.gpu],
-                output_device=None)
+            model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
         else:
             model.cuda()
             # DistributedDataParallel will divide and allocate batch_size to all
-            # available GPUs if device_ids are not not set
+            # available GPUs if device_ids are not set
             model = torch.nn.parallel.DistributedDataParallel(model)
     elif args.gpu is not None:
         torch.cuda.set_device(args.gpu)
         model = model.cuda(args.gpu)
     else:
-        # DataParallel will divide and allocate batch_size to all
-        # available GPUs
+        # DataParallel will divide and allocate batch_size to all available GPUs
         if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
             model.features = torch.nn.DataParallel(model.features)
             model.cuda()
