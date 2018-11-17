@@ -50,6 +50,8 @@ parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)')
 parser.add_argument('--print-freq', '-p', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
+parser.add_argument('--outdir', default='.', type=str,
+                    help='path to latest checkpoint (default: none)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
@@ -223,6 +225,9 @@ def main_worker(gpu, ngpus_per_node, args):
         batch_size=args.batch_size, shuffle=False,
         num_workers=args.workers, pin_memory=True)
 
+    if args.outdir != '.' and not os.path.exists(args.outdir):
+      os.makedirs(args.outdir)
+
     if args.evaluate:
         validate(val_loader, model, criterion)
         return
@@ -247,7 +252,7 @@ def main_worker(gpu, ngpus_per_node, args):
             'state_dict': model.state_dict(),
             'best_acc1': best_acc1,
             'optimizer' : optimizer.state_dict(),
-        }, is_best)
+        }, is_best, args.outdir)
 
 
 def train(train_loader, model, criterion, optimizer, epoch, args):
@@ -344,10 +349,13 @@ def validate(val_loader, model, criterion, args):
     return top1.avg
 
 
-def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
-    torch.save(state, filename)
+def save_checkpoint(state, is_best, outdir):
+    filename='checkpoint.pth.tar'
+    outfile1 = os.path.join(outdir, filename)
+    torch.save(state, outfile1)
     if is_best:
-        shutil.copyfile(filename, 'model_best.pth.tar')
+        outfile2 = os.path.join(outdir, 'model_best.pth.tar')
+        shutil.copyfile(outfile1, outfile2)
 
 
 class AverageMeter(object):
