@@ -68,6 +68,8 @@ parser.add_argument('--seed', default=None, type=int,
                     help='seed for initializing training. ')
 parser.add_argument('--gpu', default=None, type=int,
                     help='GPU id to use.')
+parser.add_argument('--finetune', dest='finetune', action='store_true',
+                    help='train only final layer')
 parser.add_argument('--multiprocessing-distributed', action='store_true',
                     help='Use multi-processing distributed training to launch '
                          'N processes per node, which has N GPUs. This is the '
@@ -130,6 +132,11 @@ def main_worker(gpu, ngpus_per_node, args):
     else:
         print("=> creating model '{}'".format(args.arch))
         model = models.__dict__[args.arch]()
+
+    if args.finetune:
+        num_classes = 1000 # TODO: maybe compute this based on args.data
+        print("=> freezing {} weights except for last layer".format(args.arch))
+        model = FineTuneModel(model, args.arch, num_classes)
 
     if args.distributed:
         # For multiprocessing distributed, DistributedDataParallel constructor
@@ -384,6 +391,83 @@ def accuracy(output, target, topk=(1,)):
             res.append(correct_k.mul_(100.0 / batch_size))
         return res
 
+class FineTuneModel(nn.Module):
+    """ Finetunes just the last layer
+
+    This freezes the weights of all layers except the last one.
+    You should also look into finetuning previous layers, but slowly
+    Ideally, do this first, then unfreeze all layers and tune further with small lr
+
+    Arguments:
+        original_model: Model to finetune
+        arch: Name of model architecture
+        num_classes: Number of classes to tune for
+
+    """
+    def __init__(self, original_model, arch, num_classes):
+        super(FineTuneModel, self).__init__()
+        self.dense_forward = False
+
+        if arch.startswith('alexnet') or arch.startswith('vgg'):
+            self.features = original_model.features
+            self.fc = nn.Sequential(*list(original_model.classifier.children())[:-1])
+            self.classifier = nn.Sequential(
+                nn.Linear(4096, num_classes)
+            )
+        elif arch.startswith('resnet') :
+            # Everything except the last linear layer
+            self.features = nn.Sequential(*list(original_model.children())[:-1])
+            self.classifier = nn.Sequential(
+                nn.Linear(original_model.fc.in_features, num_classes)
+            )
+        elif arch.startswith('inception') :
+            # inception is not working because:
+            #  1) model.aux_logits = False is necessary: https://github.com/pytorch/vision/issues/302#issuecomment-341163548
+            #  2) input size needs to be 299
+            #  3) still something else is going on with finetune on features.forward:
+            #     RuntimeError: size mismatch, m1: [32 x 277248], m2: [768 x 1000]
+            self.features = nn.Sequential(*list(original_model.children())[:-1])
+            self.classifier = nn.Sequential(
+                nn.Linear(2048, num_classes)
+            )
+        elif arch.startswith('densenet') :
+            self.dense_forward = True
+
+            # Everything except the last linear layer
+            self.features = nn.Sequential(*list(original_model.children())[:-1])
+
+            # Get number of features of last layer
+            num_feats = original_model.classifier.in_features
+
+            # Plug our classifier
+            self.classifier = nn.Sequential(
+                nn.Linear(num_feats, num_classes)
+            )
+
+        else :
+            raise("Finetuning not supported on this architecture yet. Feel free to add")
+
+        self.unfreeze(False) # Freeze weights except last layer
+
+    def unfreeze(self, unfreeze):
+        # Freeze those weights
+        for p in self.features.parameters():
+            p.requires_grad = unfreeze
+        if hasattr(self, 'fc'):
+            for p in self.fc.parameters():
+                p.requires_grad = unfreeze
+
+    def forward(self, x):
+        f = self.features(x)
+        if self.dense_forward:
+            f = F.relu(f, inplace=True)
+            f = F.avg_pool2d(f, kernel_size=7).view(f.size(0), -1)
+        elif hasattr(self, 'fc'):
+            f = f.view(f.size(0), -1)
+            f = self.fc(f)
+        f = f.view(f.size(0), -1)
+        y = self.classifier(f)
+        return y
 
 if __name__ == '__main__':
     main()
