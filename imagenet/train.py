@@ -5,6 +5,8 @@ import shutil
 import time
 import warnings
 import sys
+import numpy as np
+from sklearn import metrics
 
 import torch
 import torch.nn as nn
@@ -56,6 +58,12 @@ parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
                     help='evaluate model on validation set')
+parser.add_argument('--confusion', default=None, type=int,
+                    metavar='N', help='generate confusion matrix against index on validation set')
+parser.add_argument('--false-report', dest='false_report', action='store_true',
+                    help='output false pos/neg report with confusion scores')
+parser.add_argument('--train-report', dest='train_report', action='store_true',
+                    help='report on the training set instead of the validation set')
 parser.add_argument('--pretrained', dest='pretrained', action='store_true',
                     help='use pre-trained model')
 parser.add_argument('--world-size', default=1, type=int,
@@ -197,7 +205,7 @@ def main_worker(gpu, ngpus_per_node, args):
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
 
-    train_dataset = datasets.ImageFolder(
+    train_dataset = ImageFolderWithPath(
         traindir,
         transforms.Compose([
             transforms.RandomResizedCrop(224),
@@ -216,7 +224,7 @@ def main_worker(gpu, ngpus_per_node, args):
         num_workers=args.workers, pin_memory=True, sampler=train_sampler)
 
     val_loader = torch.utils.data.DataLoader(
-        datasets.ImageFolder(valdir, transforms.Compose([
+        ImageFolderWithPath(valdir, transforms.Compose([
             transforms.Resize(256),
             transforms.CenterCrop(224),
             transforms.ToTensor(),
@@ -230,6 +238,15 @@ def main_worker(gpu, ngpus_per_node, args):
 
     if args.evaluate:
         validate(val_loader, model, criterion, args)
+
+    if args.confusion is not None:
+        if args.train_report:
+            confusion(train_loader, model, criterion, args.confusion, args.false_report, args)
+        else:
+            confusion(val_loader, model, criterion, args.confusion, args.false_report, args)
+
+    if args.evaluate is not None or args.confusion is not None:
+        # we are done
         return
 
     for epoch in range(args.start_epoch, args.epochs):
@@ -349,6 +366,106 @@ def validate(val_loader, model, criterion, args):
     return top1.avg
 
 
+def predict_wide(output, target, cindex):
+    """Computes the accuracy over the k top predictions for the specified values of k"""
+    topk=(1,)
+    with torch.no_grad():
+        maxk = max(topk)
+        batch_size = target.size(0)
+
+        _, pred = output.topk(maxk, 1, True, True)
+        pred = pred.t()
+        np_pred = pred.cpu().data.numpy();
+        np_targ = target.cpu().data.numpy();
+        index_pred = np.squeeze((np_pred == cindex))
+        index_targ = np.squeeze((np_targ == cindex))
+        # print(index_pred.shape, index_targ.shape)
+        # correct = torch.from_numpy(np.equal(index_pred, index_targ).astype(int))
+
+        # correct_k = correct.float().sum(0, keepdim=True)
+        # res = correct_k.mul_(100.0 / batch_size)
+        return index_pred.tolist(), index_targ.tolist()
+
+
+def confusion(val_loader, model, criterion, cindex, false_report, args):
+    batch_time = AverageMeter()
+    losses = AverageMeter()
+    top1 = AverageMeter()
+    top5 = AverageMeter()
+
+    # switch to evaluate mode
+    model.eval()
+
+    with torch.no_grad():
+        end = time.time()
+        y_pred_c = []
+        y_true_c = []
+        false_pos_c = []
+        false_neg_c = []
+        for i, (input, target, path) in enumerate(val_loader):
+            if args.gpu is not None:
+                input = input.cuda(args.gpu, non_blocking=True)
+            target = target.cuda(args.gpu, non_blocking=True)
+
+            # compute output
+            output = model(input)
+            loss = criterion(output, target)
+
+            # add to confusion matrix
+            # confusion_matrix.add(output.data.squeeze(), target.type(t.LongTensor))
+            # print(output, target)
+
+            # measure accuracy and record loss
+            acc1, acc5 = accuracy(output, target, topk=(1, 5))
+            y_pred_cindex, y_true_cindex = predict_wide(output, target, cindex)
+            if false_report:
+                for i in range(len(y_pred_cindex)):
+                    if y_pred_cindex[i] and not y_true_cindex[i]:
+                        false_pos_c.append(path[i])
+                    elif not y_pred_cindex[i] and y_true_cindex[i]:
+                        false_neg_c.append(path[i])
+
+            # print(y_pred_cindex, y_true_cindex)
+            y_pred_c = y_pred_c + y_pred_cindex
+            y_true_c = y_true_c + y_true_cindex
+            # conf_mat = confusion_matrix(y_true_cindex, y_pred_cindex)
+            losses.update(loss.item(), input.size(0))
+            top1.update(acc1[0], input.size(0))
+            top5.update(acc5[0], input.size(0))
+
+            # measure elapsed time
+            batch_time.update(time.time() - end)
+            end = time.time()
+
+            if i % args.print_freq == 0:
+                # print(conf_mat)
+                print('Test: [{0}/{1}]\t'
+                      'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                      'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                      'Acc@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+                      'Acc@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
+                       i, len(val_loader), batch_time=batch_time, loss=losses,
+                       top1=top1, top5=top5))
+
+        conf_mat = metrics.confusion_matrix(y_true_c, y_pred_c)
+        acc_sc = metrics.accuracy_score(y_true_c, y_pred_c)
+        precision = metrics.precision_score(y_true_c, y_pred_c)
+        recall = metrics.recall_score(y_true_c, y_pred_c)
+        # print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
+        #       .format(top1=top1, top5=top5))
+        print(" +[{}] accuracy {}, precision: {}, recall {}".format(cindex, acc_sc, precision, recall))
+        print(conf_mat)
+        if false_report:
+            print("False Positives ({}):".format(len(false_pos_c)))
+            for f in false_pos_c:
+                print("FP {}".format(f))
+            print("False Negatives ({}):".format(len(false_neg_c)))
+            for f in false_neg_c:
+                print("FN {}".format(f))
+
+    return top1.avg
+
+
 def save_checkpoint(state, is_best, outdir):
     filename='checkpoint.pth.tar'
     outfile1 = os.path.join(outdir, filename)
@@ -398,6 +515,55 @@ def accuracy(output, target, topk=(1,)):
             correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
             res.append(correct_k.mul_(100.0 / batch_size))
         return res
+
+
+class ImageFolderWithPath(datasets.ImageFolder):
+    """
+        Like ImageFolder, but also provides source path and blacklists
+    """
+    def __init__(self, root, transform=None, target_transform=None,
+                 loader=datasets.folder.default_loader):
+        super(ImageFolderWithPath, self).__init__(root,
+                                          transform=transform,
+                                          target_transform=target_transform,
+                                          loader=loader)
+
+        # don't freak out if directories have mac "poopy files"
+        candidates = [f for f in self.samples if not f[0].startswith(".")]
+        if len(candidates) != len(self.samples):
+            print("Info: removed {} files with bad filenames".format(len(self.samples) - len(candidates)))
+        # remove blacklisted files (if any)
+        blacklist_file = os.path.join(root, "blacklist.txt")
+        if os.path.exists(blacklist_file):
+            blacklist = list(line.strip() for line in open(blacklist_file))
+            blacklist = [os.path.join(root, b) for b in blacklist if not b.startswith("#") and len(b) > 1]
+            blacklist = set(blacklist)
+            diagnostic_basename = os.path.basename(root)
+            print("Info: {} found blacklist of length {}".format(diagnostic_basename, len(blacklist)))
+            candidates2 = [f for f in candidates if not f[0] in blacklist]
+            print("Info: {} removed {} files via blacklist".format(diagnostic_basename, len(candidates) - len(candidates2)))
+            candidates = candidates2
+
+        self.samples = candidates
+        self.targets = [s[1] for s in candidates]
+
+
+    def __getitem__(self, index):
+        """
+        Args:
+            index (int): Index
+        Returns:
+            tuple: (sample, target) where target is class_index of the target class.
+        """
+        path, target = self.samples[index]
+        sample = self.loader(path)
+        if self.transform is not None:
+            sample = self.transform(sample)
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return sample, target, path
+
 
 class FineTuneModel(nn.Module):
     """ Finetunes just the last layer
