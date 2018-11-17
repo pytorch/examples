@@ -229,7 +229,7 @@ def main_worker(gpu, ngpus_per_node, args):
       os.makedirs(args.outdir)
 
     if args.evaluate:
-        validate(val_loader, model, criterion)
+        validate(val_loader, model, criterion, args)
         return
 
     for epoch in range(args.start_epoch, args.epochs):
