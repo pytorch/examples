@@ -44,6 +44,8 @@ parser.add_argument('-b', '--batch-size', default=256, type=int,
                     help='mini-batch size (default: 256), this is the total '
                          'batch size of all GPUs on the current node when '
                          'using Data Parallel or Distributed Data Parallel')
+parser.add_argument('--adam', dest='adam', action='store_true',
+                    help='use adam optimizer')
 parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
                     metavar='LR', help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
@@ -179,9 +181,14 @@ def main_worker(gpu, ngpus_per_node, args):
     # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda(args.gpu)
 
-    optimizer = torch.optim.SGD(model.parameters(), args.lr,
-                                momentum=args.momentum,
-                                weight_decay=args.weight_decay)
+    if args.adam:
+        print("Using adam optimizer with learning rate {}".format(args.lr))
+        optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    else:
+        print("Using SGD optimizer with learning rate {}".format(args.lr))
+        optimizer = torch.optim.SGD(model.parameters(), args.lr,
+                                    momentum=args.momentum,
+                                    weight_decay=args.weight_decay)
 
     # optionally resume from a checkpoint
     if args.resume:
@@ -245,7 +252,7 @@ def main_worker(gpu, ngpus_per_node, args):
         else:
             confusion(val_loader, model, criterion, args.confusion, args.false_report, args)
 
-    if args.evaluate is not None or args.confusion is not None:
+    if args.evaluate or args.confusion is not None:
         # we are done
         return
 
@@ -283,7 +290,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     model.train()
 
     end = time.time()
-    for i, (input, target) in enumerate(train_loader):
+    for i, (input, target, path) in enumerate(train_loader):
         # measure data loading time
         data_time.update(time.time() - end)
 
@@ -332,7 +339,7 @@ def validate(val_loader, model, criterion, args):
 
     with torch.no_grad():
         end = time.time()
-        for i, (input, target) in enumerate(val_loader):
+        for i, (input, target, path) in enumerate(val_loader):
             if args.gpu is not None:
                 input = input.cuda(args.gpu, non_blocking=True)
             target = target.cuda(args.gpu, non_blocking=True)
