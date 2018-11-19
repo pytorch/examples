@@ -82,6 +82,8 @@ parser.add_argument('--gpu', default=None, type=int,
                     help='GPU id to use.')
 parser.add_argument('--finetune', dest='finetune', action='store_true',
                     help='train only final layer')
+parser.add_argument('--train-weights', default=None,
+                    metavar='W', help='weight class labels during training (eg: 0=5,10=0.5)')
 parser.add_argument('--multiprocessing-distributed', action='store_true',
                     help='Use multi-processing distributed training to launch '
                          'N processes per node, which has N GPUs. This is the '
@@ -223,6 +225,17 @@ def main_worker(gpu, ngpus_per_node, args):
 
     if args.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
+    elif args.train_weights is not None:
+        weights_list = args.train_weights.split(",")
+        weights_lookup = {}
+        for pair in weights_list:
+            index, value = list(map(int, pair.split("=")))
+            weights_lookup[index] = value
+        train_weights = np.array([weights_lookup[s[1]] if s[1] in weights_lookup else 1.0 for s in train_dataset.imgs])
+        print(train_weights[:1000])
+        train_weights = torch.from_numpy(train_weights)
+        train_sampler = torch.utils.data.sampler.WeightedRandomSampler(train_weights, len(train_weights))
+        # sys.exit(0)
     else:
         train_sampler = None
 
