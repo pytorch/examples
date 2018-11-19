@@ -80,8 +80,8 @@ parser.add_argument('--seed', default=None, type=int,
                     help='seed for initializing training. ')
 parser.add_argument('--gpu', default=None, type=int,
                     help='GPU id to use.')
-parser.add_argument('--finetune', dest='finetune', action='store_true',
-                    help='train only final layer')
+parser.add_argument('--disable-finetune', dest='disable_finetune', action='store_true',
+                    help='disable training only on final layer')
 parser.add_argument('--train-weights', default=None,
                     metavar='W', help='weight class labels during training (eg: 0=5,10=0.5)')
 parser.add_argument('--multiprocessing-distributed', action='store_true',
@@ -147,7 +147,7 @@ def main_worker(gpu, ngpus_per_node, args):
         print("=> creating model '{}'".format(args.arch))
         model = models.__dict__[args.arch]()
 
-    if args.finetune:
+    if not args.disable_finetune:
         num_classes = 1000 # TODO: maybe compute this based on args.data
         print("=> freezing {} weights except for last layer".format(args.arch))
         model = FineTuneModel(model, args.arch, num_classes)
