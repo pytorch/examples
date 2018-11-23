@@ -56,18 +56,18 @@ parser.add_argument('--print-freq', '-p', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
 parser.add_argument('--outdir', default='.', type=str,
                     help='path to latest checkpoint (default: none)')
-parser.add_argument('--resume', default='', type=str, metavar='PATH',
+parser.add_argument('--resume', default=None, type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
                     help='evaluate model on validation set')
 parser.add_argument('--confusion', default=None, type=int,
                     metavar='N', help='generate confusion matrix against index on validation set')
+parser.add_argument('--binarize', default=None, type=int,
+                    metavar='N', help='report precision/recall against index on validation set')
 parser.add_argument('--false-report', dest='false_report', action='store_true',
                     help='output false pos/neg report with confusion scores')
 parser.add_argument('--train-report', dest='train_report', action='store_true',
                     help='report on the training set instead of the validation set')
-parser.add_argument('--pretrained', dest='pretrained', action='store_true',
-                    help='use pre-trained model')
 parser.add_argument('--world-size', default=1, type=int,
                     help='number of nodes for distributed training')
 parser.add_argument('--rank', default=0, type=int,
@@ -140,11 +140,11 @@ def main_worker(gpu, ngpus_per_node, args):
         dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url,
                                 world_size=args.world_size, rank=args.rank)
     # create model
-    if args.pretrained:
-        print("=> using pre-trained model '{}'".format(args.arch))
+    if args.resume is None:
+        print("=> using fresh pre-trained model '{}'".format(args.arch))
         model = models.__dict__[args.arch](pretrained=True)
     else:
-        print("=> creating model '{}'".format(args.arch))
+        print("=> creating model '{}' for loading {}".format(args.arch, args.resume))
         model = models.__dict__[args.arch]()
 
     if not args.disable_finetune:
@@ -193,7 +193,7 @@ def main_worker(gpu, ngpus_per_node, args):
                                     weight_decay=args.weight_decay)
 
     # optionally resume from a checkpoint
-    if args.resume:
+    if args.resume is not None:
         if os.path.isfile(args.resume):
             print("=> loading checkpoint '{}'".format(args.resume))
             checkpoint = torch.load(args.resume)
@@ -232,10 +232,8 @@ def main_worker(gpu, ngpus_per_node, args):
             index, value = list(map(int, pair.split("=")))
             weights_lookup[index] = value
         train_weights = np.array([weights_lookup[s[1]] if s[1] in weights_lookup else 1.0 for s in train_dataset.imgs])
-        print(train_weights[:1000])
         train_weights = torch.from_numpy(train_weights)
         train_sampler = torch.utils.data.sampler.WeightedRandomSampler(train_weights, len(train_weights))
-        # sys.exit(0)
     else:
         train_sampler = None
 
@@ -257,7 +255,7 @@ def main_worker(gpu, ngpus_per_node, args):
       os.makedirs(args.outdir)
 
     if args.evaluate:
-        validate(val_loader, model, criterion, args)
+        validate(val_loader, model, criterion, args.binarize, args)
 
     if args.confusion is not None:
         if args.train_report:
@@ -278,7 +276,7 @@ def main_worker(gpu, ngpus_per_node, args):
         train(train_loader, model, criterion, optimizer, epoch, args)
 
         # evaluate on validation set
-        acc1 = validate(val_loader, model, criterion, args)
+        acc1 = validate(val_loader, model, criterion, args.binarize, args)
 
         # remember best acc@1 and save checkpoint
         is_best = acc1 > best_acc1
@@ -341,11 +339,34 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
                    data_time=data_time, loss=losses, top1=top1, top5=top5))
 
 
-def validate(val_loader, model, criterion, args):
+def predict_wide(output, target, cindex):
+    """Computes the accuracy over the k top predictions for the specified values of k"""
+    topk=(1,)
+    with torch.no_grad():
+        maxk = max(topk)
+        batch_size = target.size(0)
+
+        _, pred = output.topk(maxk, 1, True, True)
+        pred = pred.t()
+        np_pred = pred.cpu().data.numpy();
+        np_targ = target.cpu().data.numpy();
+        index_pred = np.squeeze((np_pred == cindex))
+        index_targ = np.squeeze((np_targ == cindex))
+        # print(index_pred.shape, index_targ.shape)
+        # correct = torch.from_numpy(np.equal(index_pred, index_targ).astype(int))
+
+        # correct_k = correct.float().sum(0, keepdim=True)
+        # res = correct_k.mul_(100.0 / batch_size)
+        return index_pred.tolist(), index_targ.tolist()
+
+
+def validate(val_loader, model, criterion, cindex, args):
     batch_time = AverageMeter()
     losses = AverageMeter()
     top1 = AverageMeter()
     top5 = AverageMeter()
+    y_pred_c = []
+    y_true_c = []
 
     # switch to evaluate mode
     model.eval()
@@ -367,6 +388,12 @@ def validate(val_loader, model, criterion, args):
             top1.update(acc1[0], input.size(0))
             top5.update(acc5[0], input.size(0))
 
+            # optional confusion reporting on specific index
+            if cindex is not None:
+                y_pred_cindex, y_true_cindex = predict_wide(output, target, cindex)
+                y_pred_c = y_pred_c + y_pred_cindex
+                y_true_c = y_true_c + y_true_cindex
+
             # measure elapsed time
             batch_time.update(time.time() - end)
             end = time.time()
@@ -382,29 +409,13 @@ def validate(val_loader, model, criterion, args):
 
         print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
               .format(top1=top1, top5=top5))
+        if cindex is not None:
+            precision = metrics.precision_score(y_true_c, y_pred_c)
+            recall = metrics.recall_score(y_true_c, y_pred_c)
+            print(' * Precision[{}] {:.3f} Recall[{}] {:.3f}'
+                  .format(cindex, precision, cindex, recall))
 
     return top1.avg
-
-
-def predict_wide(output, target, cindex):
-    """Computes the accuracy over the k top predictions for the specified values of k"""
-    topk=(1,)
-    with torch.no_grad():
-        maxk = max(topk)
-        batch_size = target.size(0)
-
-        _, pred = output.topk(maxk, 1, True, True)
-        pred = pred.t()
-        np_pred = pred.cpu().data.numpy();
-        np_targ = target.cpu().data.numpy();
-        index_pred = np.squeeze((np_pred == cindex))
-        index_targ = np.squeeze((np_targ == cindex))
-        # print(index_pred.shape, index_targ.shape)
-        # correct = torch.from_numpy(np.equal(index_pred, index_targ).astype(int))
-
-        # correct_k = correct.float().sum(0, keepdim=True)
-        # res = correct_k.mul_(100.0 / batch_size)
-        return index_pred.tolist(), index_targ.tolist()
 
 
 def confusion(val_loader, model, criterion, cindex, false_report, args):
@@ -549,7 +560,7 @@ class ImageFolderWithPath(datasets.ImageFolder):
                                           loader=loader)
 
         # don't freak out if directories have mac "poopy files"
-        candidates = [f for f in self.samples if not f[0].startswith(".")]
+        candidates = [f for f in self.samples if not (f[0].startswith(".") or ("/." in f[0]))]
         if len(candidates) != len(self.samples):
             print("Info: removed {} files with bad filenames".format(len(self.samples) - len(candidates)))
         # remove blacklisted files (if any)
