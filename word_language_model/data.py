@@ -1,4 +1,5 @@
 import os
+from io import open
 import torch
 
 class Dictionary(object):
