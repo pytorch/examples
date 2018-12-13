@@ -25,8 +25,6 @@ class Net(nn.Module):
         x = self.fc2(x)
         return F.log_softmax(x, dim=1)
     
-    def name(self):
-        return "Net"
 def train(args, model, device, train_loader, optimizer, epoch):
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
@@ -107,14 +105,12 @@ def main():
     model = Net().to(device)
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
 
-    for epoch in range(1, args.epochs+1):
+    for epoch in range(1, args.epochs + 1):
         train(args, model, device, train_loader, optimizer, epoch)
         test(args, model, device, test_loader)
 
     if (args.save_model):
-        PATH="mnist_cnn.pt"
-        torch.save(model.state_dict(), PATH)
-        print("model saved as mnist_cnn.pt in the current working directory\n")
-
+        torch.save(model.state_dict(),"mnist_cnn.pt")
+        
 if __name__ == '__main__':
     main()
