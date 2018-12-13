@@ -20,6 +20,7 @@ import torch.utils.data.distributed
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
+import torch.nn.functional as F
 
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
@@ -84,6 +85,8 @@ parser.add_argument('--disable-finetune', dest='disable_finetune', action='store
                     help='disable training only on final layer')
 parser.add_argument('--train-weights', default=None,
                     metavar='W', help='weight class labels during training (eg: 0=5,10=0.5)')
+parser.add_argument('--train-duplicate', default=None,
+                    metavar='W', help='duplicate prefixed files during training (eg: m00000001=4)')
 parser.add_argument('--multiprocessing-distributed', action='store_true',
                     help='Use multi-processing distributed training to launch '
                          'N processes per node, which has N GPUs. This is the '
@@ -221,7 +224,8 @@ def main_worker(gpu, ngpus_per_node, args):
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             normalize,
-        ]))
+        ]),
+        file_duplicator=args.train_duplicate)
 
     if args.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
@@ -553,7 +557,8 @@ class ImageFolderWithPath(datasets.ImageFolder):
         Like ImageFolder, but also provides source path and blacklists
     """
     def __init__(self, root, transform=None, target_transform=None,
-                 loader=datasets.folder.default_loader):
+                 loader=datasets.folder.default_loader,
+                 file_duplicator=None):
         super(ImageFolderWithPath, self).__init__(root,
                                           transform=transform,
                                           target_transform=target_transform,
@@ -574,6 +579,16 @@ class ImageFolderWithPath(datasets.ImageFolder):
             candidates2 = [f for f in candidates if not f[0] in blacklist]
             print("Info: {} removed {} files via blacklist".format(diagnostic_basename, len(candidates) - len(candidates2)))
             candidates = candidates2
+
+        if file_duplicator is not None:
+            substring, num_dupes = list(file_duplicator.split("="))
+            num_dupes = int(num_dupes)
+            selected = [f for f in self.samples if (substring in f[0])]
+            print("Duplicating {} files with substring {} {} times onto list of {}".format(len(selected),
+                substring, num_dupes, len(candidates)))
+            for n in range(num_dupes):
+                candidates = candidates + selected
+            print("List with duplicates now has length {}".format(len(candidates)))
 
         self.samples = candidates
         self.targets = [s[1] for s in candidates]
