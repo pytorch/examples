@@ -5,7 +5,7 @@ import shutil
 import time
 import warnings
 import sys
-
+from multiprocessing import Manager
 import torch
 import torch.nn as nn
 import torch.nn.parallel
@@ -107,14 +107,13 @@ def main():
         args.world_size = ngpus_per_node * args.world_size
         # Use torch.multiprocessing.spawn to launch distributed processes: the
         # main_worker process function
-        mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, args))
+        mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, args, best_acc_man))
     else:
         # Simply call main_worker function
         main_worker(args.gpu, ngpus_per_node, args)
 
-
-def main_worker(gpu, ngpus_per_node, args):
-    global best_acc1
+def main_worker(gpu, ngpus_per_node, args, best_acc_man):
+    best_acc1 = best_acc_man.value
     args.gpu = gpu
 
     if args.gpu is not None:
@@ -395,4 +394,6 @@ def accuracy(output, target, topk=(1,)):
 
 
 if __name__ == '__main__':
+    x = Manager()
+    best_acc_man = x.Value('i', 0) #for best accuracy
     main()
