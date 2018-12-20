@@ -25,7 +25,7 @@ usage: main.py [-h] --dataset DATASET --dataroot DATAROOT [--workers WORKERS]
 
 optional arguments:
   -h, --help            show this help message and exit
-  --dataset DATASET     cifar10 | lsun | imagenet | folder | lfw
+  --dataset DATASET     cifar10 | lsun | imagenet | folder | lfw | mnist
   --dataroot DATAROOT   path to dataset
   --workers WORKERS     number of data loading workers
   --batchSize BATCHSIZE
