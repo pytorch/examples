@@ -30,7 +30,7 @@ You should always use the NCCL backend for multi-processing distributed training
 ### Single node, multiple GPUs:
 
 ```bash
-python main.py -a resnet50 --lr 0.01 --dist-url 'tcp://127.0.0.1:FREEPORT' --dist-backend 'nccl' --multiprocessing-distributed [imagenet-folder with train and val folders]
+python main.py -a resnet50 --lr 0.01 --dist-url 'tcp://127.0.0.1:FREEPORT' --dist-backend 'nccl' --multiprocessing-distributed --world-size 1 [imagenet-folder with train and val folders]
 ```
 
 ### Multiple nodes:
