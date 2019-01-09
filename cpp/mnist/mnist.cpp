@@ -1,9 +1,25 @@
 #include <torch/torch.h>
 
 #include <cstddef>
+#include <cstdio>
 #include <iostream>
 #include <string>
 #include <vector>
+
+// Where to find the MNIST dataset.
+const char* kDataRoot = "./data";
+
+// The batch size for training.
+const int64_t kTrainBatchSize = 64;
+
+// The batch size for testing.
+const int64_t kTestBatchSize = 1000;
+
+// The number of epochs to train.
+const int64_t kNumberOfEpochs = 10;
+
+// After how many batches to log a new update with the loss value.
+const int64_t kLogInterval = 10;
 
 struct Net : torch::nn::Module {
   Net()
@@ -36,22 +52,9 @@ struct Net : torch::nn::Module {
   torch::nn::Linear fc2;
 };
 
-struct Options {
-  std::string data_root{"data"};
-  int32_t batch_size{64};
-  int32_t epochs{10};
-  double lr{0.01};
-  double momentum{0.5};
-  bool no_cuda{false};
-  int32_t seed{1};
-  int32_t test_batch_size{1000};
-  int32_t log_interval{10};
-};
-
 template <typename DataLoader>
 void train(
     int32_t epoch,
-    const Options& options,
     Net& model,
     torch::Device device,
     DataLoader& data_loader,
@@ -68,10 +71,13 @@ void train(
     loss.backward();
     optimizer.step();
 
-    if (batch_idx++ % options.log_interval == 0) {
-      std::cout << "Train Epoch: " << epoch << " ["
-                << batch_idx * batch.data.size(0) << "/" << dataset_size
-                << "]\tLoss: " << loss.template item<float>() << std::endl;
+    if (batch_idx++ % kLogInterval == 0) {
+      std::printf(
+          "\rTrain Epoch: %ld [%5ld/%5ld] Loss: %.4f",
+          epoch,
+          batch_idx * batch.data.size(0),
+          dataset_size,
+          loss.template item<float>());
     }
   }
 }
@@ -100,9 +106,10 @@ void test(
   }
 
   test_loss /= dataset_size;
-  std::cout << "Test set: Average loss: " << test_loss
-            << ", Accuracy: " << static_cast<double>(correct) / dataset_size
-            << std::endl;
+  std::printf(
+      "\nTest set: Average loss: %.4f | Accuracy: %.3f\n",
+      test_loss,
+      static_cast<double>(correct) / dataset_size);
 }
 
 struct Normalize : public torch::data::transforms::TensorTransform<> {
@@ -115,16 +122,14 @@ struct Normalize : public torch::data::transforms::TensorTransform<> {
 };
 
 auto main() -> int {
-  Options options;
-
-  torch::manual_seed(options.seed);
+  torch::manual_seed(1);
 
   torch::DeviceType device_type;
-  if (torch::cuda::is_available() && !options.no_cuda) {
-    std::cout << "CUDA available! Training on GPU" << std::endl;
+  if (torch::cuda::is_available()) {
+    std::cout << "CUDA available! Training on GPU." << std::endl;
     device_type = torch::kCUDA;
   } else {
-    std::cout << "Training on CPU" << std::endl;
+    std::cout << "Training on CPU." << std::endl;
     device_type = torch::kCPU;
   }
   torch::Device device(device_type);
@@ -132,38 +137,27 @@ auto main() -> int {
   Net model;
   model.to(device);
 
-  auto train_dataset =
-      torch::data::datasets::MNIST(
-          options.data_root, torch::data::datasets::MNIST::Mode::kTrain)
-          .map(Normalize(0.1307, 0.3081))
-          .map(torch::data::transforms::Stack<>());
+  auto train_dataset = torch::data::datasets::MNIST(kDataRoot)
+                           .map(Normalize(0.1307, 0.3081))
+                           .map(torch::data::transforms::Stack<>());
   const size_t train_dataset_size = train_dataset.size().value();
   auto train_loader =
       torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(
-          std::move(train_dataset), options.batch_size);
+          std::move(train_dataset), kTrainBatchSize);
 
-  auto test_dataset =
-      torch::data::datasets::MNIST(
-          options.data_root, torch::data::datasets::MNIST::Mode::kTest)
-          .map(Normalize(0.1307, 0.3081))
-          .map(torch::data::transforms::Stack<>());
+  auto test_dataset = torch::data::datasets::MNIST(
+                          kDataRoot, torch::data::datasets::MNIST::Mode::kTest)
+                          .map(Normalize(0.1307, 0.3081))
+                          .map(torch::data::transforms::Stack<>());
   const size_t test_dataset_size = test_dataset.size().value();
-  auto test_loader = torch::data::make_data_loader(
-      std::move(test_dataset), options.batch_size);
+  auto test_loader =
+      torch::data::make_data_loader(std::move(test_dataset), kTestBatchSize);
 
   torch::optim::SGD optimizer(
-      model.parameters(),
-      torch::optim::SGDOptions(options.lr).momentum(options.momentum));
+      model.parameters(), torch::optim::SGDOptions(0.01).momentum(0.5));
 
-  for (size_t epoch = 1; epoch <= options.epochs; ++epoch) {
-    train(
-        epoch,
-        options,
-        model,
-        device,
-        *train_loader,
-        optimizer,
-        train_dataset_size);
+  for (size_t epoch = 1; epoch <= kNumberOfEpochs; ++epoch) {
+    train(epoch, model, device, *train_loader, optimizer, train_dataset_size);
     test(model, device, *test_loader, test_dataset_size);
   }
 }

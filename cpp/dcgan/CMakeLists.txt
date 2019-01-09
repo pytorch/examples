@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
-project(mnist)
+cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
+project(dcgan)
 
 find_package(Torch REQUIRED)
 
@@ -15,6 +15,6 @@ if (DOWNLOAD_MNIST)
   endif()
 endif()
 
-add_executable(mnist mnist.cpp)
-target_compile_features(mnist PUBLIC cxx_range_for)
-target_link_libraries(mnist ${TORCH_LIBRARIES})
+add_executable(dcgan dcgan.cpp)
+target_link_libraries(dcgan "${TORCH_LIBRARIES}")
+set_property(TARGET dcgan PROPERTY CXX_STANDARD 11)
