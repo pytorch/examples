@@ -96,7 +96,7 @@ int main(int argc, const char* argv[]) {
 
   // Assume the MNIST dataset is available under `kDataFolder`;
   auto dataset = torch::data::datasets::MNIST(kDataFolder)
-                     .map(torch::data::transforms::Normalize(0.5, 0.5))
+                     .map(torch::data::transforms::Normalize<>(0.5, 0.5))
                      .map(torch::data::transforms::Stack<>());
   const int64_t batches_per_epoch =
       std::ceil(dataset.size().value() / static_cast<double>(kBatchSize));

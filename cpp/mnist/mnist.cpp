@@ -112,15 +112,6 @@ void test(
       static_cast<double>(correct) / dataset_size);
 }
 
-struct Normalize : public torch::data::transforms::TensorTransform<> {
-  Normalize(float mean, float stddev)
-      : mean_(torch::tensor(mean)), stddev_(torch::tensor(stddev)) {}
-  torch::Tensor operator()(torch::Tensor input) {
-    return input.sub(mean_).div(stddev_);
-  }
-  torch::Tensor mean_, stddev_;
-};
-
 auto main() -> int {
   torch::manual_seed(1);
 
@@ -138,7 +129,7 @@ auto main() -> int {
   model.to(device);
 
   auto train_dataset = torch::data::datasets::MNIST(kDataRoot)
-                           .map(Normalize(0.1307, 0.3081))
+                           .map(torch::data::transforms::Normalize<>(0.1307, 0.3081))
                            .map(torch::data::transforms::Stack<>());
   const size_t train_dataset_size = train_dataset.size().value();
   auto train_loader =
@@ -147,7 +138,7 @@ auto main() -> int {
 
   auto test_dataset = torch::data::datasets::MNIST(
                           kDataRoot, torch::data::datasets::MNIST::Mode::kTest)
-                          .map(Normalize(0.1307, 0.3081))
+                          .map(torch::data::transforms::Normalize<>(0.1307, 0.3081))
                           .map(torch::data::transforms::Stack<>());
   const size_t test_dataset_size = test_dataset.size().value();
   auto test_loader =
