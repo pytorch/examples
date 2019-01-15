@@ -30,7 +30,7 @@ optional arguments:
   --lr LR            initial learning rate
   --clip CLIP        gradient clipping
   --epochs EPOCHS    upper epoch limit
-  --batch-size N     batch size
+  --batch_size N     batch size
   --bptt BPTT        sequence length
   --dropout DROPOUT  dropout applied to layers (0 = no dropout)
   --decay DECAY      learning rate decay per epoch
