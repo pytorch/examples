@@ -3,7 +3,6 @@ from __future__ import print_function
 from itertools import count
 
 import torch
-import torch.autograd
 import torch.nn.functional as F
 
 POLY_DEGREE = 4

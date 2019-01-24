@@ -1,7 +1,6 @@
 from __future__ import print_function
 import argparse
 import torch
-from torch.autograd import Variable
 from PIL import Image
 from torchvision.transforms import ToTensor
 
