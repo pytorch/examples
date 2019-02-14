@@ -20,9 +20,8 @@ Execute the compiled binary to test own dataset:
 
 ```bash
 $ ./dataset ../test_data/ ../test_data/labels.txt
-../test_data/labels.txt
-input: [ Variable[CPUFloatType]{1,3,0,0} ]
-target:  0
+input dim: 4
+target:  1
 [ Variable[CPUByteType]{1} ]
 ```
 

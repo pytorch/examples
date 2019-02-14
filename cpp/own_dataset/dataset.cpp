@@ -49,7 +49,7 @@ class ImageDataset : public torch::data::datasets::Dataset<ImageDataset> {
 
           if(entry != nullptr) {
             if(strcmp(entry->d_name, ".\0") == 0 || strcmp(entry->d_name, "..\0") == 0) continue;
-            files.push_back(root + entry->d_name);
+            files.push_back(entry->d_name);
           }
         } while(entry != nullptr);
       }
@@ -61,14 +61,13 @@ class ImageDataset : public torch::data::datasets::Dataset<ImageDataset> {
       std::string fname, label;
       while(fs >> buf) {
         std::tie(fname, label) = split(buf, ',');
-        labels[buf] = 0;
+        labels[fname] = stoi(label);
       }
     }
 
     torch::data::Example<> get(size_t index) override {
-      std::string fname = this->files[index];
-      std::cout << fname << std::endl;
-      int label = this->labels[files[index]];
+      std::string fname = this->root + this->files[index];
+      int label = this->labels.at(files[index]);
 
       cv::Mat image = cv::imread(fname, 1);
       std::vector<int64_t> sizes = {1, 3, image.rows, image.cols};
@@ -93,9 +92,9 @@ int main(int argc, char **argv) {
 
   ImageDataset dataset(root, labelfile);
 
-  auto batch = dataset.get(0);
+  auto batch = dataset.get(3);
 
-  std::cout << "input: " << batch.data << std::endl;
+  std::cout << "input dim: " << batch.data.dim() << std::endl;
   std::cout << "target: " << batch.target << std::endl;
 
   return 0;
