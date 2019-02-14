@@ -30,12 +30,13 @@ The ```test_data``` directory has the following structure.
 ```bash
 $ tree ../test_data/
 ../test_data/
-|-- image1.jpg
-|-- image2.jpg
-|-- image3.jpg
+|-- images
+|   |-- image1.jpg
+|   |-- image2.jpg
+|   `-- image3.jpg
 `-- labels.txt
 
-0 directories, 4 files
+1 directory, 4 files
 ```
 
 The contents of the ```labels.txt``` have the following format.
