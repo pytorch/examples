@@ -22,7 +22,7 @@ parser.add_argument('--log-interval', type=int, default=10, metavar='N',
 args = parser.parse_args()
 
 
-env = gym.make('CartPole-v0')
+env = gym.make('CartPole-v1')
 env.seed(args.seed)
 torch.manual_seed(args.seed)
 
@@ -31,13 +31,16 @@ class Policy(nn.Module):
     def __init__(self):
         super(Policy, self).__init__()
         self.affine1 = nn.Linear(4, 128)
+        self.dropout = nn.Dropout(p=0.6)
         self.affine2 = nn.Linear(128, 2)
 
         self.saved_log_probs = []
         self.rewards = []
 
     def forward(self, x):
-        x = F.relu(self.affine1(x))
+        x = self.affine1(x)
+        x = self.dropout(x)
+        x = F.relu(x)
         action_scores = self.affine2(x)
         return F.softmax(action_scores, dim=1)
 
