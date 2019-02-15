@@ -2,7 +2,7 @@
 
 This example implements a conditional generative adversarial network, as illustrated in [Conditional Generative Adversarial Nets](https://arxiv.org/abs/1411.1784)
 
-This implementation is very close to the [main.py](https://github.com/pytorch/examples/tree/master/dcgan) dcgan implementation.
+This implementation is very close to the [dcgan implementation](https://github.com/pytorch/examples/tree/master/dcgan).
 
 After every 100 training iterations, the files `real_samples.png` and `fake_samples_%3d.png` are written to disk
 with the samples from the generative model.
