@@ -581,14 +581,16 @@ class ImageFolderWithPath(datasets.ImageFolder):
             candidates = candidates2
 
         if file_duplicator is not None:
-            substring, num_dupes = list(file_duplicator.split("="))
-            num_dupes = int(num_dupes)
-            selected = [f for f in self.samples if (substring in f[0])]
-            print("Duplicating {} files with substring {} {} times onto list of {}".format(len(selected),
-                substring, num_dupes, len(candidates)))
-            for n in range(num_dupes):
-                candidates = candidates + selected
-            print("List with duplicates now has length {}".format(len(candidates)))
+            dupe_list = list(file_duplicator.split(","))
+            for dupe_entry in dupe_list:
+                substring, num_dupes = list(dupe_entry.split("="))
+                num_dupes = int(num_dupes)
+                selected = [f for f in candidates if (substring in f[0])]
+                print("Duplicating {} files with substring {} {} times onto list of {}".format(len(selected),
+                    substring, num_dupes, len(candidates)))
+                for n in range(num_dupes):
+                    candidates = candidates + selected
+                print("List with duplicates now has length {}".format(len(candidates)))
 
         self.samples = candidates
         self.targets = [s[1] for s in candidates]
