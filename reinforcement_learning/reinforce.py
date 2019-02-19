@@ -59,14 +59,14 @@ def select_action(state):
 def finish_episode():
     R = 0
     policy_loss = []
-    rewards = []
+    returns = []
     for r in policy.rewards[::-1]:
         R = r + args.gamma * R
-        rewards.insert(0, R)
-    rewards = torch.tensor(rewards)
-    rewards = (rewards - rewards.mean()) / (rewards.std() + eps)
-    for log_prob, reward in zip(policy.saved_log_probs, rewards):
-        policy_loss.append(-log_prob * reward)
+        returns.insert(0, R)
+    returns = torch.tensor(returns)
+    returns = (returns - returns.mean()) / (returns.std() + eps)
+    for log_prob, R in zip(policy.saved_log_probs, returns):
+        policy_loss.append(-log_prob * R)
     optimizer.zero_grad()
     policy_loss = torch.cat(policy_loss).sum()
     policy_loss.backward()
@@ -78,21 +78,22 @@ def finish_episode():
 def main():
     running_reward = 10
     for i_episode in count(1):
-        state = env.reset()
-        for t in range(10000):  # Don't infinite loop while learning
+        state, ep_reward = env.reset(), 0
+        for t in range(1, 10000):  # Don't infinite loop while learning
             action = select_action(state)
             state, reward, done, _ = env.step(action)
             if args.render:
                 env.render()
             policy.rewards.append(reward)
+            ep_reward += reward
             if done:
                 break
 
-        running_reward = running_reward * 0.99 + t * 0.01
+        running_reward = 0.05 * ep_reward + (1 - 0.05) * running_reward
         finish_episode()
         if i_episode % args.log_interval == 0:
-            print('Episode {}\tLast length: {:5d}\tAverage length: {:.2f}'.format(
-                i_episode, t, running_reward))
+            print('Episode {}\tLast reward: {:.2f}\tAverage reward: {:.2f}'.format(
+                  i_episode, ep_reward, running_reward))
         if running_reward > env.spec.reward_threshold:
             print("Solved! Running reward is now {} and "
                   "the last episode runs to {} time steps!".format(running_reward, t))
