@@ -5,11 +5,16 @@ parser = argparse.ArgumentParser(description='PyTorch Super Res Example Batch Pr
 parser.add_argument('--image', type=str, required=True, help="Path of Image you want to process")
 parser.add_argument('--output_filename', type=str, required=True, help="What you want the output files to be named(Just type the text before 1,2...png)")
 parser.add_argument('--StartAt', type=int, required=False, help="Tells the program where to start at (default: 0)")
+parser.add_argument('--Step', type=int, required=False, help="Tells the program what to add to i (in the for loop) (default: 1)")
 opt = parser.parse_args()
 if opt.StartAt:
     StartAt = opt.StartAt
 else:
     StartAt = 0
+if opt.Step:
+    Step = opt.Step
+else:
+    Step = 1
 average1, average2 = 0, 0
 def ordinal(n):
     if 10 <= n % 100 < 20:
@@ -30,7 +35,7 @@ for entry in listOfFiles:
 epochs = natsorted(epochs, key=lambda y: y.lower())
 time.sleep(5)
 average = 0
-for i in range(StartAt-1 ,len(epochs)):
+for i in range(StartAt-1 ,len(epochs), Step):
     starttime = time.time()
     print("I am on the", ordinal(i+1),"Epoch")
     subprocess.run(["python","super_resolve.py", "--input_image", opt.image, "--model" ,epochs[i], "--output_filename", str(opt.output_filename)+str(i+1)+".png"])
