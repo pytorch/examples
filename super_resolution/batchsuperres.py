@@ -33,7 +33,6 @@ for entry in listOfFiles:
     if fnmatch.fnmatch(entry,pattern):
         epochs.append(entry)
 epochs = natsorted(epochs, key=lambda y: y.lower())
-time.sleep(5)
 average = 0
 for i in range(StartAt-1 ,len(epochs), Step):
     starttime = time.time()
