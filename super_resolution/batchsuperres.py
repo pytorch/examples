@@ -3,6 +3,7 @@ from natsort import natsorted, ns
 
 parser = argparse.ArgumentParser(description='PyTorch Super Res Example Batch Processer')
 parser.add_argument('--image', type=str, required=True, help="Path of Image you want to process")
+parser.add_argument('--output_filename', type=str, required=True, help="What you want the output files to be named(Just type the text before 1,2...png)")
 opt = parser.parse_args()
 average1, average2 = 0, 0
 def ordinal(n):
@@ -27,7 +28,7 @@ average = 0
 for i in range(len(epochs)):
     starttime = time.time()
     print("I am on the", ordinal(i+1),"Epoch")
-    subprocess.run(["python","super_resolve.py", "--input_image", opt.image, "--model" ,epochs[i], "--output_filename", "out"+str(i+1)+".png"])
+    subprocess.run(["python","super_resolve.py", "--input_image", opt.image, "--model" ,epochs[i], "--output_filename", str(opt.output_filename)+str(i+1)+".png"])
     endtime = time.time()
     timetaken=round(endtime-starttime,1)
     if int(timetaken) == int(1):
@@ -37,5 +38,5 @@ for i in range(len(epochs)):
     average1 = average1+timetaken
     average2 = round(average1/(i+1), 1)
     ETASeconds = average2 * (len(epochs)+1)
-    print("Outputted to out",str(i+1),".png. Operation took", timetaken, secondsend(timetaken), ". Average Time Taken:", average2, secondsend(average2), ". ETA:", datetime.timedelta(seconds=ETASeconds))
+    print("Outputted to",str(opt.output_filename)+str(i+1)+".png."," Operation took", timetaken, secondsend(timetaken)+". Average Time Taken:", average2, secondsend(average2)+". ETA:", datetime.timedelta(seconds=ETASeconds))
     
