@@ -30,3 +30,6 @@ This example trains a super-resolution network on the [BSD300 dataset](https://w
 
 ### Super Resolve
 `python super_resolve.py --input_image dataset/BSDS300/images/test/16077.jpg --model model_epoch_500.pth --output_filename out.png`
+
+### Batch Super Resolve
+`python batchsuperres.py --image dataset/BSDS300/images/test/16077.jpg`
