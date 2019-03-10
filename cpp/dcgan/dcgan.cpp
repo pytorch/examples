@@ -153,7 +153,7 @@ int main(int argc, const char* argv[]) {
           torch::binary_cross_entropy(fake_output, fake_labels);
       g_loss.backward();
       generator_optimizer.step();
-      batch_index++
+      batch_index++;
       if (batch_index % kLogInterval == 0) {
         std::printf(
             "\r[%2ld/%2ld][%3ld/%3ld] D_loss: %.4f | G_loss: %.4f",
