@@ -33,7 +33,7 @@ def test(args, model, device, dataloader_kwargs):
         batch_size=args.batch_size, shuffle=True, num_workers=1,
         **dataloader_kwargs)
 
-    test_epoch(model, device, test_loader, device)
+    test_epoch(model, device, test_loader)
 
 
 def train_epoch(epoch, args, model, device, data_loader, optimizer):
