@@ -38,12 +38,13 @@ class Corpus(object):
 
         # Tokenize file content
         with open(path, 'r', encoding="utf8") as f:
-            ids = torch.LongTensor(tokens)
-            token = 0
+            idss = []
             for line in f:
                 words = line.split() + ['<eos>']
+                ids = []
                 for word in words:
-                    ids[token] = self.dictionary.word2idx[word]
-                    token += 1
+                    ids.append(self.dictionary.word2idx[word])
+                idss.append(torch.tensor(ids).type(torch.int64))
+            ids = torch.cat(idss)
 
         return ids
