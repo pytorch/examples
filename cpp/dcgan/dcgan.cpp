@@ -156,7 +156,7 @@ int main(int argc, const char* argv[]) {
       batch_index++;
       if (batch_index % kLogInterval == 0) {
         std::printf(
-            "\r[%2ld/%2ld][%3ld/%3ld] D_loss: %.4f | G_loss: %.4f",
+            "\r[%2ld/%2ld][%3ld/%3ld] D_loss: %.4f | G_loss: %.4f\n",
             epoch,
             kNumberOfEpochs,
             batch_index,
