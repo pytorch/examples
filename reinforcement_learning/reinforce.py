@@ -63,7 +63,7 @@ def finish_episode():
     R = 0
     policy_loss = []
     returns = []
-    for r in policy.rewards[::-1]:
+    for r in reversed(policy.rewards):
         R = r + args.gamma * R
         returns.insert(0, R)
     returns = torch.tensor(returns)
