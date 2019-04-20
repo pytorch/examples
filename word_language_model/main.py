@@ -98,7 +98,7 @@ ntokens = len(corpus.dictionary)
 
 #model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
 from torch.nn import Transformer 
-model = Transformer(ntokens, ntokens+1, nhead=4, d_model=args.emsize, num_encoder_layers=2, num_decoder_layers=2, d_ff=256)
+model = Transformer(ntokens, ntokens, nhead=2, d_model=args.emsize, num_encoder_layers=1, num_decoder_layers=1, d_ff=64)
 #model.cuda()
 
 ### Change the generator in transformer to nn.Linear(d_model, vocab)
