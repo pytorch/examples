@@ -98,7 +98,7 @@ ntokens = len(corpus.dictionary)
 
 #model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
 from torch.nn import Transformer 
-model = Transformer(ntokens, ntokens+1, nhead=4, d_model=args.emsize, num_encoder_layers=2, num_decoder_layers=2, d_ff=256).model   # plus one for "-1"
+model = Transformer(ntokens, ntokens+1, nhead=4, d_model=args.emsize, num_encoder_layers=2, num_decoder_layers=2, d_ff=256)
 #model.cuda()
 
 ### Change the generator in transformer to nn.Linear(d_model, vocab)
@@ -106,9 +106,11 @@ model.generator = nn.Linear(args.emsize, ntokens)
 
 ### Modify embedding in encoder and decoder
 model.encoder.src_embed = nn.Embedding(ntokens, args.emsize)
-model.decoder.tgt_embed = nn.Embedding(ntokens, args.emsize)  # plus one for "-1"
+model.decoder.tgt_embed = nn.Embedding(ntokens, args.emsize)
 ### Remove pos_encoder
 model.encoder.pos_encoder = None
+
+model.to(device)
 
 #print("ntokens is ", ntokens)
 #print("corpus.dictionary", corpus.dictionary.word2idx)
@@ -131,6 +133,7 @@ def subsequent_mask(sz):
     mask = np.triu(np.ones(attn_shape), k=1).astype('uint8')
     mask = torch.from_numpy(mask) == 0
     mask = mask[0].float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0)).view(sz, -1)
+    mask
     return mask
 
 # get_batch subdivides the source data into chunks of length args.bptt.
@@ -174,14 +177,14 @@ def evaluate(data_source):
     ntokens = len(corpus.dictionary)
 #    hidden = model.init_hidden(eval_batch_size)
 
-    tgt_mask = subsequent_mask(args.bptt)
+    tgt_mask = subsequent_mask(args.bptt).to(device)
 
     with torch.no_grad():
         for i in range(0, data_source.size(0) - 1, args.bptt):
             data, targets = get_batch(data_source, i)
 
             if args.bptt > len(data_source) - 1 - i:
-                tgt_mask = subsequent_mask(len(data_source) - 1 - i)
+                tgt_mask = subsequent_mask(len(data_source) - 1 - i).to(device)
 
 #            print("data...", data.size(), data)
 #            print("tgt_mask...", tgt_mask.size(), tgt_mask)
@@ -203,14 +206,14 @@ def train():
     ntokens = len(corpus.dictionary)
 #    hidden = model.init_hidden(args.batch_size)
   
-    tgt_mask = subsequent_mask(args.bptt)
+    tgt_mask = subsequent_mask(args.bptt).to(device)
 
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
 #        data, targets, decoder_trg = get_batch(train_data, i)
         data, targets = get_batch(train_data, i)
 
         if args.bptt > len(train_data) - 1 - i:
-            tgt_mask = subsequent_mask(len(train_data) - 1 - i)
+            tgt_mask = subsequent_mask(len(train_data) - 1 - i).to(device)
 #        print("targets...", targets.size(), targets)
 #        print("data...", data.size(), data)
         # Starting each batch, we detach the hidden state from how it was previously produced.
