@@ -6,16 +6,17 @@ import os
 import torch
 import torch.nn as nn
 import torch.onnx
-import numpy as np
 
 import data
 import model
+import numpy as np
+from torch.nn import Transformer
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
 parser.add_argument('--data', type=str, default='./data/wikitext-2',
                     help='location of the data corpus')
 parser.add_argument('--model', type=str, default='LSTM',
-                    help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
+                    help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU, Transformer)')
 parser.add_argument('--emsize', type=int, default=200,
                     help='size of word embeddings')
 parser.add_argument('--nhid', type=int, default=200,
@@ -46,6 +47,16 @@ parser.add_argument('--save', type=str, default='model.pt',
                     help='path to save the final model')
 parser.add_argument('--onnx-export', type=str, default='',
                     help='path to export the final model in onnx format')
+
+parser.add_argument('--transformer_head', type=int, default=2,
+                    help='the number of heads in the encoder/decoder of the transformer model')
+parser.add_argument('--transformer_encoder_layers', type=int, default=1,
+                    help='the number of layers in the encoder of the transformer model')
+parser.add_argument('--transformer_decoder_layers', type=int, default=1,
+                    help='the number of layers in the decoder of the transformer model')
+parser.add_argument('--transformer_d_ff', type=int, default=16,
+                    help='the number of nodes on the hidden layer in feed forward nn')
+
 args = parser.parse_args()
 
 # Set the random seed manually for reproducibility.
@@ -92,28 +103,19 @@ test_data = batchify(corpus.test, eval_batch_size)
 # Build the model
 ###############################################################################
 
+# Build a transformer model
+def buildTransformerModel():
+	model = Transformer(ntokens, ntokens, nhead=args.transformer_head, d_model=args.emsize, dropout=args.dropout, num_encoder_layers=args.transformer_encoder_layers, num_decoder_layers=args.transformer_decoder_layers, d_ff=args.transformer_d_ff)
+	### Change the generator in transformer to nn.Linear(d_model, vocab)
+	model.generator = nn.Linear(args.emsize, ntokens)
+	model.to(device)
+	return model
+
 ntokens = len(corpus.dictionary)
-#print("ntokens...", ntokens)
-#print("args.bptt...", args.bptt)
-
-#model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
-from torch.nn import Transformer 
-model = Transformer(ntokens, ntokens, nhead=2, d_model=args.emsize, num_encoder_layers=1, num_decoder_layers=1, d_ff=64)
-#model.cuda()
-
-### Change the generator in transformer to nn.Linear(d_model, vocab)
-model.generator = nn.Linear(args.emsize, ntokens)
-
-### Modify embedding in encoder and decoder
-model.encoder.src_embed = nn.Embedding(ntokens, args.emsize)
-model.decoder.tgt_embed = nn.Embedding(ntokens, args.emsize)
-### Remove pos_encoder
-model.encoder.pos_encoder = None
-
-model.to(device)
-
-#print("ntokens is ", ntokens)
-#print("corpus.dictionary", corpus.dictionary.word2idx)
+if args.model == 'Transformer':
+	model = buildTransformerModel()
+else:
+	model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
 
 criterion = nn.CrossEntropyLoss()
 
@@ -127,6 +129,11 @@ def repackage_hidden(h):
         return h.detach()
     else:
         return tuple(repackage_hidden(v) for v in h)
+
+
+###############################################################################
+# Mask of target sequence in transformer
+###############################################################################
 
 def subsequent_mask(sz):
     attn_shape = (1, sz, sz)
@@ -148,53 +155,34 @@ def subsequent_mask(sz):
 
 def get_batch(source, i):
     seq_len = min(args.bptt, len(source) - 1 - i)
-    batch_size = source.size()[1]
     data = source[i:i+seq_len]
-#    decoder_inp = source[i:i+seq_len-1]
-#    decoder_inp = torch.cat((torch.ones(1, batch_size).long()*-1, decoder_inp), dim=0)
     target = source[i+1:i+1+seq_len].view(-1)
-#    print("data...", data.size(), data)
-#    print("target original...", source[i+1:i+1+seq_len])
-#    print("decoder_inp...", decoder_inp.size(), decoder_inp)
-#    print("target...", target.size(), target)
-#    target = source[-1].view(-1)
-#    return data, target, decoder_inp
     return data, target
 
-#def evaluate_model(model, src_data):
-#	tgt_input = src_data[0].unsqueeze(0)
-#	for _i in range(0, src_data.size()[0]):
-#		print("we are not evaluate the model on step ", _i)
-#		print("src_data...",src_data.size(),src_data)
-#		print("tgt_input...",tgt_input.size(),tgt_input)
-#		tgt_input = model(src_data, tgt_input)
-#	return tgt_input
 
 def evaluate(data_source):
     # Turn on evaluation mode which disables dropout.
     model.eval()
     total_loss = 0.
     ntokens = len(corpus.dictionary)
-#    hidden = model.init_hidden(eval_batch_size)
-
-    tgt_mask = subsequent_mask(args.bptt).to(device)
-
+    if args.model == 'Transformer':
+        tgt_mask = subsequent_mask(args.bptt).to(device)
+    else:
+        hidden = model.init_hidden(eval_batch_size)
     with torch.no_grad():
         for i in range(0, data_source.size(0) - 1, args.bptt):
             data, targets = get_batch(data_source, i)
 
-            if args.bptt > len(data_source) - 1 - i:
-                tgt_mask = subsequent_mask(len(data_source) - 1 - i).to(device)
+            if args.model == 'Transformer':
+                if args.bptt > len(data_source) - 1 - i:
+                    tgt_mask = subsequent_mask(len(data_source) - 1 - i).to(device)
+                output = model(data, data, tgt_mask=tgt_mask)            
+            else:
+                output, hidden = model(data, hidden)
+                hidden = repackage_hidden(hidden)
 
-#            print("data...", data.size(), data)
-#            print("tgt_mask...", tgt_mask.size(), tgt_mask)
-#            print("targets...", targets.size(), targets)
-#            output, hidden = model(data, hidden)
-            output = model(data, data, tgt_mask=tgt_mask)
             output_flat = output.view(-1, ntokens)
-#            output_flat = output[-1].view(-1, ntokens)
             total_loss += len(data) * criterion(output_flat, targets).item()
-#            hidden = repackage_hidden(hidden)
     return total_loss / (len(data_source) - 1)
 
 
@@ -204,42 +192,26 @@ def train():
     total_loss = 0.
     start_time = time.time()
     ntokens = len(corpus.dictionary)
-#    hidden = model.init_hidden(args.batch_size)
-  
-    tgt_mask = subsequent_mask(args.bptt).to(device)
-
+    if args.model == 'Transformer':
+        tgt_mask = subsequent_mask(args.bptt).to(device) 
+    else:
+        hidden = model.init_hidden(args.batch_size)
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
-#        data, targets, decoder_trg = get_batch(train_data, i)
         data, targets = get_batch(train_data, i)
-
-        if args.bptt > len(train_data) - 1 - i:
-            tgt_mask = subsequent_mask(len(train_data) - 1 - i).to(device)
-#        print("targets...", targets.size(), targets)
-#        print("data...", data.size(), data)
         # Starting each batch, we detach the hidden state from how it was previously produced.
         # If we didn't, the model would try backpropagating all the way to start of the dataset.
-#        hidden = repackage_hidden(hidden)
-        model.zero_grad()
-#        output, hidden = model(data, hidden)
 
-#        print("data...",data.size())
-#        print("tgt_mask...",tgt_mask.size(),tgt_mask)
-#        print("decoder_trg...", decoder_trg.size())
-#        print("data and decoder_trg is same...", data[:-1]==decoder_trg[1:])
-        output = model(data, data, tgt_mask=tgt_mask)
-#        print("ntokens...", ntokens)
-#        print("output...", output.size(), output)
-#        print("targets...", targets.size(), targets)
-#        output = output[-1]
-
-#        print("output.view(-1, ntokens)...", output.view(-1, ntokens).size(), output.view(-1, ntokens))
-#        print("hidden...", hidden)
-#        print("targets...", targets.size(), targets)
-
+        if args.model == 'Transformer':
+            if args.bptt > len(train_data) - 1 - i:
+                tgt_mask = subsequent_mask(len(train_data) - 1 - i).to(device)
+            model.zero_grad()
+            output = model(data, data, tgt_mask=tgt_mask)        
+        else:
+            hidden = repackage_hidden(hidden)
+            model.zero_grad()
+            output, hidden = model(data, hidden)
 
         loss = criterion(output.view(-1, ntokens), targets)
-
-#        loss = criterion(output[-1].view(-1, ntokens), targets[-1])
         loss.backward()
 
         # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
@@ -296,14 +268,14 @@ except KeyboardInterrupt:
     print('-' * 89)
     print('Exiting from training early')
 
-#
-## Load the best saved model.
-#with open(args.save, 'rb') as f:
-#    model = torch.load(f)
-#    # after load the rnn params are not a continuous chunk of memory
-#    # this makes them a continuous chunk, and will speed up forward pass
-#    model.rnn.flatten_parameters()
-#
+# Load the best saved model.
+with open(args.save, 'rb') as f:
+    model = torch.load(f)
+    # after load the rnn params are not a continuous chunk of memory
+    # this makes them a continuous chunk, and will speed up forward pass
+    # Currently, only rnn model supports flatten_parameters function.
+    if args.model != 'Transformer':
+        model.rnn.flatten_parameters()
 
 # Run on test data.
 test_loss = evaluate(test_data)
