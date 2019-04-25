@@ -263,7 +263,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     top1 = AverageMeter('Acc@1', ':6.2f')
     top5 = AverageMeter('Acc@5', ':6.2f')
     progress = ProgressMeter(len(train_loader), batch_time, data_time, losses, top1,
-                             top5, prefix="Epoch: [{}]".format(epoch))
+                             top5, prefix="Epoch: [{}]{}".format(epoch, rank_indicator(args)))
 
     # switch to train mode
     model.train()
@@ -306,7 +306,7 @@ def validate(val_loader, model, criterion, args):
     top1 = AverageMeter('Acc@1', ':6.2f')
     top5 = AverageMeter('Acc@5', ':6.2f')
     progress = ProgressMeter(len(val_loader), batch_time, losses, top1, top5,
-                             prefix='Test: ')
+                             prefix='Test{}: '.format(rank_indicator(args)))
 
     # switch to evaluate mode
     model.eval()
@@ -346,6 +346,15 @@ def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     torch.save(state, filename)
     if is_best:
         shutil.copyfile(filename, 'model_best.pth.tar')
+
+
+def rank_indicator(args):
+    if args.distributed:
+        digits = len(str(args.world_size))
+        indicator = '[{rank:{width}}]'.format(rank=args.rank, width=digits)
+    else:
+        indicator = ''
+    return indicator
 
 
 class AverageMeter(object):
