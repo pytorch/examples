@@ -13,6 +13,8 @@ python main.py --cuda --epochs 6 --model Transformer --lr 5
                                            # Train a Transformer model on Wikitext-2 with CUDA
 python main.py --cuda --tied               # Train a tied LSTM on Wikitext-2 with CUDA for 40 epochs
 python generate.py                         # Generate samples from the trained LSTM model.
+python generate.py --cuda --model Transformer
+                                           # Generate samples from the trained Transformer model.
 ```
 
 The model uses the `nn.RNN` module (and its sister modules `nn.GRU` and `nn.LSTM`)

@@ -103,17 +103,12 @@ test_data = batchify(corpus.test, eval_batch_size)
 # Build the model
 ###############################################################################
 
-# Build a transformer model
-def buildTransformerModel():
+ntokens = len(corpus.dictionary)
+if args.model == 'Transformer':
 	model = Transformer(ntokens, ntokens, nhead=args.transformer_head, d_model=args.emsize, dropout=args.dropout, num_encoder_layers=args.transformer_encoder_layers, num_decoder_layers=args.transformer_decoder_layers, d_ff=args.transformer_d_ff)
 	### Change the generator in transformer to nn.Linear(d_model, vocab)
 	model.generator = nn.Linear(args.emsize, ntokens)
 	model.to(device)
-	return model
-
-ntokens = len(corpus.dictionary)
-if args.model == 'Transformer':
-	model = buildTransformerModel()
 else:
 	model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
 
@@ -130,18 +125,6 @@ def repackage_hidden(h):
     else:
         return tuple(repackage_hidden(v) for v in h)
 
-
-###############################################################################
-# Mask of target sequence in transformer
-###############################################################################
-
-def subsequent_mask(sz):
-    attn_shape = (1, sz, sz)
-    mask = np.triu(np.ones(attn_shape), k=1).astype('uint8')
-    mask = torch.from_numpy(mask) == 0
-    mask = mask[0].float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0)).view(sz, -1)
-    mask
-    return mask
 
 # get_batch subdivides the source data into chunks of length args.bptt.
 # If source is equal to the example output of the batchify function, with
@@ -166,7 +149,7 @@ def evaluate(data_source):
     total_loss = 0.
     ntokens = len(corpus.dictionary)
     if args.model == 'Transformer':
-        tgt_mask = subsequent_mask(args.bptt).to(device)
+        tgt_mask = model.generate_square_subsequent_mask(args.bptt).to(device)
     else:
         hidden = model.init_hidden(eval_batch_size)
     with torch.no_grad():
@@ -175,8 +158,8 @@ def evaluate(data_source):
 
             if args.model == 'Transformer':
                 if args.bptt > len(data_source) - 1 - i:
-                    tgt_mask = subsequent_mask(len(data_source) - 1 - i).to(device)
-                output = model(data, data, tgt_mask=tgt_mask)            
+                    tgt_mask = model.generate_square_subsequent_mask(len(data_source) - 1 - i).to(device)
+                output = model(data, data, src_mask=tgt_mask, tgt_mask=tgt_mask, memory_mask=tgt_mask)            
             else:
                 output, hidden = model(data, hidden)
                 hidden = repackage_hidden(hidden)
@@ -193,7 +176,7 @@ def train():
     start_time = time.time()
     ntokens = len(corpus.dictionary)
     if args.model == 'Transformer':
-        tgt_mask = subsequent_mask(args.bptt).to(device) 
+        tgt_mask = model.generate_square_subsequent_mask(args.bptt).to(device) 
     else:
         hidden = model.init_hidden(args.batch_size)
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
@@ -203,9 +186,9 @@ def train():
 
         if args.model == 'Transformer':
             if args.bptt > len(train_data) - 1 - i:
-                tgt_mask = subsequent_mask(len(train_data) - 1 - i).to(device)
+                tgt_mask = model.generate_square_subsequent_mask(len(train_data) - 1 - i).to(device)
             model.zero_grad()
-            output = model(data, data, tgt_mask=tgt_mask)        
+            output = model(data, data, src_mask=tgt_mask, tgt_mask=tgt_mask, memory_mask=tgt_mask)            
         else:
             hidden = repackage_hidden(hidden)
             model.zero_grad()
