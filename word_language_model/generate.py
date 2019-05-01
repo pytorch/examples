@@ -16,8 +16,6 @@ parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 Language Model'
 # Model parameters.
 parser.add_argument('--data', type=str, default='./data/wikitext-2',
 					help='location of the data corpus')
-parser.add_argument('--model', type=str, default='LSTM',
-					help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU, Transformer)')
 parser.add_argument('--checkpoint', type=str, default='./model.pt',
 					help='model checkpoint to use')
 parser.add_argument('--outf', type=str, default='generated.txt',
@@ -52,7 +50,7 @@ model.eval()
 corpus = data.Corpus(args.data)
 ntokens = len(corpus.dictionary)
 
-if args.model == "Transformer":
+if type(model).__name__ == "TransformerSeq2Seq":
 	input = torch.randint(ntokens, (1, 1), dtype=torch.long).to(device)
 
 	with open(args.outf, 'w') as outf:

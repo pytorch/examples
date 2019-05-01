@@ -10,7 +10,6 @@ import torch.onnx
 import data
 import model
 import numpy as np
-from torch.nn import Transformer
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
 parser.add_argument('--data', type=str, default='./data/wikitext-2',
@@ -54,7 +53,7 @@ parser.add_argument('--transformer_encoder_layers', type=int, default=1,
                     help='the number of layers in the encoder of the transformer model')
 parser.add_argument('--transformer_decoder_layers', type=int, default=1,
                     help='the number of layers in the decoder of the transformer model')
-parser.add_argument('--transformer_d_ff', type=int, default=16,
+parser.add_argument('--transformer_dim_feedforward', type=int, default=16,
                     help='the number of nodes on the hidden layer in feed forward nn')
 
 args = parser.parse_args()
@@ -105,7 +104,11 @@ test_data = batchify(corpus.test, eval_batch_size)
 
 ntokens = len(corpus.dictionary)
 if args.model == 'Transformer':
-	model = Transformer(ntokens, ntokens, nhead=args.transformer_head, d_model=args.emsize, dropout=args.dropout, num_encoder_layers=args.transformer_encoder_layers, num_decoder_layers=args.transformer_decoder_layers, d_ff=args.transformer_d_ff)
+	model = model.TransformerSeq2Seq(ntokens, ntokens, nhead=args.transformer_head, 
+                                     d_model=args.emsize, dropout=args.dropout, 
+                                     num_encoder_layers=args.transformer_encoder_layers, 
+                                     num_decoder_layers=args.transformer_decoder_layers, 
+                                     dim_feedforward=args.transformer_dim_feedforward)
 	### Change the generator in transformer to nn.Linear(d_model, vocab)
 	model.generator = nn.Linear(args.emsize, ntokens)
 	model.to(device)
