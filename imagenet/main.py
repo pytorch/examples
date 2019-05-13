@@ -279,6 +279,10 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
 
         # compute output
         output = model(input)
+        # for googlenet case, there has three attributes
+        #    logits, aux_logits2, aux_logits1
+        if (hasattr(output, 'logits')):
+            output = output.logits
         loss = criterion(output, target)
 
         # measure accuracy and record loss
