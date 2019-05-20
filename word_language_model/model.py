@@ -1,6 +1,6 @@
+import math
 import torch
 import torch.nn as nn
-import math
 
 class RNNModel(nn.Module):
     """Container module with an encoder, a recurrent module, and a decoder."""
@@ -58,12 +58,12 @@ class RNNModel(nn.Module):
         else:
             return weight.new_zeros(self.nlayers, bsz, self.nhid)
 
-class TransformerSeq2Seq(nn.Transformer):
-    r"""A transformer model applied for sequence-to-sequence transform. 
+class TransformerSeq2Seq(nn.Module):
+    r"""A transformer model applied for sequence-to-sequence transform.
         User is able to modified the attributes as needed.
     Args:
-        src_vocab: the number of vocabularies in the source sequence (required). 
-        tgt_vocab: the number of vocabularies in the target sequence (required). 
+        src_vocab: the number of vocabularies in the source sequence (required).
+        tgt_vocab: the number of vocabularies in the target sequence (required).
         d_model: the dimension of the encoder/decoder embedding models (default=512).
         nhead: the number of heads in the multiheadattention models (default=8).
         num_encoder_layers: the number of sub-encoder-layers in the encoder (default=6).
@@ -77,14 +77,15 @@ class TransformerSeq2Seq(nn.Transformer):
 
     def __init__(self, src_vocab, tgt_vocab, d_model=512, nhead=8, num_encoder_layers=6,
                  num_decoder_layers=6, dim_feedforward=2048, dropout=0.1):
-        super(TransformerSeq2Seq, self).__init__(d_model=d_model, nhead=nhead, 
-                                   num_encoder_layers=num_encoder_layers, 
-                                   num_decoder_layers=num_decoder_layers, 
-                                   dim_feedforward=dim_feedforward, dropout=dropout)
+        super(TransformerSeq2Seq, self).__init__()
+        self.transformer = nn.Transformer(d_model=d_model, nhead=nhead,
+                                          num_encoder_layers=num_encoder_layers,
+                                          num_decoder_layers=num_decoder_layers,
+                                          dim_feedforward=dim_feedforward, dropout=dropout)
         self.src_embed = nn.Embedding(src_vocab, d_model)
-        self.pos_encoder = PositionalEncoding(d_model, dropout) 
-        self.tgt_embed = nn.Embedding(tgt_vocab, d_model) 
-        self.pos_decoder = PositionalEncoding(d_model, dropout) 
+        self.pos_encoder = PositionalEncoding(d_model, dropout)
+        self.tgt_embed = nn.Embedding(tgt_vocab, d_model)
+        self.pos_decoder = PositionalEncoding(d_model, dropout)
 
         self.generator = Generator(d_model, tgt_vocab)
         self.src_vocab = src_vocab
@@ -94,9 +95,16 @@ class TransformerSeq2Seq(nn.Transformer):
         self.num_encoder_layers = num_encoder_layers
         self.num_decoder_layers = num_decoder_layers
         self.dim_feedforward = dim_feedforward
-        self.dropout = dropout 
+        self.dropout = dropout
 
         self._reset_parameters()
+
+    def _reset_parameters(self):
+        r"""Initiate parameters in the model."""
+
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
 
     def forward(self, src, tgt, src_mask=None, tgt_mask=None, memory_mask=None):
         r"""Take in and process masked source/target sequences.
@@ -112,13 +120,13 @@ class TransformerSeq2Seq(nn.Transformer):
             src_mask: [source sequence length, source sequence length]
             tgt_mask: [target sequence length, target sequence length]
             memory_mask: [target sequence length, source sequence length]
-            Note: The maksed positions are filled with float('-inf'). 
-                  Unmasked positions are filled with float(0.0). Masks ensure that the predictions 
+            Note: The maksed positions are filled with float('-inf').
+                  Unmasked positions are filled with float(0.0). Masks ensure that the predictions
                   for position i depend only on the information before position i.
             output: [target sequence length, batch size, tgt_vocab]
-            Note: Due to the multi-head attention architecture in the transformer model, 
+            Note: Due to the multi-head attention architecture in the transformer model,
                   the output sequence length of a transformer is same as the input sequence
-                  (i.e. target) length of the decode. 
+                  (i.e. target) length of the decode.
         Examples:
             >>> output = transformer_model(src, tgt, src_mask=src_mask, tgt_mask=tgt_mask)
         """
@@ -128,8 +136,8 @@ class TransformerSeq2Seq(nn.Transformer):
         tgt = self.tgt_embed(tgt) * math.sqrt(self.d_model)
         tgt = self.pos_decoder(tgt)
 
-        memory = self.encoder(src, src_mask)
-        output = self.decoder(tgt, memory, tgt_mask, memory_mask)
+        memory = self.transformer.encoder(src, src_mask)
+        output = self.transformer.decoder(tgt, memory, tgt_mask, memory_mask)
 
         if self.generator:
             output = self.generator(output)
@@ -139,9 +147,9 @@ class TransformerSeq2Seq(nn.Transformer):
 
 # Temporarily leave PositionalEncoding module here. Will be moved somewhere else.
 class PositionalEncoding(nn.Module):
-    r"""Inject some information about the relative or absolute position of the tokens 
-        in the sequence. The positional encodings have the same dimension as 
-        the embeddings, so that the two can be summed. Here, we use sine and cosine 
+    r"""Inject some information about the relative or absolute position of the tokens
+        in the sequence. The positional encodings have the same dimension as
+        the embeddings, so that the two can be summed. Here, we use sine and cosine
         functions of different frequencies.
     .. math::
         \text{PosEncoder}(pos, 2i) = sin(pos/10000^(2i/d_model))
@@ -173,23 +181,23 @@ class PositionalEncoding(nn.Module):
             x: the sequence fed to the positional encoder model (required).
         Shape:
             x: [sequence length, batch size, embed dim]
-            output: [sequence length, batch size, embed dim]    
+            output: [sequence length, batch size, embed dim]
         Examples:
             >>> output = pos_encoder(x)
         """
 
-        x = x + self.pe[:x.size(0), :] 
+        x = x + self.pe[:x.size(0), :]
         return self.dropout(x)
 
 
 # Temporarily leave Generator module here. Will be moved somewhere else.
 class Generator(nn.Module):
-    r"""A generator processing the output of the decoder. It convertes sequence 
+    r"""A generator processing the output of the decoder. It convertes sequence
         tensors from embedding to vocabs. log_softmax function is attached to
         the end.
     Args:
         d_model: the embed dim (required).
-        vocab: the number of vocabularies in the target sequence (required). 
+        vocab: the number of vocabularies in the target sequence (required).
     Examples:
         >>> generator = Generator(d_model, vocab)
     """
@@ -204,7 +212,7 @@ class Generator(nn.Module):
             x: the sequence fed to the generator model (required).
         Shape:
             x: [sequence length, batch size, embed dim]
-            output: [sequence length, batch size, vocab]    
+            output: [sequence length, batch size, vocab]
         Examples:
             >>> output = generator(x)
         """
