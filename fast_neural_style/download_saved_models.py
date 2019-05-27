@@ -1,7 +1,7 @@
 import os
 import zipfile
 
-# PyTorch 1.1 moves _download_utl_to_file
+# PyTorch 1.1 moves _download_url_to_file
 #   from torch.utils.model_zoo to torch.hub
 # PyTorch 1.0 exists another _download_url_to_file
 #   2 argument
