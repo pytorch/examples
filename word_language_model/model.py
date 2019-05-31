@@ -107,6 +107,12 @@ class TransformerSeq2Seq(nn.Module):
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
+    def generate_square_subsequent_mask(self, seq_len):
+        if hasattr(self.transformer, 'generate_square_subsequent_mask'):
+            return self.transformer.generate_square_subsequent_mask(seq_len)
+        else:
+            raise RuntimeError('The transformer model has no attribute called generate_square_subsequent_mask')
+
     def forward(self, src, tgt, src_mask=None, tgt_mask=None, memory_mask=None):
         r"""Take in and process masked source/target sequences.
         Args:

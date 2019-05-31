@@ -105,7 +105,8 @@ test_data = batchify(corpus.test, eval_batch_size)
 ntokens = len(corpus.dictionary)
 if args.model == 'Transformer':
 	model = model.TransformerSeq2Seq(ntokens, ntokens, args.emsize, args.transformer_head,
-                                     nlayers, nlayers, args.nhid, args.dropout).to(device) 
+                                     args.nlayers, args.nlayers, args.nhid, 
+                                     args.dropout).to(device) 
 else:
 	model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
 
@@ -146,7 +147,7 @@ def evaluate(data_source):
     total_loss = 0.
     ntokens = len(corpus.dictionary)
     if args.model == 'Transformer':
-        tgt_mask = model.transformer.generate_square_subsequent_mask(args.bptt).to(device)
+        tgt_mask = model.generate_square_subsequent_mask(args.bptt).to(device)
     else:
         hidden = model.init_hidden(eval_batch_size)
     with torch.no_grad():
@@ -155,7 +156,7 @@ def evaluate(data_source):
 
             if args.model == 'Transformer':
                 if args.bptt > len(data_source) - 1 - i:
-                    tgt_mask = model.transformer.generate_square_subsequent_mask(len(data_source) - 1 - i).to(device)
+                    tgt_mask = model.generate_square_subsequent_mask(len(data_source) - 1 - i).to(device)
                 output = model(data, data, src_mask=tgt_mask, tgt_mask=tgt_mask, memory_mask=tgt_mask)            
             else:
                 output, hidden = model(data, hidden)
@@ -173,7 +174,7 @@ def train():
     start_time = time.time()
     ntokens = len(corpus.dictionary)
     if args.model == 'Transformer':
-        tgt_mask = model.transformer.generate_square_subsequent_mask(args.bptt).to(device) 
+        tgt_mask = model.generate_square_subsequent_mask(args.bptt).to(device) 
     else:
         hidden = model.init_hidden(args.batch_size)
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
@@ -183,7 +184,7 @@ def train():
 
         if args.model == 'Transformer':
             if args.bptt > len(train_data) - 1 - i:
-                tgt_mask = model.transformer.generate_square_subsequent_mask(len(train_data) - 1 - i).to(device)
+                tgt_mask = model.generate_square_subsequent_mask(len(train_data) - 1 - i).to(device)
             model.zero_grad()
             output = model(data, data, src_mask=tgt_mask, tgt_mask=tgt_mask, memory_mask=tgt_mask)            
         else:
