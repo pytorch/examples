@@ -49,12 +49,6 @@ parser.add_argument('--onnx-export', type=str, default='',
 
 parser.add_argument('--transformer_head', type=int, default=2,
                     help='the number of heads in the encoder/decoder of the transformer model')
-parser.add_argument('--transformer_encoder_layers', type=int, default=1,
-                    help='the number of layers in the encoder of the transformer model')
-parser.add_argument('--transformer_decoder_layers', type=int, default=1,
-                    help='the number of layers in the decoder of the transformer model')
-parser.add_argument('--transformer_dim_feedforward', type=int, default=16,
-                    help='the number of nodes on the hidden layer in feed forward nn')
 
 args = parser.parse_args()
 
@@ -63,6 +57,12 @@ torch.manual_seed(args.seed)
 if torch.cuda.is_available():
     if not args.cuda:
         print("WARNING: You have a CUDA device, so you should probably run with --cuda")
+
+if args.model == 'Transformer':
+    try:
+        from torch.nn import Transformer
+    except:
+        raise ImportError('Transformer module exists in PyTorch 1.1 and above.')
 
 device = torch.device("cuda" if args.cuda else "cpu")
 
@@ -106,9 +106,9 @@ ntokens = len(corpus.dictionary)
 if args.model == 'Transformer':
 	model = model.TransformerSeq2Seq(ntokens, ntokens, nhead=args.transformer_head, 
                                      d_model=args.emsize, dropout=args.dropout, 
-                                     num_encoder_layers=args.transformer_encoder_layers, 
-                                     num_decoder_layers=args.transformer_decoder_layers, 
-                                     dim_feedforward=args.transformer_dim_feedforward)
+                                     num_encoder_layers=args.nlayers, 
+                                     num_decoder_layers=args.nlayers, 
+                                     dim_feedforward=args.nhid)
 	### Change the generator in transformer to nn.Linear(d_model, vocab)
 	model.generator = nn.Linear(args.emsize, ntokens)
 	model.to(device)
