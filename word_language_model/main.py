@@ -104,12 +104,8 @@ test_data = batchify(corpus.test, eval_batch_size)
 
 ntokens = len(corpus.dictionary)
 if args.model == 'Transformer':
-	model = model.TransformerSeq2Seq(ntokens, ntokens, nhead=args.transformer_head, 
-                                     d_model=args.emsize, dropout=args.dropout, 
-                                     num_encoder_layers=args.nlayers, 
-                                     num_decoder_layers=args.nlayers, 
-                                     dim_feedforward=args.nhid)
-	model.to(device)
+	model = model.TransformerSeq2Seq(ntokens, ntokens, args.emsize, args.transformer_head,
+                                     nlayers, nlayers, args.nhid, args.dropout).to(device) 
 else:
 	model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
 
