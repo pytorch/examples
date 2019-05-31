@@ -89,14 +89,7 @@ class TransformerSeq2Seq(nn.Module):
         self.pos_decoder = PositionalEncoding(d_model, dropout)
 
         self.generator = Generator(d_model, tgt_vocab)
-        self.src_vocab = src_vocab
-        self.tgt_vocab = tgt_vocab
         self.d_model = d_model
-        self.nhead = nhead
-        self.num_encoder_layers = num_encoder_layers
-        self.num_decoder_layers = num_decoder_layers
-        self.dim_feedforward = dim_feedforward
-        self.dropout = dropout
 
         self._reset_parameters()
 
