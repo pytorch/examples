@@ -62,7 +62,7 @@ if args.model == 'Transformer':
     try:
         from torch.nn import Transformer
     except:
-        raise ImportError('Transformer module exists in PyTorch 1.1 and above.')
+        raise ImportError('Transformer module does not exist in PyTorch 1.1 or lower.')
 
 device = torch.device("cuda" if args.cuda else "cpu")
 
