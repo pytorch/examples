@@ -109,8 +109,6 @@ if args.model == 'Transformer':
                                      num_encoder_layers=args.nlayers, 
                                      num_decoder_layers=args.nlayers, 
                                      dim_feedforward=args.nhid)
-	### Change the generator in transformer to nn.Linear(d_model, vocab)
-	model.generator = nn.Linear(args.emsize, ntokens)
 	model.to(device)
 else:
 	model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)

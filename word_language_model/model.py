@@ -139,8 +139,7 @@ class TransformerSeq2Seq(nn.Module):
         memory = self.transformer.encoder(src, src_mask)
         output = self.transformer.decoder(tgt, memory, tgt_mask, memory_mask)
 
-        if self.generator:
-            output = self.generator(output)
+        output = self.generator(output)
 
         return output
 
