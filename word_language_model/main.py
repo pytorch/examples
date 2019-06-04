@@ -147,7 +147,10 @@ def evaluate(data_source):
     total_loss = 0.
     ntokens = len(corpus.dictionary)
     if args.model == 'Transformer':
-        tgt_mask = model.generate_square_subsequent_mask(args.bptt).to(device)
+        mask = model.generate_square_subsequent_mask(args.bptt).to(device)
+        model.set_src_mask(mask)
+        model.set_tgt_mask(mask)
+        model.set_memory_mask(mask)
     else:
         hidden = model.init_hidden(eval_batch_size)
     with torch.no_grad():
@@ -156,8 +159,11 @@ def evaluate(data_source):
 
             if args.model == 'Transformer':
                 if args.bptt > len(data_source) - 1 - i:
-                    tgt_mask = model.generate_square_subsequent_mask(len(data_source) - 1 - i).to(device)
-                output = model(data, data, src_mask=tgt_mask, tgt_mask=tgt_mask, memory_mask=tgt_mask)            
+                    mask = model.generate_square_subsequent_mask(len(data_source) - 1 - i).to(device)
+                    model.set_src_mask(mask)
+                    model.set_tgt_mask(mask)
+                    model.set_memory_mask(mask)
+                output = model(data, data)            
             else:
                 output, hidden = model(data, hidden)
                 hidden = repackage_hidden(hidden)
@@ -174,7 +180,10 @@ def train():
     start_time = time.time()
     ntokens = len(corpus.dictionary)
     if args.model == 'Transformer':
-        tgt_mask = model.generate_square_subsequent_mask(args.bptt).to(device) 
+        mask = model.generate_square_subsequent_mask(args.bptt).to(device)
+        model.set_src_mask(mask)
+        model.set_tgt_mask(mask)
+        model.set_memory_mask(mask)
     else:
         hidden = model.init_hidden(args.batch_size)
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
@@ -184,9 +193,12 @@ def train():
 
         if args.model == 'Transformer':
             if args.bptt > len(train_data) - 1 - i:
-                tgt_mask = model.generate_square_subsequent_mask(len(train_data) - 1 - i).to(device)
+                mask = model.generate_square_subsequent_mask(len(train_data) - 1 - i).to(device)
+                model.set_src_mask(mask)
+                model.set_tgt_mask(mask)
+                model.set_memory_mask(mask)
             model.zero_grad()
-            output = model(data, data, src_mask=tgt_mask, tgt_mask=tgt_mask, memory_mask=tgt_mask)            
+            output = model(data, data)            
         else:
             hidden = repackage_hidden(hidden)
             model.zero_grad()

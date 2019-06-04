@@ -169,6 +169,10 @@ class TransformerSeq2Seq(nn.Module):
 
         self._reset_parameters()
 
+        self.src_mask=None
+        self.tgt_mask=None
+        self.memory_mask=None
+
     def _reset_parameters(self):
         r"""Initiate parameters in the model."""
 
@@ -176,26 +180,32 @@ class TransformerSeq2Seq(nn.Module):
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
+    def set_src_mask(self, mask):
+        # self.src_mask: [source sequence length, source sequence length]
+        self.src_mask = mask
+
+    def set_tgt_mask(self, mask):
+        # self.tgt_mask: [target sequence length, target sequence length]
+        self.tgt_mask = mask
+
+    def set_memory_mask(self, mask):
+        # self.memory_mask: [source sequence length, source sequence length]
+        self.memory_mask = mask
+
     def generate_square_subsequent_mask(self, seq_len):
         if hasattr(self.transformer, 'generate_square_subsequent_mask'):
             return self.transformer.generate_square_subsequent_mask(seq_len)
         else:
             raise RuntimeError('The transformer model has no attribute called generate_square_subsequent_mask')
 
-    def forward(self, src, tgt, src_mask=None, tgt_mask=None, memory_mask=None):
+    def forward(self, src, tgt):
         r"""Take in and process masked source/target sequences.
         Args:
             src: the sequence to the encoder (required).
             tgt: the sequence to the decoder (required).
-            src_mask: the mask for the src sequence (optional).
-            tgt_mask: the mask for the tgt sequence (optional).
-            memory_mask: the mask for the encoder output (optional).
         Shape:
             src: [source sequence length, batch size]
             tgt: [target sequence length, batch size]
-            src_mask: [source sequence length, source sequence length]
-            tgt_mask: [target sequence length, target sequence length]
-            memory_mask: [target sequence length, source sequence length]
             Note: The maksed positions are filled with float('-inf').
                   Unmasked positions are filled with float(0.0). Masks ensure that the predictions
                   for position i depend only on the information before position i.
@@ -212,8 +222,8 @@ class TransformerSeq2Seq(nn.Module):
         tgt = self.tgt_embed(tgt) * math.sqrt(self.d_model)
         tgt = self.pos_decoder(tgt)
 
-        memory = self.transformer.encoder(src, src_mask)
-        output = self.transformer.decoder(tgt, memory, tgt_mask, memory_mask)
+        memory = self.transformer.encoder(src, self.src_mask)
+        output = self.transformer.decoder(tgt, memory, self.tgt_mask, self.memory_mask)
 
         output = self.generator(output)
 

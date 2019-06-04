@@ -46,24 +46,28 @@ if args.temperature < 1e-3:
 with open(args.checkpoint, 'rb') as f:
     model = torch.load(f).to(device)
 model.eval()
+model.set_src_mask(None)
+model.set_tgt_mask(None)
+model.set_memory_mask(None)
 
 corpus = data.Corpus(args.data)
 ntokens = len(corpus.dictionary)
 
 if type(model).__name__ == "TransformerSeq2Seq":
     input = torch.randint(ntokens, (1, 1), dtype=torch.long).to(device)
+    last_word = input[-1, :]
 
     with open(args.outf, 'w') as outf:
         with torch.no_grad():  # no tracking history
             for i in range(args.words):
-                seq_mask = model.generate_square_subsequent_mask(input.size(0)).to(device)
-                output = model(input, input, src_mask=seq_mask, tgt_mask=seq_mask)
-                word_weights = output[-1].squeeze().div(args.temperature).exp().cpu()
+                output = model(input, last_word)
+                word_weights = output.squeeze().div(args.temperature).exp().cpu()
                 word_idx = torch.multinomial(word_weights, 1)[0]
                 word = corpus.dictionary.idx2word[word_idx]
                 word_tensor = torch.ones(1).long().view(1,1).to(device)
                 word_tensor = word_tensor * word_idx
                 input = torch.cat([input, word_tensor], 0)
+                last_word = input[-1, :]
 
                 outf.write(word + ('\n' if i % 20 == 19 else ' '))
 
