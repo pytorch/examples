@@ -81,33 +81,22 @@ class Seq2SeqModel(nn.Module):
         self.ninp = ninp
         self.decoder = nn.Linear(nhid, ntoken)
 
-        if self.model_type == 'Transformer':
-            self._reset_parameters()
+        # Optionally tie weights as in:
+        # "Using the Output Embedding to Improve Language Models" (Press & Wolf 2016)
+        # https://arxiv.org/abs/1608.05859
+        # and
+        # "Tying Word Vectors and Word Classifiers: A Loss Framework for Language Modeling" (Inan et al. 2016)
+        # https://arxiv.org/abs/1611.01462
+        if tie_weights and model_type != 'Transformer':
+            if nhid != ninp:
+                raise ValueError('When using the tied flag, nhid must be equal to emsize')
+            self.decoder.weight = self.encoder.weight
 
-        else:
-            # Optionally tie weights as in:
-            # "Using the Output Embedding to Improve Language Models" (Press & Wolf 2016)
-            # https://arxiv.org/abs/1608.05859
-            # and
-            # "Tying Word Vectors and Word Classifiers: A Loss Framework for Language Modeling" (Inan et al. 2016)
-            # https://arxiv.org/abs/1611.01462
-            if tie_weights:
-                if nhid != ninp:
-                    raise ValueError('When using the tied flag, nhid must be equal to emsize')
-                self.decoder.weight = self.encoder.weight
+        self.init_weights()
 
-            self.init_weights()
-
-            self.model_type = model_type
-            self.nhid = nhid
-            self.nlayers = nlayers
-
-    def _reset_parameters(self):
-        assert self.model_type == 'Transformer'
-
-        for p in self.parameters():
-            if p.dim() > 1:
-                nn.init.xavier_uniform_(p)
+        self.model_type = model_type
+        self.nhid = nhid
+        self.nlayers = nlayers
 
     def _generate_square_subsequent_mask(self, sz):
         assert self.model_type == 'Transformer'
@@ -116,7 +105,6 @@ class Seq2SeqModel(nn.Module):
         return mask
 
     def init_weights(self):
-        assert self.model_type != 'Transformer'
         initrange = 0.1
         self.encoder.weight.data.uniform_(-initrange, initrange)
         self.decoder.bias.data.zero_()
