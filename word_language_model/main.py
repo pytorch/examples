@@ -9,7 +9,6 @@ import torch.onnx
 
 import data
 import model
-import numpy as np
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
 parser.add_argument('--data', type=str, default='./data/wikitext-2',
@@ -98,6 +97,7 @@ test_data = batchify(corpus.test, eval_batch_size)
 
 ntokens = len(corpus.dictionary)
 model = model.Seq2SeqModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied, args.nhead).to(device)
+
 criterion = nn.CrossEntropyLoss()
 
 ###############################################################################
@@ -145,10 +145,9 @@ def evaluate(data_source):
             data, targets = get_batch(data_source, i)
 
             output, hidden = model(data, hidden)
-            hidden = repackage_hidden(hidden)
-
             output_flat = output.view(-1, ntokens)
             total_loss += len(data) * criterion(output_flat, targets).item()
+            hidden = repackage_hidden(hidden)
     return total_loss / (len(data_source) - 1)
 
 
@@ -163,11 +162,9 @@ def train():
         data, targets = get_batch(train_data, i)
         # Starting each batch, we detach the hidden state from how it was previously produced.
         # If we didn't, the model would try backpropagating all the way to start of the dataset.
-
         hidden = repackage_hidden(hidden)
         model.zero_grad()
         output, hidden = model(data, hidden)
-
         loss = criterion(output.view(-1, ntokens), targets)
         loss.backward()
 
