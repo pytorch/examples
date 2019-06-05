@@ -3,122 +3,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class Seq2SeqModel(nn.Module):
-    """Container module with an encoder, a recurrent or transformer module, and a decoder."""
-
-    def __init__(self, model_type, ntoken, ninp, nhid, nlayers, dropout=0.5, tie_weights=False, nhead=None):
-        super(Seq2SeqModel, self).__init__()
-        self.drop = nn.Dropout(dropout)
-        self.encoder = nn.Embedding(ntoken, ninp)
-        self.model_type = model_type
-        self.nhead = nhead
-        self.ninp = ninp
-
-        if self.model_type in ['LSTM', 'GRU']:
-            self.model = getattr(nn, self.model_type)(ninp, nhid, nlayers, dropout=dropout)
-        elif self.model_type == 'Transformer':
-            try:
-                from torch.nn import TransformerEncoder, TransformerEncoderLayer
-            except:
-                raise ImportError('TransformerEncoder module does not exist in PyTorch 1.1 or lower.')
-            if nhead is None:
-                assert self.model_type != 'Transformer'
-            self.src_mask=None
-            self.pos_encoder = PositionalEncoding(ninp, dropout)
-            encoder_layers = TransformerEncoderLayer(ninp, nhead, nhid, dropout)
-            self.model = TransformerEncoder(encoder_layers, nlayers)
-        else:
-            try:
-                nonlinearity = {'RNN_TANH': 'tanh', 'RNN_RELU': 'relu'}[self.model_type]
-            except KeyError:
-                raise ValueError( """An invalid option for `--model` was supplied,
-                                 options are ['LSTM', 'GRU', 'RNN_TANH' or 'RNN_RELU']""")
-            self.model = nn.RNN(ninp, nhid, nlayers, nonlinearity=nonlinearity, dropout=dropout)
-        self.decoder = nn.Linear(nhid, ntoken)
-
-        if self.model_type == 'Transformer':
-            self._reset_parameters()
-
-        else:
-            # Optionally tie weights as in:
-            # "Using the Output Embedding to Improve Language Models" (Press & Wolf 2016)
-            # https://arxiv.org/abs/1608.05859
-            # and
-            # "Tying Word Vectors and Word Classifiers: A Loss Framework for Language Modeling" (Inan et al. 2016)
-            # https://arxiv.org/abs/1611.01462
-            if tie_weights:
-                if nhid != ninp:
-                    raise ValueError('When using the tied flag, nhid must be equal to emsize')
-                self.decoder.weight = self.encoder.weight
-
-            self.init_weights()
-
-            self.model_type = model_type
-            self.nhid = nhid
-            self.nlayers = nlayers
-
-    def _reset_parameters(self):
-        r"""Initiate parameters in the model."""
-        assert self.model_type == 'Transformer'
-
-        for p in self.parameters():
-            if p.dim() > 1:
-                nn.init.xavier_uniform_(p)
-
-    def _set_src_mask(self, mask):
-        # self.src_mask: [source sequence length, source sequence length]
-        assert self.model_type == 'Transformer'
-        self.src_mask = mask
-
-    def _generate_square_subsequent_mask(self, sz):
-        assert self.model_type == 'Transformer'
-        mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
-        mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
-        return mask
-
-    def init_weights(self):
-        assert self.model_type != 'Transformer'
-        initrange = 0.1
-        self.encoder.weight.data.uniform_(-initrange, initrange)
-        self.decoder.bias.data.zero_()
-        self.decoder.weight.data.uniform_(-initrange, initrange)
-
-    def forward(self, input, hidden, has_mask=True):
-        if self.model_type == 'Transformer':
-            if has_mask:
-                device = input.device
-                if self.src_mask is None or self.src_mask.size(0) != len(input):
-                    mask = self._generate_square_subsequent_mask(len(input)).to(device)
-                    self._set_src_mask(mask)
-            else:
-                self._set_src_mask(None)
-
-            emb = self.drop(self.encoder(input))
-            output = emb * math.sqrt(self.ninp)
-            output = self.pos_encoder(output)
-            output = self.model(output, self.src_mask)
-            output = self.decoder(output)
-            return F.log_softmax(output, dim=-1), hidden
-
-        else:
-            emb = self.drop(self.encoder(input))
-            output, hidden = self.model(emb, hidden)
-            output = self.drop(output)
-            decoded = self.decoder(output.view(output.size(0)*output.size(1), output.size(2)))
-            return decoded.view(output.size(0), output.size(1), decoded.size(1)), hidden
-
-    def init_hidden(self, bsz):
-        if self.model_type == 'Transformer':
-            return None
-
-        weight = next(self.parameters())
-        if self.model_type == 'LSTM':
-            return (weight.new_zeros(self.nlayers, bsz, self.nhid),
-                    weight.new_zeros(self.nlayers, bsz, self.nhid))
-        else:
-            return weight.new_zeros(self.nlayers, bsz, self.nhid)
-
-
 # Temporarily leave PositionalEncoding module here. Will be moved somewhere else.
 class PositionalEncoding(nn.Module):
     r"""Inject some information about the relative or absolute position of the tokens
@@ -162,4 +46,115 @@ class PositionalEncoding(nn.Module):
 
         x = x + self.pe[:x.size(0), :]
         return self.dropout(x)
+
+class Seq2SeqModel(nn.Module):
+    """Container module with an encoder, a recurrent or transformer module, and a decoder."""
+
+    def __init__(self, model_type, ntoken, ninp, nhid, nlayers, dropout=0.5, tie_weights=False, nhead=None):
+        super(Seq2SeqModel, self).__init__()
+
+        self.model_type = model_type
+        if self.model_type in ['LSTM', 'GRU']:
+            self.model = getattr(nn, self.model_type)(ninp, nhid, nlayers, dropout=dropout)
+        elif self.model_type == 'Transformer':
+            try:
+                from torch.nn import TransformerEncoder, TransformerEncoderLayer
+            except:
+                raise ImportError('TransformerEncoder module does not exist in PyTorch 1.1 or lower.')
+            if nhead is None:
+                assert self.model_type != 'Transformer'
+            self.src_mask=None
+            self.pos_encoder = PositionalEncoding(ninp, dropout)
+            encoder_layers = TransformerEncoderLayer(ninp, nhead, nhid, dropout)
+            self.model = TransformerEncoder(encoder_layers, nlayers)
+        else:
+            try:
+                nonlinearity = {'RNN_TANH': 'tanh', 'RNN_RELU': 'relu'}[self.model_type]
+            except KeyError:
+                raise ValueError( """An invalid option for `--model` was supplied,
+                                 options are ['LSTM', 'GRU', 'RNN_TANH' or 'RNN_RELU']""")
+            self.model = nn.RNN(ninp, nhid, nlayers, nonlinearity=nonlinearity, dropout=dropout)
+
+        self.drop = nn.Dropout(dropout)
+        self.encoder = nn.Embedding(ntoken, ninp)
+        self.nhead = nhead
+        self.ninp = ninp
+        self.decoder = nn.Linear(nhid, ntoken)
+
+        if self.model_type == 'Transformer':
+            self._reset_parameters()
+
+        else:
+            # Optionally tie weights as in:
+            # "Using the Output Embedding to Improve Language Models" (Press & Wolf 2016)
+            # https://arxiv.org/abs/1608.05859
+            # and
+            # "Tying Word Vectors and Word Classifiers: A Loss Framework for Language Modeling" (Inan et al. 2016)
+            # https://arxiv.org/abs/1611.01462
+            if tie_weights:
+                if nhid != ninp:
+                    raise ValueError('When using the tied flag, nhid must be equal to emsize')
+                self.decoder.weight = self.encoder.weight
+
+            self.init_weights()
+
+            self.model_type = model_type
+            self.nhid = nhid
+            self.nlayers = nlayers
+
+    def _reset_parameters(self):
+        assert self.model_type == 'Transformer'
+
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
+
+    def _generate_square_subsequent_mask(self, sz):
+        assert self.model_type == 'Transformer'
+        mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
+        mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
+        return mask
+
+    def init_weights(self):
+        assert self.model_type != 'Transformer'
+        initrange = 0.1
+        self.encoder.weight.data.uniform_(-initrange, initrange)
+        self.decoder.bias.data.zero_()
+        self.decoder.weight.data.uniform_(-initrange, initrange)
+
+    def forward(self, input, hidden, has_mask=True):
+        # has_mask: apply a mask on the source sequence of the attention layer.
+        if self.model_type == 'Transformer':
+            if has_mask:
+                device = input.device
+                if self.src_mask is None or self.src_mask.size(0) != len(input):
+                    mask = self._generate_square_subsequent_mask(len(input)).to(device)
+                    self.src_mask = mask
+            else:
+                self.src_mask = None
+
+            emb = self.drop(self.encoder(input))
+            output = emb * math.sqrt(self.ninp)
+            output = self.pos_encoder(output)
+            output = self.model(output, self.src_mask)
+            output = self.decoder(output)
+            return F.log_softmax(output, dim=-1), hidden
+
+        else:
+            emb = self.drop(self.encoder(input))
+            output, hidden = self.model(emb, hidden)
+            output = self.drop(output)
+            decoded = self.decoder(output.view(output.size(0)*output.size(1), output.size(2)))
+            return decoded.view(output.size(0), output.size(1), decoded.size(1)), hidden
+
+    def init_hidden(self, bsz):
+        if self.model_type == 'Transformer':
+            return None
+
+        weight = next(self.parameters())
+        if self.model_type == 'LSTM':
+            return (weight.new_zeros(self.nlayers, bsz, self.nhid),
+                    weight.new_zeros(self.nlayers, bsz, self.nhid))
+        else:
+            return weight.new_zeros(self.nlayers, bsz, self.nhid)
 
