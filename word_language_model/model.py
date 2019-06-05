@@ -107,7 +107,7 @@ class PositionalEncoding(nn.Module):
 
 # Temporarily leave Generator module here. Will be moved somewhere else.
 class Generator(nn.Module):
-    r"""A generator processing the output of the decoder. It convertes sequence
+    r"""A generator processing the output of the encoder. It convertes sequence
         tensors from embedding to vocabs. log_softmax function is attached to
         the end.
     Args:
@@ -141,10 +141,9 @@ class TransformerSeq2Seq(nn.Module):
     Args:
         src_vocab: the number of vocabularies in the source sequence (required).
         tgt_vocab: the number of vocabularies in the target sequence (required).
-        d_model: the dimension of the encoder/decoder embedding models (default=512).
+        d_model: the dimension of the encoder embedding models (default=512).
         nhead: the number of heads in the multiheadattention models (default=8).
         num_encoder_layers: the number of sub-encoder-layers in the encoder (default=6).
-        num_decoder_layers: the number of sub-decoder-layers in the decoder (default=6).
         dim_feedforward: the dimension of the feedforward network model (default=2048).
         dropout: the dropout value (default=0.1).
     Examples::
@@ -152,21 +151,18 @@ class TransformerSeq2Seq(nn.Module):
         >>> transformer_model = nn.Transformer(src_vocab, tgt_vocab, nhead=16, num_encoder_layers=12)
     """
 
-    def __init__(self, src_vocab, tgt_vocab, d_model=512, nhead=8, num_encoder_layers=6,
-                 num_decoder_layers=6, dim_feedforward=2048, dropout=0.1):
+    def __init__(self, src_vocab, tgt_vocab, d_model=512, nhead=8,
+                 num_encoder_layers=6, dim_feedforward=2048, dropout=0.1):
         super(TransformerSeq2Seq, self).__init__()
         try:
-            from torch.nn import Transformer
+            from torch.nn import TransformerEncoder, TransformerEncoderLayer
         except:
-            raise ImportError('Transformer module does not exist in PyTorch 1.1 or lower.')
-        self.transformer = Transformer(d_model=d_model, nhead=nhead,
-                                       num_encoder_layers=num_encoder_layers,
-                                       num_decoder_layers=num_decoder_layers,
-                                       dim_feedforward=dim_feedforward, dropout=dropout)
+            raise ImportError('TransformerEncoder module does not exist in PyTorch 1.1 or lower.')
+        encoder_layers = TransformerEncoderLayer(d_model=d_model, nhead=nhead,
+                                                 dim_feedforward=dim_feedforward, dropout=dropout)
+        self.transformer_encoder = TransformerEncoder(encoder_layers, num_encoder_layers)
         self.src_embed = nn.Embedding(src_vocab, d_model)
         self.pos_encoder = PositionalEncoding(d_model, dropout)
-        self.tgt_embed = nn.Embedding(tgt_vocab, d_model)
-        self.pos_decoder = PositionalEncoding(d_model, dropout)
 
         self.generator = Generator(d_model, tgt_vocab)
         self.d_model = d_model
@@ -174,8 +170,6 @@ class TransformerSeq2Seq(nn.Module):
         self._reset_parameters()
 
         self.src_mask=None
-        self.tgt_mask=None
-        self.memory_mask=None
 
     def _reset_parameters(self):
         r"""Initiate parameters in the model."""
@@ -188,63 +182,41 @@ class TransformerSeq2Seq(nn.Module):
         # self.src_mask: [source sequence length, source sequence length]
         self.src_mask = mask
 
-    def set_tgt_mask(self, mask):
-        # self.tgt_mask: [target sequence length, target sequence length]
-        self.tgt_mask = mask
+    def generate_square_subsequent_mask(self, sz):
+        mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
+        mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
+        return mask
 
-    def set_memory_mask(self, mask):
-        # self.memory_mask: [source sequence length, source sequence length]
-        self.memory_mask = mask
-
-    def generate_square_subsequent_mask(self, seq_len):
-        if hasattr(self.transformer, 'generate_square_subsequent_mask'):
-            return self.transformer.generate_square_subsequent_mask(seq_len)
-        else:
-            raise RuntimeError('The transformer model has no attribute called generate_square_subsequent_mask')
-
-    def forward(self, src, tgt, has_mask=True):
+    def forward(self, src, has_mask=True):
         r"""Take in and process masked source/target sequences.
         Args:
             src: the sequence to the encoder (required).
-            tgt: the sequence to the decoder (required).
-            has_mask: assign masks on src, memory, tgt.
+            has_mask: assign masks on src.
 
         Shape:
             src: [source sequence length, batch size]
-            tgt: [target sequence length, batch size]
             Note: The maksed positions are filled with float('-inf').
                   Unmasked positions are filled with float(0.0). Masks ensure that the predictions
                   for position i depend only on the information before position i.
             output: [target sequence length, batch size, tgt_vocab]
-            Note: Due to the multi-head attention architecture in the transformer model,
-                  the output sequence length of a transformer is same as the input sequence
-                  (i.e. target) length of the decode.
+            Note: Due to the multi-head attention architecture in the transformer encoder model,
+                  the output sequence length of a transformer encoder is same as the input sequence
+                  (i.e. target) length.
         Examples:
-            >>> output = transformer_model(src, tgt, src_mask=src_mask, tgt_mask=tgt_mask)
+            >>> output = transformer_encoder(src, src_mask=src_mask)
         """
         if has_mask:
             device = src.device
             if self.src_mask is None or self.src_mask.size(0) != len(src):
                 mask = self.generate_square_subsequent_mask(len(src)).to(device)
                 self.set_src_mask(mask)
-            if self.memory_mask is None or self.memory_mask.size(0) != len(src):
-                mask = self.generate_square_subsequent_mask(len(src)).to(device)
-                self.set_memory_mask(mask)
-            if self.tgt_mask is None or self.tgt_mask.size(0) != len(tgt):
-                mask = self.generate_square_subsequent_mask(len(tgt)).to(device)
-                self.set_tgt_mask(mask)
         else:
             self.set_src_mask(None)
-            self.set_memory_mask(None)
-            self.set_tgt_mask(None)
             
         src = self.src_embed(src) * math.sqrt(self.d_model)
         src = self.pos_encoder(src)
-        tgt = self.tgt_embed(tgt) * math.sqrt(self.d_model)
-        tgt = self.pos_decoder(tgt)
 
-        memory = self.transformer.encoder(src, self.src_mask)
-        output = self.transformer.decoder(tgt, memory, self.tgt_mask, self.memory_mask)
+        output = self.transformer_encoder(src, self.src_mask)
 
         output = self.generator(output)
 

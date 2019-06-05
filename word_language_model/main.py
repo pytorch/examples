@@ -99,7 +99,7 @@ test_data = batchify(corpus.test, eval_batch_size)
 ntokens = len(corpus.dictionary)
 if args.model == 'Transformer':
 	model = model.TransformerSeq2Seq(ntokens, ntokens, args.emsize, args.transformer_head,
-                                     args.nlayers, args.nlayers, args.nhid, 
+                                     args.nlayers, args.nhid, 
                                      args.dropout).to(device) 
 else:
 	model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
@@ -147,7 +147,7 @@ def evaluate(data_source):
             data, targets = get_batch(data_source, i)
 
             if args.model == 'Transformer':
-                output = model(data, data)            
+                output = model(data)            
             else:
                 output, hidden = model(data, hidden)
                 hidden = repackage_hidden(hidden)
@@ -172,7 +172,7 @@ def train():
 
         if args.model == 'Transformer':
             model.zero_grad()
-            output = model(data, data)            
+            output = model(data)            
         else:
             hidden = repackage_hidden(hidden)
             model.zero_grad()

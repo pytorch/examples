@@ -57,14 +57,13 @@ if type(model).__name__ == "TransformerSeq2Seq":
     with open(args.outf, 'w') as outf:
         with torch.no_grad():  # no tracking history
             for i in range(args.words):
-                output = model(input, last_word, has_mask=False)
-                word_weights = output.squeeze().div(args.temperature).exp().cpu()
+                output = model(input, has_mask=False)
+                word_weights = output[-1].squeeze().div(args.temperature).exp().cpu()
                 word_idx = torch.multinomial(word_weights, 1)[0]
                 word = corpus.dictionary.idx2word[word_idx]
                 word_tensor = torch.ones(1).long().view(1,1).to(device)
                 word_tensor = word_tensor * word_idx
                 input = torch.cat([input, word_tensor], 0)
-                last_word = input[-1, :]
 
                 outf.write(word + ('\n' if i % 20 == 19 else ' '))
 
