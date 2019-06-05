@@ -50,40 +50,27 @@ model.eval()
 corpus = data.Corpus(args.data)
 ntokens = len(corpus.dictionary)
 
-if type(model).__name__ == "TransformerSeq2Seq":
-    input = torch.randint(ntokens, (1, 1), dtype=torch.long).to(device)
-    last_word = input[-1, :]
+hidden = model.init_hidden(1)
+input = torch.randint(ntokens, (1, 1), dtype=torch.long).to(device)
+has_mask = False
 
-    with open(args.outf, 'w') as outf:
-        with torch.no_grad():  # no tracking history
-            for i in range(args.words):
-                output = model(input, has_mask=False)
+with open(args.outf, 'w') as outf:
+    with torch.no_grad():  # no tracking history
+        for i in range(args.words):
+            output, hidden = model(input, hidden, has_mask)
+            if model.model_type == 'Transformer':
                 word_weights = output[-1].squeeze().div(args.temperature).exp().cpu()
                 word_idx = torch.multinomial(word_weights, 1)[0]
-                word = corpus.dictionary.idx2word[word_idx]
-                word_tensor = torch.ones(1).long().view(1,1).to(device)
-                word_tensor = word_tensor * word_idx
+                word_tensor = torch.Tensor([[word_idx]]).long().to(device)
                 input = torch.cat([input, word_tensor], 0)
-
-                outf.write(word + ('\n' if i % 20 == 19 else ' '))
-
-                if i % args.log_interval == 0:
-                    print('| Generated {}/{} words'.format(i, args.words))
-
-else:
-    hidden = model.init_hidden(1)
-    input = torch.randint(ntokens, (1, 1), dtype=torch.long).to(device)
-
-    with open(args.outf, 'w') as outf:
-        with torch.no_grad():  # no tracking history
-            for i in range(args.words):
-                output, hidden = model(input, hidden)
+            else:
                 word_weights = output.squeeze().div(args.temperature).exp().cpu()
                 word_idx = torch.multinomial(word_weights, 1)[0]
                 input.fill_(word_idx)
-                word = corpus.dictionary.idx2word[word_idx]
 
-                outf.write(word + ('\n' if i % 20 == 19 else ' '))
+            word = corpus.dictionary.idx2word[word_idx]
 
-                if i % args.log_interval == 0:
-                    print('| Generated {}/{} words'.format(i, args.words))
+            outf.write(word + ('\n' if i % 20 == 19 else ' '))
+
+            if i % args.log_interval == 0:
+                 print('| Generated {}/{} words'.format(i, args.words))

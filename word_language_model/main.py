@@ -47,7 +47,7 @@ parser.add_argument('--save', type=str, default='model.pt',
 parser.add_argument('--onnx-export', type=str, default='',
                     help='path to export the final model in onnx format')
 
-parser.add_argument('--transformer_head', type=int, default=2,
+parser.add_argument('--nhead', type=int, default=2,
                     help='the number of heads in the encoder/decoder of the transformer model')
 
 args = parser.parse_args()
@@ -97,13 +97,7 @@ test_data = batchify(corpus.test, eval_batch_size)
 ###############################################################################
 
 ntokens = len(corpus.dictionary)
-if args.model == 'Transformer':
-	model = model.TransformerSeq2Seq(ntokens, ntokens, args.emsize, args.transformer_head,
-                                     args.nlayers, args.nhid, 
-                                     args.dropout).to(device) 
-else:
-	model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
-
+model = model.Seq2SeqModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied, args.nhead).to(device)
 criterion = nn.CrossEntropyLoss()
 
 ###############################################################################
@@ -112,6 +106,11 @@ criterion = nn.CrossEntropyLoss()
 
 def repackage_hidden(h):
     """Wraps hidden states in new Tensors, to detach them from their history."""
+
+    # For Transformer case
+    if h is None:
+        return h
+
     if isinstance(h, torch.Tensor):
         return h.detach()
     else:
@@ -140,17 +139,13 @@ def evaluate(data_source):
     model.eval()
     total_loss = 0.
     ntokens = len(corpus.dictionary)
-    if args.model != 'Transformer':
-        hidden = model.init_hidden(eval_batch_size)
+    hidden = model.init_hidden(eval_batch_size)
     with torch.no_grad():
         for i in range(0, data_source.size(0) - 1, args.bptt):
             data, targets = get_batch(data_source, i)
 
-            if args.model == 'Transformer':
-                output = model(data)            
-            else:
-                output, hidden = model(data, hidden)
-                hidden = repackage_hidden(hidden)
+            output, hidden = model(data, hidden)
+            hidden = repackage_hidden(hidden)
 
             output_flat = output.view(-1, ntokens)
             total_loss += len(data) * criterion(output_flat, targets).item()
@@ -163,20 +158,15 @@ def train():
     total_loss = 0.
     start_time = time.time()
     ntokens = len(corpus.dictionary)
-    if args.model != 'Transformer':
-        hidden = model.init_hidden(args.batch_size)
+    hidden = model.init_hidden(args.batch_size)
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
         data, targets = get_batch(train_data, i)
         # Starting each batch, we detach the hidden state from how it was previously produced.
         # If we didn't, the model would try backpropagating all the way to start of the dataset.
 
-        if args.model == 'Transformer':
-            model.zero_grad()
-            output = model(data)            
-        else:
-            hidden = repackage_hidden(hidden)
-            model.zero_grad()
-            output, hidden = model(data, hidden)
+        hidden = repackage_hidden(hidden)
+        model.zero_grad()
+        output, hidden = model(data, hidden)
 
         loss = criterion(output.view(-1, ntokens), targets)
         loss.backward()
@@ -242,7 +232,7 @@ with open(args.save, 'rb') as f:
     # this makes them a continuous chunk, and will speed up forward pass
     # Currently, only rnn model supports flatten_parameters function.
     if args.model != 'Transformer':
-        model.rnn.flatten_parameters()
+        model.model.flatten_parameters()
 
 # Run on test data.
 test_loss = evaluate(test_data)
