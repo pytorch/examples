@@ -58,12 +58,6 @@ if torch.cuda.is_available():
     if not args.cuda:
         print("WARNING: You have a CUDA device, so you should probably run with --cuda")
 
-if args.model == 'Transformer':
-    try:
-        from torch.nn import Transformer
-    except:
-        raise ImportError('Transformer module does not exist in PyTorch 1.1 or lower.')
-
 device = torch.device("cuda" if args.cuda else "cpu")
 
 ###############################################################################

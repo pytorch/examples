@@ -155,10 +155,14 @@ class TransformerSeq2Seq(nn.Module):
     def __init__(self, src_vocab, tgt_vocab, d_model=512, nhead=8, num_encoder_layers=6,
                  num_decoder_layers=6, dim_feedforward=2048, dropout=0.1):
         super(TransformerSeq2Seq, self).__init__()
-        self.transformer = nn.Transformer(d_model=d_model, nhead=nhead,
-                                          num_encoder_layers=num_encoder_layers,
-                                          num_decoder_layers=num_decoder_layers,
-                                          dim_feedforward=dim_feedforward, dropout=dropout)
+        try:
+            from torch.nn import Transformer
+        except:
+            raise ImportError('Transformer module does not exist in PyTorch 1.1 or lower.')
+        self.transformer = Transformer(d_model=d_model, nhead=nhead,
+                                       num_encoder_layers=num_encoder_layers,
+                                       num_decoder_layers=num_decoder_layers,
+                                       dim_feedforward=dim_feedforward, dropout=dropout)
         self.src_embed = nn.Embedding(src_vocab, d_model)
         self.pos_encoder = PositionalEncoding(d_model, dropout)
         self.tgt_embed = nn.Embedding(tgt_vocab, d_model)
