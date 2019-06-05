@@ -105,36 +105,6 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
-# Temporarily leave Generator module here. Will be moved somewhere else.
-class Generator(nn.Module):
-    r"""A generator processing the output of the encoder. It convertes sequence
-        tensors from embedding to vocabs. log_softmax function is attached to
-        the end.
-    Args:
-        d_model: the embed dim (required).
-        vocab: the number of vocabularies in the target sequence (required).
-    Examples:
-        >>> generator = Generator(d_model, vocab)
-    """
-
-    def __init__(self, d_model, vocab):
-        super(Generator, self).__init__()
-        self.proj = nn.Linear(d_model, vocab)
-
-    def forward(self, x):
-        r"""Inputs of forward function
-        Args:
-            x: the sequence fed to the generator model (required).
-        Shape:
-            x: [sequence length, batch size, embed dim]
-            output: [sequence length, batch size, vocab]
-        Examples:
-            >>> output = generator(x)
-        """
-
-        return F.log_softmax(self.proj(x), dim=-1)
-
-
 class TransformerSeq2Seq(nn.Module):
     r"""A transformer model applied for sequence-to-sequence transform.
         User is able to modified the attributes as needed.
@@ -164,7 +134,7 @@ class TransformerSeq2Seq(nn.Module):
         self.src_embed = nn.Embedding(src_vocab, d_model)
         self.pos_encoder = PositionalEncoding(d_model, dropout)
 
-        self.generator = Generator(d_model, tgt_vocab)
+        self.generator = nn.Linear(d_model, tgt_vocab)
         self.d_model = d_model
 
         self._reset_parameters()
@@ -220,4 +190,5 @@ class TransformerSeq2Seq(nn.Module):
 
         output = self.generator(output)
 
-        return output
+        #return output
+        return F.log_softmax(output, dim=-1)
