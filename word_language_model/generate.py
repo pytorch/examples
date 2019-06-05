@@ -46,9 +46,6 @@ if args.temperature < 1e-3:
 with open(args.checkpoint, 'rb') as f:
     model = torch.load(f).to(device)
 model.eval()
-model.set_src_mask(None)
-model.set_tgt_mask(None)
-model.set_memory_mask(None)
 
 corpus = data.Corpus(args.data)
 ntokens = len(corpus.dictionary)
@@ -60,7 +57,7 @@ if type(model).__name__ == "TransformerSeq2Seq":
     with open(args.outf, 'w') as outf:
         with torch.no_grad():  # no tracking history
             for i in range(args.words):
-                output = model(input, last_word)
+                output = model(input, last_word, has_mask=False)
                 word_weights = output.squeeze().div(args.temperature).exp().cpu()
                 word_idx = torch.multinomial(word_weights, 1)[0]
                 word = corpus.dictionary.idx2word[word_idx]

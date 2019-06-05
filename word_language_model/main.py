@@ -140,23 +140,13 @@ def evaluate(data_source):
     model.eval()
     total_loss = 0.
     ntokens = len(corpus.dictionary)
-    if args.model == 'Transformer':
-        mask = model.generate_square_subsequent_mask(args.bptt).to(device)
-        model.set_src_mask(mask)
-        model.set_tgt_mask(mask)
-        model.set_memory_mask(mask)
-    else:
+    if args.model != 'Transformer':
         hidden = model.init_hidden(eval_batch_size)
     with torch.no_grad():
         for i in range(0, data_source.size(0) - 1, args.bptt):
             data, targets = get_batch(data_source, i)
 
             if args.model == 'Transformer':
-                if args.bptt > len(data_source) - 1 - i:
-                    mask = model.generate_square_subsequent_mask(len(data_source) - 1 - i).to(device)
-                    model.set_src_mask(mask)
-                    model.set_tgt_mask(mask)
-                    model.set_memory_mask(mask)
                 output = model(data, data)            
             else:
                 output, hidden = model(data, hidden)
@@ -173,12 +163,7 @@ def train():
     total_loss = 0.
     start_time = time.time()
     ntokens = len(corpus.dictionary)
-    if args.model == 'Transformer':
-        mask = model.generate_square_subsequent_mask(args.bptt).to(device)
-        model.set_src_mask(mask)
-        model.set_tgt_mask(mask)
-        model.set_memory_mask(mask)
-    else:
+    if args.model != 'Transformer':
         hidden = model.init_hidden(args.batch_size)
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
         data, targets = get_batch(train_data, i)
@@ -186,11 +171,6 @@ def train():
         # If we didn't, the model would try backpropagating all the way to start of the dataset.
 
         if args.model == 'Transformer':
-            if args.bptt > len(train_data) - 1 - i:
-                mask = model.generate_square_subsequent_mask(len(train_data) - 1 - i).to(device)
-                model.set_src_mask(mask)
-                model.set_tgt_mask(mask)
-                model.set_memory_mask(mask)
             model.zero_grad()
             output = model(data, data)            
         else:

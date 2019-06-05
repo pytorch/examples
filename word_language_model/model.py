@@ -202,11 +202,13 @@ class TransformerSeq2Seq(nn.Module):
         else:
             raise RuntimeError('The transformer model has no attribute called generate_square_subsequent_mask')
 
-    def forward(self, src, tgt):
+    def forward(self, src, tgt, has_mask=True):
         r"""Take in and process masked source/target sequences.
         Args:
             src: the sequence to the encoder (required).
             tgt: the sequence to the decoder (required).
+            has_mask: assign masks on src, memory, tgt.
+
         Shape:
             src: [source sequence length, batch size]
             tgt: [target sequence length, batch size]
@@ -220,7 +222,22 @@ class TransformerSeq2Seq(nn.Module):
         Examples:
             >>> output = transformer_model(src, tgt, src_mask=src_mask, tgt_mask=tgt_mask)
         """
-
+        if has_mask:
+            device = src.device
+            if self.src_mask is None or self.src_mask.size(0) != len(src):
+                mask = self.generate_square_subsequent_mask(len(src)).to(device)
+                self.set_src_mask(mask)
+            if self.memory_mask is None or self.memory_mask.size(0) != len(src):
+                mask = self.generate_square_subsequent_mask(len(src)).to(device)
+                self.set_memory_mask(mask)
+            if self.tgt_mask is None or self.tgt_mask.size(0) != len(tgt):
+                mask = self.generate_square_subsequent_mask(len(tgt)).to(device)
+                self.set_tgt_mask(mask)
+        else:
+            self.set_src_mask(None)
+            self.set_memory_mask(None)
+            self.set_tgt_mask(None)
+            
         src = self.src_embed(src) * math.sqrt(self.d_model)
         src = self.pos_encoder(src)
         tgt = self.tgt_embed(tgt) * math.sqrt(self.d_model)
