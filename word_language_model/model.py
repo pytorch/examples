@@ -116,11 +116,10 @@ class TransformerModel(nn.Module):
         self.src_mask = None
         self.pos_encoder = PositionalEncoding(ninp, dropout)
         encoder_layers = TransformerEncoderLayer(ninp, nhead, nhid, dropout)
-        self.transformer = TransformerEncoder(encoder_layers, nlayers)
-        self.drop = nn.Dropout(dropout)
+        self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
         self.encoder = nn.Embedding(ntoken, ninp)
         self.ninp = ninp
-        self.decoder = nn.Linear(nhid, ntoken)
+        self.decoder = nn.Linear(ninp, ntoken)
 
         self.init_weights()
 
@@ -135,18 +134,17 @@ class TransformerModel(nn.Module):
         self.decoder.bias.data.zero_()
         self.decoder.weight.data.uniform_(-initrange, initrange)
 
-    def forward(self, input, has_mask=True):
+    def forward(self, src, has_mask=True):
         if has_mask:
-            device = input.device
-            if self.src_mask is None or self.src_mask.size(0) != len(input):
-                mask = self._generate_square_subsequent_mask(len(input)).to(device)
+            device = src.device
+            if self.src_mask is None or self.src_mask.size(0) != len(src):
+                mask = self._generate_square_subsequent_mask(len(src)).to(device)
                 self.src_mask = mask
         else:
             self.src_mask = None
 
-        emb = self.drop(self.encoder(input))
-        output = emb * math.sqrt(self.ninp)
-        output = self.pos_encoder(output)
-        output = self.transformer(output, self.src_mask)
+        src = self.encoder(src) * math.sqrt(self.ninp)
+        src = self.pos_encoder(src)
+        output = self.transformer_encoder(src, self.src_mask)
         output = self.decoder(output)
         return F.log_softmax(output, dim=-1)
