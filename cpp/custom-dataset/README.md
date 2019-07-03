@@ -18,7 +18,7 @@ $ make
 
 where /path/to/libtorch should be the path to the unzipped LibTorch distribution, which you can get from the [PyTorch homepage](https://pytorch.org/get-started/locally/).
 
-The build directory should look something like this:
+The build directory should look like this:
 ```
 .
 ├── custom-dataset

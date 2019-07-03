@@ -7,7 +7,7 @@
 #include <vector>
 
 struct Options {
-  int image_size = 112;
+  int image_size = 224;
   size_t train_batch_size = 8;
   size_t test_batch_size = 200;
   size_t iterations = 10;
@@ -97,7 +97,7 @@ struct NetworkImpl : torch::nn::SequentialImpl {
     using namespace torch::nn;
 
     auto stride = torch::ExpandingArray<2>({2, 2});
-    torch::ExpandingArray<2> shape({-1, 256 * 2 * 2});
+    torch::ExpandingArray<2> shape({-1, 256 * 6 * 6});
     push_back(Conv2d(Conv2dOptions(3, 64, 11).stride(4).padding(2)));
     push_back(Functional(torch::relu));
     push_back(Functional(torch::max_pool2d, 3, stride, 0, 1, false));
@@ -113,7 +113,7 @@ struct NetworkImpl : torch::nn::SequentialImpl {
     push_back(Functional(torch::max_pool2d, 3, stride, 0, 1, false));
     push_back(Functional(torch::reshape, shape));
     push_back(Dropout());
-    push_back(Linear(256 * 2 * 2, 4096));
+    push_back(Linear(256 * 6 * 6, 4096));
     push_back(Functional(torch::relu));
     push_back(Dropout());
     push_back(Linear(4096, 4096));
@@ -188,6 +188,7 @@ void test(Network& network, DataLoader& loader, size_t data_size) {
 
 int main() {
   torch::manual_seed(1);
+
   if (torch::cuda::is_available())
     options.device = torch::kCUDA;
   std::cout << "Running on: "
