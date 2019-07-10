@@ -6,6 +6,8 @@ The dataset used here is [Caltech 101](http://www.vision.caltech.edu/Image_Datas
 
 The entire training code is contained in custom-data.cpp.
 
+You can find instructions on how to install OpenCV [here](../tools/InstallingOpenCV.md).
+
 To build the code, run the following commands from your terminal:
 
 ```shell
