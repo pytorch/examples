@@ -14,8 +14,11 @@ from util import get_args, makedirs
 
 
 args = get_args()
-torch.cuda.set_device(args.gpu)
-device = torch.device('cuda:{}'.format(args.gpu))
+if torch.cuda.is_available():
+    torch.cuda.set_device(args.gpu)
+    device = torch.device('cuda:{}'.format(args.gpu))
+else:
+    device = torch.device('cpu')
 
 inputs = data.Field(lower=args.lower, tokenize='spacy')
 answers = data.Field(sequential=False)

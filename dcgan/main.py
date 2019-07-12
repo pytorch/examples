@@ -31,6 +31,7 @@ parser.add_argument('--netG', default='', help="path to netG (to continue traini
 parser.add_argument('--netD', default='', help="path to netD (to continue training)")
 parser.add_argument('--outf', default='.', help='folder to output images and model checkpoints')
 parser.add_argument('--manualSeed', type=int, help='manual seed')
+parser.add_argument('--classes', default='bedroom', help='comma separated list of classes for the lsun data set')
 
 opt = parser.parse_args()
 print(opt)
@@ -62,7 +63,8 @@ if opt.dataset in ['imagenet', 'folder', 'lfw']:
                                ]))
     nc=3
 elif opt.dataset == 'lsun':
-    dataset = dset.LSUN(root=opt.dataroot, classes=['bedroom_train'],
+    classes = [ c + '_train' for c in opt.classes.split(',')]
+    dataset = dset.LSUN(root=opt.dataroot, classes=classes,
                         transform=transforms.Compose([
                             transforms.Resize(opt.imageSize),
                             transforms.CenterCrop(opt.imageSize),
