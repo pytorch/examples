@@ -25,13 +25,11 @@ usage: main.py [-h] --dataset DATASET --dataroot DATAROOT [--workers WORKERS]
 
 optional arguments:
   -h, --help            show this help message and exit
-  --dataset DATASET     cifar10 | lsun | imagenet | folder | lfw
+  --dataset DATASET     cifar10 | lsun | mnist |imagenet | folder | lfw | fake
   --dataroot DATAROOT   path to dataset
   --workers WORKERS     number of data loading workers
-  --batchSize BATCHSIZE
-                        input batch size
-  --imageSize IMAGESIZE
-                        the height / width of the input image to network
+  --batchSize BATCHSIZE input batch size
+  --imageSize IMAGESIZE the height / width of the input image to network
   --nz NZ               size of the latent z vector
   --ngf NGF
   --ndf NDF
@@ -42,4 +40,7 @@ optional arguments:
   --ngpu NGPU           number of GPUs to use
   --netG NETG           path to netG (to continue training)
   --netD NETD           path to netD (to continue training)
+  --outf OUTF           folder to output images and model checkpoints
+  --manualSeed SEED     manual seed
+  --classes CLASSES     comma separated list of classes for the lsun data set
 ```
