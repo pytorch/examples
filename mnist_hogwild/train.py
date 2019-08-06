@@ -1,4 +1,5 @@
 import os
+import time
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
@@ -8,18 +9,23 @@ from torchvision import datasets, transforms
 def train(rank, args, model, device, dataloader_kwargs):
     torch.manual_seed(args.seed + rank)
 
+    train_dataset = datasets.MNIST('../data', train=True, download=True,
+                                   transform=transforms.Compose([
+                                       transforms.ToTensor(),
+                                       transforms.Normalize((0.1307,), (0.3081,))
+                                   ]))
     train_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('../data', train=True, download=True,
-                    transform=transforms.Compose([
-                        transforms.ToTensor(),
-                        transforms.Normalize((0.1307,), (0.3081,))
-                    ])),
+        train_dataset,
         batch_size=args.batch_size, shuffle=True, num_workers=1,
         **dataloader_kwargs)
 
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
     for epoch in range(1, args.epochs + 1):
-        train_epoch(epoch, args, model, device, train_loader, optimizer)
+        begin = time.time()
+        train_epoch(rank, epoch, args, model, device, train_loader, optimizer)
+        end = time.time()
+        print('Rank {}\tEpoch: {} {} images/sec'.format(
+            rank, epoch, int(len(train_dataset) / (end - begin))))
 
 
 def test(args, model, device, dataloader_kwargs):
@@ -36,9 +42,8 @@ def test(args, model, device, dataloader_kwargs):
     test_epoch(model, device, test_loader)
 
 
-def train_epoch(epoch, args, model, device, data_loader, optimizer):
+def train_epoch(rank, epoch, args, model, device, data_loader, optimizer):
     model.train()
-    pid = os.getpid()
     for batch_idx, (data, target) in enumerate(data_loader):
         optimizer.zero_grad()
         output = model(data.to(device))
@@ -47,7 +52,7 @@ def train_epoch(epoch, args, model, device, data_loader, optimizer):
         optimizer.step()
         if batch_idx % args.log_interval == 0:
             print('{}\tTrain Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                pid, epoch, batch_idx * len(data), len(data_loader.dataset),
+                rank, epoch, batch_idx * len(data), len(data_loader.dataset),
                 100. * batch_idx / len(data_loader), loss.item()))
 
 

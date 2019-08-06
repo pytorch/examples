@@ -1,5 +1,6 @@
 from __future__ import print_function
 import argparse
+import threading
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -27,6 +28,8 @@ parser.add_argument('--num-processes', type=int, default=2, metavar='N',
                     help='how many training processes to use (default: 2)')
 parser.add_argument('--cuda', action='store_true', default=False,
                     help='enables CUDA training')
+parser.add_argument('--multithreading', action='store_true', default=False,
+                    help='Use multi threads (instead of processes) to do hogwild training')
 
 class Net(nn.Module):
     def __init__(self):
@@ -46,6 +49,18 @@ class Net(nn.Module):
         x = self.fc2(x)
         return F.log_softmax(x, dim=1)
 
+
+class ForkNet(nn.Module):
+    def __init__(self, script):
+        super(ForkNet, self).__init__()
+        self.script = script
+
+    def forward(self, x):
+        f = torch.jit._fork(self.script, x)
+        v = torch.jit._wait(f)
+        return v
+
+
 if __name__ == '__main__':
     args = parser.parse_args()
 
@@ -57,11 +72,18 @@ if __name__ == '__main__':
     mp.set_start_method('spawn')
 
     model = Net().to(device)
-    model.share_memory() # gradients are allocated lazily, so they are not shared here
+
+    if args.multithreading:
+        model = torch.jit.script(ForkNet(model))
+        launcher = threading.Thread
+        torch.set_num_interop_threads(args.num_processes)
+    else:
+        model.share_memory() # gradients are allocated lazily, so they are not shared here
+        launcher = mp.Process
 
     processes = []
     for rank in range(args.num_processes):
-        p = mp.Process(target=train, args=(rank, args, model, device, dataloader_kwargs))
+        p = launcher(target=train, args=(rank, args, model, device, dataloader_kwargs))
         # We first train the model across `num_processes` processes
         p.start()
         processes.append(p)
