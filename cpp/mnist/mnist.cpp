@@ -54,7 +54,7 @@ struct Net : torch::nn::Module {
 
 template <typename DataLoader>
 void train(
-    int32_t epoch,
+    size_t epoch,
     Net& model,
     torch::Device device,
     DataLoader& data_loader,
