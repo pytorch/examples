@@ -14,7 +14,7 @@ parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Langua
 parser.add_argument('--data', type=str, default='./data/wikitext-2',
                     help='location of the data corpus')
 parser.add_argument('--model', type=str, default='LSTM',
-                    help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
+                    help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU, Transformer)')
 parser.add_argument('--emsize', type=int, default=200,
                     help='size of word embeddings')
 parser.add_argument('--nhid', type=int, default=200,
@@ -45,6 +45,10 @@ parser.add_argument('--save', type=str, default='model.pt',
                     help='path to save the final model')
 parser.add_argument('--onnx-export', type=str, default='',
                     help='path to export the final model in onnx format')
+
+parser.add_argument('--nhead', type=int, default=2,
+                    help='the number of heads in the encoder/decoder of the transformer model')
+
 args = parser.parse_args()
 
 # Set the random seed manually for reproducibility.
@@ -92,7 +96,10 @@ test_data = batchify(corpus.test, eval_batch_size)
 ###############################################################################
 
 ntokens = len(corpus.dictionary)
-model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
+if args.model == 'Transformer':
+    model = model.TransformerModel(ntokens, args.emsize, args.nhead, args.nhid, args.nlayers, args.dropout).to(device)
+else:
+    model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
 
 criterion = nn.CrossEntropyLoss()
 
@@ -102,6 +109,7 @@ criterion = nn.CrossEntropyLoss()
 
 def repackage_hidden(h):
     """Wraps hidden states in new Tensors, to detach them from their history."""
+
     if isinstance(h, torch.Tensor):
         return h.detach()
     else:
@@ -130,14 +138,18 @@ def evaluate(data_source):
     model.eval()
     total_loss = 0.
     ntokens = len(corpus.dictionary)
-    hidden = model.init_hidden(eval_batch_size)
+    if args.model != 'Transformer':
+        hidden = model.init_hidden(eval_batch_size)
     with torch.no_grad():
         for i in range(0, data_source.size(0) - 1, args.bptt):
             data, targets = get_batch(data_source, i)
-            output, hidden = model(data, hidden)
+            if args.model == 'Transformer':
+                output = model(data)
+            else:
+                output, hidden = model(data, hidden)
+                hidden = repackage_hidden(hidden)
             output_flat = output.view(-1, ntokens)
             total_loss += len(data) * criterion(output_flat, targets).item()
-            hidden = repackage_hidden(hidden)
     return total_loss / (len(data_source) - 1)
 
 
@@ -147,14 +159,18 @@ def train():
     total_loss = 0.
     start_time = time.time()
     ntokens = len(corpus.dictionary)
-    hidden = model.init_hidden(args.batch_size)
+    if args.model != 'Transformer':
+        hidden = model.init_hidden(args.batch_size)
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
         data, targets = get_batch(train_data, i)
         # Starting each batch, we detach the hidden state from how it was previously produced.
         # If we didn't, the model would try backpropagating all the way to start of the dataset.
-        hidden = repackage_hidden(hidden)
         model.zero_grad()
-        output, hidden = model(data, hidden)
+        if args.model == 'Transformer':
+            output = model(data)
+        else:
+            hidden = repackage_hidden(hidden)
+            output, hidden = model(data, hidden)
         loss = criterion(output.view(-1, ntokens), targets)
         loss.backward()
 
@@ -217,7 +233,9 @@ with open(args.save, 'rb') as f:
     model = torch.load(f)
     # after load the rnn params are not a continuous chunk of memory
     # this makes them a continuous chunk, and will speed up forward pass
-    model.rnn.flatten_parameters()
+    # Currently, only rnn model supports flatten_parameters function.
+    if args.model in ['RNN_TANH', 'RNN_RELU', 'LSTM', 'GRU']:
+        model.rnn.flatten_parameters()
 
 # Run on test data.
 test_loss = evaluate(test_data)
