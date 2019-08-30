@@ -2,15 +2,15 @@
 
 Transfer Learning on Dogs vs Cats dataset using PyTorch C++ API.
 
-**Usage**
+## Usage
 
 For **training**:
 
-1. `python3 convert.py`
-2. `mkdir build && cd build`
+1. Remove final layer of `ResNet18` pre-trained model and convert to `torch.jit` module: `python3 convert.py`.
+2. Create build directory: `mkdir build && cd build`
 3. `cmake -DCMAKE_PREFIX_PATH=/absolute/path/to/libtorch ..`
 4. `make`
-5. `./example <path_to_scripting_model>`
+5. Run training code: `./example <path_to_scripting_model>`
 
 For **prediction**:
 
