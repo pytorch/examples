@@ -69,8 +69,8 @@ int main(int arc, char** argv)
     std::string model_path_linear = argv[3];
     
     // Load the model.
-    torch::jit::script::Module model;
-    model = torch::jit::load(model_path);
+    // type of model is torch::jit::script::Module
+    auto model = torch::jit::load(model_path);
     
     torch::nn::Linear model_linear(512, 2);
     torch::load(model_linear, model_path_linear);
