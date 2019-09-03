@@ -250,9 +250,9 @@ int main(int argc, const char * argv[]) {
     auto custom_dataset = CustomDataset(list_images, list_labels).map(torch::data::transforms::Stack<>());
 
     // Load pre-trained model
-    // Type of module: torch::jit::script::Module module;
-    auto module = torch::jit::load(argv[1]);
-
+    // You can also use: auto module = torch::jit::load(argv[1]);
+    torch::jit::script::Module module = torch::jit::load(argv[1]);
+    
     // Resource: https://discuss.pytorch.org/t/how-to-load-the-prebuilt-resnet-models-or-any-other-prebuilt-models/40269/8
     // For VGG: 512 * 14 * 14, 2
 
