@@ -3,7 +3,6 @@
 //  transfer-learning
 //
 //  Created by Kushashwa Ravi Shrimali on 12/08/19.
-//  Copyright © 2019 Kushashwa Ravi Shrimali. All rights reserved.
 //
 
 #include "main.h"
