@@ -1,0 +1,4 @@
+platform :ios, '12.0'
+target 'PyTorchDemo' do
+  pod 'LibTorch'
+end
