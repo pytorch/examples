@@ -7,6 +7,8 @@
 
 import UIKit
 
-class ImagePredictor: NSObject {
+class ImagePredictor {
 
+    
+    
 }
