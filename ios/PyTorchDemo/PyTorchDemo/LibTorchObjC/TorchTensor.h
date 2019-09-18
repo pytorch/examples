@@ -53,6 +53,12 @@ typedef NS_ENUM(NSUInteger, TorchTensorType) {
  @return A new tensor with the given type
  */
 - (nullable TorchTensor* )to:(TorchTensorType) type;
+/**
+ Get a number from a tensor containing a single value
+ 
+ @return A NSNumber of object containing the
+ */
+- (nullable NSNumber* )item;
 
 @end
 
