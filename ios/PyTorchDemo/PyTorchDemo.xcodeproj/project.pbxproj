@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		292D35C9270D6EC12DE809BC /* libPods-PyTorchDemo.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 965AA731F9495085EEA5362E /* libPods-PyTorchDemo.a */; };
-		A06D4CCD2330AAA200763E16 /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A06D4CCC2330AAA200763E16 /* CameraManager.swift */; };
+		A06D4CCD2330AAA200763E16 /* CameraController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A06D4CCC2330AAA200763E16 /* CameraController.swift */; };
 		A06D4CD62330ABE000763E16 /* TorchIValue.mm in Sources */ = {isa = PBXBuildFile; fileRef = A06D4CCE2330ABE000763E16 /* TorchIValue.mm */; };
 		A06D4CD72330ABE000763E16 /* TorchModule.mm in Sources */ = {isa = PBXBuildFile; fileRef = A06D4CD22330ABE000763E16 /* TorchModule.mm */; };
 		A06D4CD82330ABE000763E16 /* TorchTensor.mm in Sources */ = {isa = PBXBuildFile; fileRef = A06D4CD32330ABE000763E16 /* TorchTensor.mm */; };
@@ -21,12 +21,16 @@
 		A091B75C2330778B0008A5B8 /* model.pt in Resources */ = {isa = PBXBuildFile; fileRef = A091B75A2330778B0008A5B8 /* model.pt */; };
 		A091B75E2330789A0008A5B8 /* ImageClassificationViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A091B75D2330789A0008A5B8 /* ImageClassificationViewController.swift */; };
 		A091B760233078BE0008A5B8 /* ImagePredictor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A091B75F233078BE0008A5B8 /* ImagePredictor.swift */; };
+		A091B76223315D1A0008A5B8 /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A091B76123315D1A0008A5B8 /* CameraPreviewView.swift */; };
+		A091B764233168DE0008A5B8 /* CVPixelBuffer+Helper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A091B763233168DE0008A5B8 /* CVPixelBuffer+Helper.swift */; };
+		A091B7662331D4110008A5B8 /* Data+Helper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A091B7652331D4110008A5B8 /* Data+Helper.swift */; };
+		A091B7682331F4AC0008A5B8 /* dog.png in Resources */ = {isa = PBXBuildFile; fileRef = A091B7672331F4AC0008A5B8 /* dog.png */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		3FF2BC5A7D46112CF377789C /* Pods-PyTorchDemo.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PyTorchDemo.debug.xcconfig"; path = "Target Support Files/Pods-PyTorchDemo/Pods-PyTorchDemo.debug.xcconfig"; sourceTree = "<group>"; };
 		965AA731F9495085EEA5362E /* libPods-PyTorchDemo.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-PyTorchDemo.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		A06D4CCC2330AAA200763E16 /* CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraManager.swift; sourceTree = "<group>"; };
+		A06D4CCC2330AAA200763E16 /* CameraController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraController.swift; sourceTree = "<group>"; };
 		A06D4CCE2330ABE000763E16 /* TorchIValue.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = TorchIValue.mm; sourceTree = "<group>"; };
 		A06D4CCF2330ABE000763E16 /* TorchIValue+Internal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "TorchIValue+Internal.h"; sourceTree = "<group>"; };
 		A06D4CD02330ABE000763E16 /* TorchTensor.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TorchTensor.h; sourceTree = "<group>"; };
@@ -47,6 +51,10 @@
 		A091B75A2330778B0008A5B8 /* model.pt */ = {isa = PBXFileReference; lastKnownFileType = file; path = model.pt; sourceTree = "<group>"; };
 		A091B75D2330789A0008A5B8 /* ImageClassificationViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageClassificationViewController.swift; sourceTree = "<group>"; };
 		A091B75F233078BE0008A5B8 /* ImagePredictor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePredictor.swift; sourceTree = "<group>"; };
+		A091B76123315D1A0008A5B8 /* CameraPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreviewView.swift; sourceTree = "<group>"; };
+		A091B763233168DE0008A5B8 /* CVPixelBuffer+Helper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CVPixelBuffer+Helper.swift"; sourceTree = "<group>"; };
+		A091B7652331D4110008A5B8 /* Data+Helper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Data+Helper.swift"; sourceTree = "<group>"; };
+		A091B7672331F4AC0008A5B8 /* dog.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = dog.png; sourceTree = "<group>"; };
 		F8CEDE10299E8DB677BE5279 /* Pods-PyTorchDemo.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PyTorchDemo.release.xcconfig"; path = "Target Support Files/Pods-PyTorchDemo/Pods-PyTorchDemo.release.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -134,7 +142,10 @@
 				A091B7582330778B0008A5B8 /* model */,
 				A091B75D2330789A0008A5B8 /* ImageClassificationViewController.swift */,
 				A091B75F233078BE0008A5B8 /* ImagePredictor.swift */,
-				A06D4CCC2330AAA200763E16 /* CameraManager.swift */,
+				A06D4CCC2330AAA200763E16 /* CameraController.swift */,
+				A091B76123315D1A0008A5B8 /* CameraPreviewView.swift */,
+				A091B763233168DE0008A5B8 /* CVPixelBuffer+Helper.swift */,
+				A091B7652331D4110008A5B8 /* Data+Helper.swift */,
 			);
 			path = ImageClassification;
 			sourceTree = "<group>";
@@ -142,6 +153,7 @@
 		A091B7582330778B0008A5B8 /* model */ = {
 			isa = PBXGroup;
 			children = (
+				A091B7672331F4AC0008A5B8 /* dog.png */,
 				A091B7592330778B0008A5B8 /* synset_words.txt */,
 				A091B75A2330778B0008A5B8 /* model.pt */,
 			);
@@ -207,6 +219,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A091B7682331F4AC0008A5B8 /* dog.png in Resources */,
 				A091B1A123303F2D0008A5B8 /* LaunchScreen.storyboard in Resources */,
 				A091B19E23303F2D0008A5B8 /* Assets.xcassets in Resources */,
 				A091B75B2330778B0008A5B8 /* synset_words.txt in Resources */,
@@ -250,11 +263,14 @@
 				A091B75E2330789A0008A5B8 /* ImageClassificationViewController.swift in Sources */,
 				A091B19923303F2D0008A5B8 /* ViewController.swift in Sources */,
 				A06D4CD62330ABE000763E16 /* TorchIValue.mm in Sources */,
+				A091B76223315D1A0008A5B8 /* CameraPreviewView.swift in Sources */,
 				A06D4CD82330ABE000763E16 /* TorchTensor.mm in Sources */,
 				A06D4CD72330ABE000763E16 /* TorchModule.mm in Sources */,
 				A091B19723303F2D0008A5B8 /* AppDelegate.swift in Sources */,
-				A06D4CCD2330AAA200763E16 /* CameraManager.swift in Sources */,
+				A06D4CCD2330AAA200763E16 /* CameraController.swift in Sources */,
+				A091B7662331D4110008A5B8 /* Data+Helper.swift in Sources */,
 				A091B760233078BE0008A5B8 /* ImagePredictor.swift in Sources */,
+				A091B764233168DE0008A5B8 /* CVPixelBuffer+Helper.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -403,6 +419,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = GW8XWHWQR7;
+				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = PyTorchDemo/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -413,7 +431,7 @@
 				SWIFT_OBJC_BRIDGING_HEADER = "PyTorchDemo/LibTorchObjC/PyTorchDemo-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -424,6 +442,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = GW8XWHWQR7;
+				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = PyTorchDemo/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -433,7 +453,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "PyTorchDemo/LibTorchObjC/PyTorchDemo-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};

@@ -83,7 +83,7 @@ static inline TorchTensorType tensorTypeFromScalarType(c10::ScalarType type) {
 - (NSString* )description {
     NSString* size = @"[";
     for(NSNumber* num in self.sizes) {
-        size = [size stringByAppendingString:[NSString stringWithFormat:@"%ld", num.integerValue]];
+        size = [size stringByAppendingString:[NSString stringWithFormat:@"%ld ", num.integerValue]];
     }
     size = [size stringByAppendingString:@"]"];
     return [NSString stringWithFormat:@"[%s %@]",_impl.toString().c_str(),size];

@@ -1,4 +1,5 @@
 #import <LibTorch/LibTorch.h>
+#import <torch/csrc/autograd/grad_mode.h>
 #import "TorchModule.h"
 #import "TorchIValue+Internal.h"
 
@@ -11,11 +12,16 @@
     if(modelPath.length == 0){
         return nil;
     }
-    auto torchScriptModule = torch::jit::load([modelPath cStringUsingEncoding:NSASCIIStringEncoding]);
-    //TODO: check torchScriptModule
-    TorchModule* module = [TorchModule new];
-    module->_impl = torchScriptModule;
-    return module;
+    @try {
+        
+        auto torchScriptModule = torch::jit::load([modelPath cStringUsingEncoding:NSASCIIStringEncoding]);
+        TorchModule* module = [TorchModule new];
+        module->_impl = torchScriptModule;
+        return module;
+    }@catch (NSException* exception){
+        NSLog(@"%@",exception);
+    }
+    return nil;
 }
 
 - (TorchIValue* _Nullable)forward:(NSArray<TorchIValue* >* _Nullable)values {
@@ -27,6 +33,8 @@
         at::IValue atValue = value.toIValue;
         inputs.push_back(atValue);
     }
+    torch::autograd::AutoGradMode guard(false);
+    at::AutoNonVariableTypeMode non_var_type_mode(true);
     auto result = _impl.forward(inputs);
     return [TorchIValue newWithIValue:result];
 }

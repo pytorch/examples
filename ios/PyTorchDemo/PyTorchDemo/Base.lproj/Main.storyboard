@@ -22,6 +22,9 @@
                                 <rect key="frame" x="174" y="198" width="42" height="30"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                 <state key="normal" title="Image"/>
+                                <connections>
+                                    <segue destination="1xp-pl-G5I" kind="push" id="Czc-eS-0Oi"/>
+                                </connections>
                             </button>
                             <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="MW9-jx-OU4">
                                 <rect key="frame" x="180" y="378" width="30" height="30"/>
@@ -36,7 +39,7 @@
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>
             </objects>
-            <point key="canvasLocation" x="1042.0289855072465" y="137.94642857142856"/>
+            <point key="canvasLocation" x="891" y="-536"/>
         </scene>
         <!--Navigation Controller-->
         <scene sceneID="bGW-ly-9Su">
@@ -55,6 +58,53 @@
                 <placeholder placeholderIdentifier="IBFirstResponder" id="wfn-3s-UaS" userLabel="First Responder" sceneMemberID="firstResponder"/>
             </objects>
             <point key="canvasLocation" x="128.98550724637681" y="-536.38392857142856"/>
+        </scene>
+        <!--Image Classification View Controller-->
+        <scene sceneID="xVG-Xe-AwR">
+            <objects>
+                <viewController id="1xp-pl-G5I" customClass="ImageClassificationViewController" customModule="PyTorchDemo" customModuleProvider="target" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="wFb-JL-rA3">
+                        <rect key="frame" x="0.0" y="0.0" width="414" height="896"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="xO8-Rl-ilf" customClass="CameraPreviewView" customModule="PyTorchDemo" customModuleProvider="target">
+                                <rect key="frame" x="0.0" y="88" width="414" height="774"/>
+                                <subviews>
+                                    <textView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="qrY-MC-KGc">
+                                        <rect key="frame" x="20" y="467" width="374" height="287"/>
+                                        <color key="backgroundColor" white="0.33333333333333331" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                        <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                        <fontDescription key="fontDescription" type="system" pointSize="12"/>
+                                        <textInputTraits key="textInputTraits" autocapitalizationType="sentences"/>
+                                    </textView>
+                                </subviews>
+                                <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                <constraints>
+                                    <constraint firstAttribute="bottom" secondItem="qrY-MC-KGc" secondAttribute="bottom" constant="20" id="OuL-pJ-waX"/>
+                                    <constraint firstAttribute="trailing" secondItem="qrY-MC-KGc" secondAttribute="trailing" constant="20" id="PYN-1l-0et"/>
+                                    <constraint firstItem="qrY-MC-KGc" firstAttribute="top" secondItem="xO8-Rl-ilf" secondAttribute="top" constant="467" id="TlQ-4n-hCH"/>
+                                    <constraint firstItem="qrY-MC-KGc" firstAttribute="leading" secondItem="xO8-Rl-ilf" secondAttribute="leading" constant="20" id="fYw-8P-x51"/>
+                                </constraints>
+                            </view>
+                        </subviews>
+                        <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                        <constraints>
+                            <constraint firstItem="Off-k9-m5R" firstAttribute="bottom" secondItem="xO8-Rl-ilf" secondAttribute="bottom" id="G0A-1q-F59"/>
+                            <constraint firstItem="xO8-Rl-ilf" firstAttribute="leading" secondItem="Off-k9-m5R" secondAttribute="leading" id="Rc9-Zq-SUb"/>
+                            <constraint firstItem="xO8-Rl-ilf" firstAttribute="top" secondItem="Off-k9-m5R" secondAttribute="top" id="f1n-se-IPE"/>
+                            <constraint firstItem="Off-k9-m5R" firstAttribute="trailing" secondItem="xO8-Rl-ilf" secondAttribute="trailing" id="fvF-Ls-MFE"/>
+                        </constraints>
+                        <viewLayoutGuide key="safeArea" id="Off-k9-m5R"/>
+                    </view>
+                    <navigationItem key="navigationItem" id="ju1-ks-2Lw"/>
+                    <connections>
+                        <outlet property="cameraView" destination="xO8-Rl-ilf" id="QHI-Iz-8vh"/>
+                        <outlet property="resultView" destination="qrY-MC-KGc" id="nxo-J6-d7q"/>
+                    </connections>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="7zG-Ul-lEI" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="1830" y="-857"/>
         </scene>
     </scenes>
 </document>
