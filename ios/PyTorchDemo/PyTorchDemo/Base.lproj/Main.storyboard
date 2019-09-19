@@ -18,21 +18,33 @@
                         <rect key="frame" x="0.0" y="0.0" width="414" height="896"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
-                            <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="xPE-uc-8cm">
-                                <rect key="frame" x="174" y="198" width="42" height="30"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
-                                <state key="normal" title="Image"/>
-                                <connections>
-                                    <segue destination="1xp-pl-G5I" kind="push" id="Czc-eS-0Oi"/>
-                                </connections>
-                            </button>
-                            <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="MW9-jx-OU4">
-                                <rect key="frame" x="180" y="378" width="30" height="30"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
-                                <state key="normal" title="NLP"/>
-                            </button>
+                            <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" distribution="fillEqually" translatesAutoresizingMaskIntoConstraints="NO" id="hm9-jD-SNM">
+                                <rect key="frame" x="0.0" y="88" width="414" height="774"/>
+                                <subviews>
+                                    <button opaque="NO" contentMode="scaleToFill" verticalHuggingPriority="249" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="xPE-uc-8cm">
+                                        <rect key="frame" x="0.0" y="0.0" width="414" height="387"/>
+                                        <state key="normal" title="Image"/>
+                                        <connections>
+                                            <segue destination="1xp-pl-G5I" kind="push" id="Czc-eS-0Oi"/>
+                                        </connections>
+                                    </button>
+                                    <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="MW9-jx-OU4">
+                                        <rect key="frame" x="0.0" y="387" width="414" height="387"/>
+                                        <state key="normal" title="NLP"/>
+                                        <connections>
+                                            <segue destination="Rcp-Mb-DKb" kind="push" id="ZR3-77-W4g"/>
+                                        </connections>
+                                    </button>
+                                </subviews>
+                            </stackView>
                         </subviews>
                         <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <constraints>
+                            <constraint firstItem="6Tk-OE-BBY" firstAttribute="trailing" secondItem="hm9-jD-SNM" secondAttribute="trailing" id="ZhJ-d2-X4d"/>
+                            <constraint firstItem="6Tk-OE-BBY" firstAttribute="bottom" secondItem="hm9-jD-SNM" secondAttribute="bottom" id="k9q-GF-jkS"/>
+                            <constraint firstItem="hm9-jD-SNM" firstAttribute="top" secondItem="6Tk-OE-BBY" secondAttribute="top" id="lZI-uv-nO9"/>
+                            <constraint firstItem="hm9-jD-SNM" firstAttribute="leading" secondItem="6Tk-OE-BBY" secondAttribute="leading" id="vE3-gg-TEE"/>
+                        </constraints>
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
                     </view>
                     <navigationItem key="navigationItem" id="KoT-pa-yg5"/>
@@ -40,6 +52,22 @@
                 <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>
             </objects>
             <point key="canvasLocation" x="891" y="-536"/>
+        </scene>
+        <!--View Controller-->
+        <scene sceneID="Tg6-J6-Gdp">
+            <objects>
+                <viewController id="Rcp-Mb-DKb" customClass="NLPViewController" customModule="PyTorchDemo" customModuleProvider="target" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="FYS-0s-gtV">
+                        <rect key="frame" x="0.0" y="0.0" width="414" height="896"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                        <viewLayoutGuide key="safeArea" id="7Bx-kK-QZ7"/>
+                    </view>
+                    <navigationItem key="navigationItem" id="nX1-cL-yz1"/>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="ulS-1B-c28" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="1829" y="-167"/>
         </scene>
         <!--Navigation Controller-->
         <scene sceneID="bGW-ly-9Su">

@@ -1,49 +1,46 @@
-//
-//  ImageClassificationViewController.swift
-//  PyTorchDemo
-//
-//  Created by Tao Xu on 9/16/19.
-//
-
-import UIKit
 import AVFoundation
+import UIKit
 
 class ImageClassificationViewController: ViewController {
     lazy var predictor: ImagePredictor = ImagePredictor()
     var cameraController = CameraController()
-    @IBOutlet weak var cameraView: CameraPreviewView!
-    @IBOutlet weak var resultView: UITextView!
+    @IBOutlet var cameraView: CameraPreviewView!
+    @IBOutlet var resultView: UITextView!
     override func viewDidLoad() {
         super.viewDidLoad()
         weak var weakSelf = self
         cameraController.configPreviewLayer(cameraView)
-        cameraController.prepare { error  in
-            if let error = error {
-                print(error)
+        cameraController.videoCaptureCompletionBlock = { buffer, error in
+            if error != nil {
+                // TODO: error handling
+                print(error!)
                 return
             }
-            weakSelf?.cameraController.startSession()
-        }
-        cameraController.videoCaptureCompletionBlock = { buffer, error in
-            weakSelf?.predictor.predict( buffer, completionHandler: { results, error in
+            weakSelf?.predictor.forward(buffer, completionHandler: { results, _ in
                 DispatchQueue.main.async {
                     weakSelf?.displayResults(results)
                 }
             })
         }
     }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        cameraController.startSession()
+    }
+
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         cameraController.stopSession()
     }
-    
-    private func displayResults(_ results:[InferenceResult]?) {
+
+    private func displayResults(_ results: [InferenceResult]?) {
         if let results = results {
-            var str=""
+            var str = ""
             for result in results {
-                str+="-[score]: \(result.score), -[label]: \(result.label)\n"
+                str += "-[score]: \(result.score), -[label]: \(result.label)\n"
             }
-            self.resultView.text = str
+            resultView.text = str
         }
     }
 }

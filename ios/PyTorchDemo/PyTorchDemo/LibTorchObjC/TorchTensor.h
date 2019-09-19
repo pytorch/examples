@@ -3,36 +3,37 @@
 NS_ASSUME_NONNULL_BEGIN
 
 typedef NS_ENUM(NSUInteger, TorchTensorType) {
-    TorchTensorTypeByte, //8bit unsigned integer
-    TorchTensorTypeInt,  //32bit signed integer
-    TorchTensorTypeLong, //64bit signed integer
-    TorchTensorTypeFloat, //32bit single precision floating point
-    TorchTensorTypeUndefined, //Undefined tensor type. This indicates an error with the model
+  TorchTensorTypeByte,       // 8bit unsigned integer
+  TorchTensorTypeChar,       // 8bit signed integer
+  TorchTensorTypeInt,        // 32bit signed integer
+  TorchTensorTypeLong,       // 64bit signed integer
+  TorchTensorTypeFloat,      // 32bit single precision floating point
+  TorchTensorTypeUndefined,  // Undefined tensor type. This indicates an error with the model
 };
 /**
  An input or output tensor model
  */
-@interface TorchTensor : NSObject<NSCopying>
+@interface TorchTensor : NSObject <NSCopying>
 /**
  Data type of the tensor
  */
-@property(nonatomic,assign, readonly) TorchTensorType type;
+@property(nonatomic, readonly) TorchTensorType dtype;
 /**
 //The size of the tensor. The returned value is a array of integer
  */
-@property(nonatomic,strong, readonly) NSArray<NSNumber* >* sizes;
+@property(nonatomic, readonly) NSArray<NSNumber*>* sizes;
 /**
  /The number of dimensions of the tensor.
  */
-@property(nonatomic,assign, readonly) int64_t dim;
+@property(nonatomic, readonly) int64_t dim;
 /**
  The total number of elements in the input tensor.
  */
-@property(nonatomic,assign, readonly) int64_t numel;
+@property(nonatomic, readonly) int64_t numel;
 /**
- Returns if the tensor has a quntized backend
+ The raw buffer of tensor
  */
-@property(nonatomic,assign, readonly) BOOL quantized;
+@property(nonatomic, readonly) void* data;
 /**
  Creat a tensor object with data type, shape and a raw pointer to a data buffer.
 
@@ -41,36 +42,22 @@ typedef NS_ENUM(NSUInteger, TorchTensorType) {
  @param data A raw pointer to a data buffer
  @return  A tensor object
  */
-+ (nullable TorchTensor* )newWithType:(TorchTensorType)type Size:(NSArray<NSNumber* >*)size Data:(void* _Nullable)data;
-
++ (nullable TorchTensor*)newWithType:(TorchTensorType)type
+                                Size:(NSArray<NSNumber*>*)size
+                                Data:(void*)data;
 @end
 
-@interface TorchTensor(Operations)
+@interface TorchTensor (ObjectSubscripting)
 /**
- Performs Tensor dtype and/or device conversion.
-
- @param type Data type
- @return A new tensor with the given type
- */
-- (nullable TorchTensor* )to:(TorchTensorType) type;
-/**
- Get a number from a tensor containing a single value
- 
- @return A NSNumber of object containing the
- */
-- (nullable NSNumber* )item;
-
-@end
-
-@interface TorchTensor(ObjectSubscripting)
-/**
- This allows the tensor obejct to do subscripting. For example, let's say the shape of the current tensor is `1x10`,
- then tensor[0] will give you a one dimentional array of 10 tensors.
+ This allows the tensor obejct to do subscripting. For example, let's say the shape of the current
+ tensor is `1x10`, then tensor[0] will give you a one dimentional array of 10 tensors.
+ NOTE: Subscripting could be very slow, as it creates tensor every time. A fast way to get the data
+ from tensor buffer is through `self.data`.
 
  @param idx index
  @return A new tensor object with the given index
  */
-- (nullable TorchTensor* )objectAtIndexedSubscript:(NSUInteger)idx;
+- (nullable TorchTensor*)objectAtIndexedSubscript:(NSUInteger)idx;
 
 @end
 
