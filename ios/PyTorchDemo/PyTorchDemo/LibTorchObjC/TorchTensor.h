@@ -42,17 +42,18 @@ typedef NS_ENUM(NSUInteger, TorchTensorType) {
  @param data A raw pointer to a data buffer
  @return  A tensor object
  */
-+ (nullable TorchTensor*)newWithType:(TorchTensorType)type
++ (nullable TorchTensor*)newWithData:(void* )data
                                 Size:(NSArray<NSNumber*>*)size
-                                Data:(void*)data;
+                                Type:(TorchTensorType)type;
+
 @end
 
 @interface TorchTensor (ObjectSubscripting)
 /**
  This allows the tensor obejct to do subscripting. For example, let's say the shape of the current
  tensor is `1x10`, then tensor[0] will give you a one dimentional array of 10 tensors.
- NOTE: Subscripting could be very slow, as it creates tensor every time. A fast way to get the data
- from tensor buffer is through `self.data`.
+ NOTE: Subscripting could be very slow, internally it creates a new tensor every time.
+ A fast way to get the data from tensor is through `self.data`.
 
  @param idx index
  @return A new tensor object with the given index

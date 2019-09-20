@@ -62,23 +62,26 @@ static inline TorchTensorType tensorTypeFromScalarType(c10::ScalarType type) {
   return _impl.dim();
 }
 
-+ (TorchTensor*)newWithType:(TorchTensorType)type Size:(NSArray<NSNumber*>*)size Data:(void*)data {
-  if (!data) {
++ (nullable TorchTensor*)newWithData:(void* )data
+                                Size:(NSArray<NSNumber*>*)size
+                                Type:(TorchTensorType)type {
+    if (!data) {
+        return nil;
+    }
+    std::vector<int64_t> dimsVec;
+    for (auto i = 0; i < size.count; ++i) {
+        int64_t dim = size[i].integerValue;
+        dimsVec.push_back(dim);
+    }
+    @try {
+        at::Tensor tensor = torch::from_blob((void*)data, dimsVec, scalarTypeFromTensorType(type));
+        return [TorchTensor newWithTensor:tensor];
+    } @catch (NSException* exception) {
+        @throw exception;
+        NSLog(@"%@", exception);
+    }
     return nil;
-  }
-  std::vector<int64_t> dimsVec;
-  for (auto i = 0; i < size.count; ++i) {
-    int64_t dim = size[i].integerValue;
-    dimsVec.push_back(dim);
-  }
-  @try {
-    at::Tensor tensor = torch::from_blob((void*)data, dimsVec, scalarTypeFromTensorType(type));
-    return [TorchTensor newWithTensor:tensor];
-  } @catch (NSException* exception) {
-    @throw exception;
-    NSLog(@"%@", exception);
-  }
-  return nil;
+    
 }
 
 - (NSString*)description {
@@ -111,10 +114,9 @@ static inline TorchTensorType tensorTypeFromScalarType(c10::ScalarType type) {
 }
 
 + (TorchTensor*)newWithTensor:(const at::Tensor&)tensor {
-  TorchTensor* t = [TorchTensor new];
-  // TODO: trigger copy constructor?
-  t->_impl = tensor;
-  return t;
+    TorchTensor* torchTensor = [TorchTensor new];
+    torchTensor->_impl = at::Tensor(tensor);
+    return torchTensor;
 }
 
 @end

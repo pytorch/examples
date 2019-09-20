@@ -7,7 +7,7 @@
 #define DEFINE_IVALUE_SCALAR_TYPE_VALUE(_) \
   _(Bool, bool, bool)                      \
   _(Int, int, int64_t)                     \
-  _(Double, double, double)
+  _(Double, double, double)                \
 
 @implementation TorchIValue {
   at::IValue _impl;
@@ -35,6 +35,22 @@ DEFINE_IVALUE_SCALAR_TYPE_VALUE(NEW_VALUE)
 
 DEFINE_IVALUE_SCALAR_TYPE_VALUE(NEW_LIST)
 
++ (instancetype)newWithStringValue:(NSString* )value {
+    TorchIValue* ret = [TorchIValue new];
+    ret->_impl = at::IValue(std::string(value.UTF8String));
+    return ret;
+}
+
++ (instancetype)newWithStringList:(NSArray<NSString* >* )list {
+    TorchIValue* ret = [TorchIValue new];
+    c10::List<std::string> strArray;
+    for(NSString* str in list) {
+        strArray.push_back(std::string(str.UTF8String));
+    }
+    ret->_impl = strArray;
+    return ret;
+}
+
 + (instancetype)newWithTensor:(TorchTensor*)tensor {
   TorchIValue* value = [TorchIValue new];
   value->_impl = at::IValue(tensor.toTensor);
@@ -60,6 +76,7 @@ DEFINE_IS_SCALAR_TYPE(Tensor)
 DEFINE_IS_SCALAR_TYPE(Bool)
 DEFINE_IS_SCALAR_TYPE(Double)
 DEFINE_IS_SCALAR_TYPE(Int)
+DEFINE_IS_SCALAR_TYPE(String)
 DEFINE_IS_SCALAR_TYPE(TensorList)
 DEFINE_IS_SCALAR_TYPE(BoolList)
 DEFINE_IS_SCALAR_TYPE(DoubleList)
@@ -107,14 +124,22 @@ DEFINE_IVALUE_SCALAR_TYPE_VALUE(TO_LIST)
   return [ret copy];
 }
 
+- (NSString* )toString {
+    if(!_impl.isString()){
+        return nil;
+    }
+    auto str = (*_impl.toString()).string();
+    return [[NSString alloc]initWithCString:str.c_str() encoding:NSUTF8StringEncoding];
+}
+
 - (at::IValue)toIValue {
   return at::IValue(_impl);
 }
 
-+ (TorchIValue*)newWithIValue:(const at::IValue&)v {
-  TorchIValue* value = [TorchIValue new];
-  value->_impl = v;
-  return value;
++ (TorchIValue*)newWithIValue:(const at::IValue&)value {
+    TorchIValue* torchIValue = [TorchIValue new];
+    torchIValue->_impl = at::IValue(value);
+    return torchIValue;
 }
 
 @end

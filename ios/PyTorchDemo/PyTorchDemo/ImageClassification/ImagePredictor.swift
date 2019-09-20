@@ -6,8 +6,9 @@ struct InferenceResult {
 }
 
 enum ModelContext {
-    static let model = (name: "ResNet18", type: "pt")
-    static let label = (name: "synset_words", type: "txt")
+    static let model            = (name: "ResNet18", type: "pt")
+    static let label            = (name: "synset_words", type: "txt")
+    static let inputTensorSize  = [1,3,224,224]
 }
 
 class ImagePredictor: NSObject {
@@ -29,7 +30,9 @@ class ImagePredictor: NSObject {
             return
         }
         isRunning = true
-        guard let inputTensor = TorchTensor.new(with: .float, size: [1, 3, 224, 224], data: UnsafeMutableRawPointer(&tensorBuffer)) else {
+        guard let inputTensor = TorchTensor.new(withData: UnsafeMutableRawPointer(&tensorBuffer),
+                                                size: ModelContext.inputTensorSize as [NSNumber],
+                                                type: .float) else {
             completionHandler([], ImagePredictorError.invalidInputTensor)
             return
         }
@@ -46,7 +49,7 @@ class ImagePredictor: NSObject {
     private func getTopN(scores: [Float32], count: Int) -> [InferenceResult] {
         let zippedResults = zip(labels.indices, scores)
         let sortedResults = zippedResults.sorted { $0.1 > $1.1 }.prefix(count)
-        return sortedResults.map { result in InferenceResult(score: result.1, label: labels[result.0]) }
+        return sortedResults.map { InferenceResult(score: $0.1, label: labels[$0.0]) }
     }
 
     private func loadLabels() -> [String] {

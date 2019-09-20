@@ -10,6 +10,7 @@ NS_ASSUME_NONNULL_BEGIN
 + (instancetype)newWithBoolValue:(bool)value;
 + (instancetype)newWithDoubleValue:(double)value;
 + (instancetype)newWithIntValue:(int64_t)value;
++ (instancetype)newWithStringValue:(NSString* )value;
 + (instancetype)newWithBoolList:(NSArray<NSNumber*>*)value;
 + (instancetype)newWithIntList:(NSArray<NSNumber*>*)value;
 + (instancetype)newWithDoubleList:(NSArray<NSNumber*>*)value;
@@ -21,6 +22,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (BOOL)isBool;
 - (BOOL)isDouble;
 - (BOOL)isInt;
+- (BOOL)isString;
 - (BOOL)isBoolList;
 - (BOOL)isDoubleList;
 - (BOOL)isIntList;
@@ -30,6 +32,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (bool)toBool;
 - (int64_t)toInt;
 - (double)toDouble;
+- (NSString* )toString;
 - (NSArray<NSNumber*>*)toBoolList;
 - (NSArray<NSNumber*>*)toIntList;
 - (NSArray<NSNumber*>*)toDoubleList;

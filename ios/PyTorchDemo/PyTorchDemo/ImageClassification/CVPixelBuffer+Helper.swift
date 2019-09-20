@@ -40,7 +40,7 @@ extension CVPixelBuffer {
             return nil
         }
         var normalizedBuffer: [Float32] = [Float32](repeating: 0, count: width * height * 3)
-        // normalize the pixel buffer
+        // seperate the RGB channels and normalize the pixel buffer
         // see https://pytorch.org/hub/pytorch_vision_resnet/ for more detail
         for i in 0 ..< width * height {
             normalizedBuffer[i] = (Float32(dstData.load(fromByteOffset: i * 4 + 2, as: UInt8.self)) / 255.0 - 0.485) / 0.229 // R

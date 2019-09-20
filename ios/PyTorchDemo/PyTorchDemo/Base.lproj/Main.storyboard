@@ -60,7 +60,24 @@
                     <view key="view" contentMode="scaleToFill" id="FYS-0s-gtV">
                         <rect key="frame" x="0.0" y="0.0" width="414" height="896"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <textView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" textAlignment="natural" translatesAutoresizingMaskIntoConstraints="NO" id="zDS-f3-myr">
+                                <rect key="frame" x="20" y="108" width="374" height="120"/>
+                                <color key="backgroundColor" white="0.33333333333333331" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                <constraints>
+                                    <constraint firstAttribute="height" constant="120" id="EYq-xB-wfA"/>
+                                </constraints>
+                                <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="14"/>
+                                <textInputTraits key="textInputTraits" autocapitalizationType="sentences"/>
+                            </textView>
+                        </subviews>
                         <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                        <constraints>
+                            <constraint firstItem="7Bx-kK-QZ7" firstAttribute="trailing" secondItem="zDS-f3-myr" secondAttribute="trailing" constant="20" id="BBF-p7-FX3"/>
+                            <constraint firstItem="zDS-f3-myr" firstAttribute="leading" secondItem="7Bx-kK-QZ7" secondAttribute="leading" constant="20" id="tNd-h9-5tg"/>
+                            <constraint firstItem="zDS-f3-myr" firstAttribute="top" secondItem="7Bx-kK-QZ7" secondAttribute="top" constant="20" id="tQa-ft-GtF"/>
+                        </constraints>
                         <viewLayoutGuide key="safeArea" id="7Bx-kK-QZ7"/>
                     </view>
                     <navigationItem key="navigationItem" id="nX1-cL-yz1"/>
@@ -96,22 +113,31 @@
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
                             <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="xO8-Rl-ilf" customClass="CameraPreviewView" customModule="PyTorchDemo" customModuleProvider="target">
-                                <rect key="frame" x="0.0" y="88" width="414" height="774"/>
+                                <rect key="frame" x="0.0" y="44" width="414" height="818"/>
                                 <subviews>
-                                    <textView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="qrY-MC-KGc">
-                                        <rect key="frame" x="20" y="467" width="374" height="287"/>
-                                        <color key="backgroundColor" white="0.33333333333333331" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
-                                        <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
-                                        <fontDescription key="fontDescription" type="system" pointSize="12"/>
-                                        <textInputTraits key="textInputTraits" autocapitalizationType="sentences"/>
-                                    </textView>
+                                    <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="xIB-Zj-QqT">
+                                        <rect key="frame" x="187" y="40" width="40" height="30"/>
+                                        <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                        <constraints>
+                                            <constraint firstAttribute="width" constant="40" id="YRQ-Cv-YbF"/>
+                                        </constraints>
+                                        <state key="normal" title="&lt;">
+                                            <color key="titleColor" white="0.33333333329999998" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                        </state>
+                                        <connections>
+                                            <action selector="onBackClicked:" destination="1xp-pl-G5I" eventType="touchUpInside" id="95I-i8-YYK"/>
+                                        </connections>
+                                    </button>
+                                    <view contentMode="scaleToFill" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="rdH-jq-08L">
+                                        <rect key="frame" x="0.0" y="602" width="419" height="224"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                                        <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                    </view>
                                 </subviews>
                                 <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                 <constraints>
-                                    <constraint firstAttribute="bottom" secondItem="qrY-MC-KGc" secondAttribute="bottom" constant="20" id="OuL-pJ-waX"/>
-                                    <constraint firstAttribute="trailing" secondItem="qrY-MC-KGc" secondAttribute="trailing" constant="20" id="PYN-1l-0et"/>
-                                    <constraint firstItem="qrY-MC-KGc" firstAttribute="top" secondItem="xO8-Rl-ilf" secondAttribute="top" constant="467" id="TlQ-4n-hCH"/>
-                                    <constraint firstItem="qrY-MC-KGc" firstAttribute="leading" secondItem="xO8-Rl-ilf" secondAttribute="leading" constant="20" id="fYw-8P-x51"/>
+                                    <constraint firstItem="xIB-Zj-QqT" firstAttribute="top" secondItem="xO8-Rl-ilf" secondAttribute="top" constant="40" id="FQR-gb-EIt"/>
+                                    <constraint firstItem="xIB-Zj-QqT" firstAttribute="centerX" secondItem="xO8-Rl-ilf" secondAttribute="centerX" id="NrK-tP-5Ke"/>
                                 </constraints>
                             </view>
                         </subviews>
@@ -125,14 +151,15 @@
                         <viewLayoutGuide key="safeArea" id="Off-k9-m5R"/>
                     </view>
                     <navigationItem key="navigationItem" id="ju1-ks-2Lw"/>
+                    <nil key="simulatedTopBarMetrics"/>
                     <connections>
+                        <outlet property="backButton" destination="xIB-Zj-QqT" id="44r-L1-ByN"/>
                         <outlet property="cameraView" destination="xO8-Rl-ilf" id="QHI-Iz-8vh"/>
-                        <outlet property="resultView" destination="qrY-MC-KGc" id="nxo-J6-d7q"/>
                     </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="7zG-Ul-lEI" userLabel="First Responder" sceneMemberID="firstResponder"/>
             </objects>
-            <point key="canvasLocation" x="1830" y="-857"/>
+            <point key="canvasLocation" x="1828.985507246377" y="-857.14285714285711"/>
         </scene>
     </scenes>
 </document>
