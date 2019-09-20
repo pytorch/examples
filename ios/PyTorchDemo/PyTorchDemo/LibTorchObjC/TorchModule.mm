@@ -53,6 +53,8 @@
   @try {
     if (auto method = _impl.find_method(
             std::string([methodName cStringUsingEncoding:NSASCIIStringEncoding]))) {
+      torch::autograd::AutoGradMode guard(false);
+      at::AutoNonVariableTypeMode non_var_type_mode(true);
       auto result = (*method)(std::move(inputs));
       return [TorchIValue newWithIValue:result];
     }

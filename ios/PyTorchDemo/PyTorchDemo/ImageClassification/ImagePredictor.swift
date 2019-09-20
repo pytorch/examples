@@ -7,7 +7,7 @@ struct InferenceResult {
 
 enum ModelContext {
     static let model            = (name: "ResNet18", type: "pt")
-    static let label            = (name: "synset_words", type: "txt")
+    static let label            = (name: "Labels", type: "txt")
     static let inputTensorSize  = [1,3,224,224]
 }
 
@@ -41,7 +41,7 @@ class ImagePredictor: NSObject {
             completionHandler([], ImagePredictorError.invalidOutputTensor)
             return
         }
-        let results = getTopN(scores: outputs, count: 5)
+        let results = getTopN(scores: outputs, count: 3)
         completionHandler(results, nil)
         isRunning = false
     }

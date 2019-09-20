@@ -1,97 +1,89 @@
-//
-//  BottomView.swift
-//  PyTorchDemo
-//
-//  Created by Tao Xu on 9/19/19.
-//
-
 import UIKit
 
 class ResultView: UIView {
     var container: UIStackView!
     var scoreLabel: UILabel!
     var tagLabel: UILabel!
-    var height = 1.0
-    
     required init?(coder aDecoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
     override init(frame: CGRect) {
         super.init(frame: frame)
+        
+        layer.cornerRadius = 8.0
+        layer.masksToBounds = true;
+        
         container = UIStackView()
         container.axis = .horizontal
         container.distribution = .fill
         container.alignment = .fill
-        
+        container.spacing = 20
         
         tagLabel = UILabel()
         tagLabel.textColor = .white
-        tagLabel.textAlignment = .left
-        
         scoreLabel = UILabel()
         scoreLabel.textColor = .white
-        scoreLabel.textAlignment = .right
-        
+        // flexbox properties
+        tagLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        scoreLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        tagLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        scoreLabel.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
+    
         container.addArrangedSubview(tagLabel)
         container.addArrangedSubview(scoreLabel)
         addSubview(container)
-    }
-    func update(score: String, tag: String){
-        tagLabel.text = tag
-        scoreLabel.text = score
-        setNeedsLayout()
-    }
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        container.frame = CGRect(x:0, y: 0, width: frame.width, height: frame.height)
-    }
-    override var intrinsicContentSize: CGSize {
-        return CGSize(width: 1.0, height: height)
+    }    
+    func update(data: InferenceResult, isTopResult: Bool){
+        tagLabel.text   = data.label
+        scoreLabel.text = String(format: "%.2f", data.score)
+        if (isTopResult){
+            scoreLabel.font =  UIFont.boldSystemFont(ofSize: 18.0)
+            tagLabel.font =  UIFont.boldSystemFont(ofSize: 18.0)
+        }else {
+            scoreLabel.font =  UIFont.systemFont(ofSize: 14.0)
+            tagLabel.font =  UIFont.systemFont(ofSize: 14.0)
+        }
+        let containerFrame = bounds.insetBy(dx: 20, dy: 5)
+        container.frame = containerFrame
     }
 }
 
 class BottomView: UIView {
     var container: UIStackView!
-    var topResultView = ResultView(frame: .zero)
-    var middleResultView = ResultView(frame: .zero)
-    var bottomResultView = ResultView(frame: .zero)
-    
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        backgroundColor = .black
-        
-        container = UIStackView.init(frame: CGRect(x: 0, y: 0, width: frame.width, height: frame.height))
-        container.axis = .vertical
-        container.distribution = .fill
-        container.alignment = .fill
-        container.spacing = 10
-//        self.layoutMargins = UIEdgeInsets(top: 10, leading: 20, bottom: 20, trailing: 10)
-        
-        topResultView.backgroundColor = .red
-        middleResultView.backgroundColor = .green
-        bottomResultView.backgroundColor = .blue
-        
-        container.addArrangedSubview(topResultView)
-        container.addArrangedSubview(middleResultView)
-        container.addArrangedSubview(bottomResultView)
-        addSubview(container)
-        update()
-    }
-    
-    func update() {
-        topResultView.frame.size.height = 1
-        topResultView.setContentHuggingPriority(UILayoutPriority(100), for: .vertical)
-        topResultView.update(score: "12", tag: "asdfasdfasdfasdf")
-        middleResultView.frame.size.height = 1
-        middleResultView.setContentHuggingPriority(UILayoutPriority(200), for: .vertical)
-        middleResultView.update(score: "12", tag: "asdfasdfasdfasdf")
-        bottomResultView.frame.size.height = 1
-        bottomResultView.setContentHuggingPriority(UILayoutPriority(300), for: .vertical)
-        bottomResultView.update(score: "12", tag: "asdfasdfasdfasdf")
-        setNeedsLayout()
-    }
-    
+    var resultViews:[ResultView] = []
+    let colors = [0xe8492b,0xc52e8b,0x7c2bde]
+    let spacing: Float = 10.0
+    let margin: Float  = 20.0
+    var topResultViewHeight: Float = 0.0
+    var resultViewHeight: Float = 0.0
+    var resultViewWidth: Float  = 0.0
     required init?(coder aDecoder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
+        super.init(coder:aDecoder)
+    }
+    func setup(with count: Int){
+        resultViewWidth  = ( Float(frame.width) - Float(margin*2) )
+        let tmpHeight = ( Float(frame.height) - Float(count*Int(spacing)) ) / Float(count)
+        topResultViewHeight = tmpHeight*1.2
+        resultViewHeight = tmpHeight - (topResultViewHeight - tmpHeight)/Float(count)
+        for _ in 0..<count {
+            addSubview(ResultView(frame: .zero))
+        }
+    }
+    func update(results: [InferenceResult] ) {
+        var yOffset: Float = spacing
+        var height: Float = 0.0
+        for index in 0..<results.count {
+            let resultView = subviews[index] as! ResultView
+            // make the first one a little bit bigger
+            if index == 0 {
+                height = topResultViewHeight
+            } else {
+                height = resultViewHeight
+            }
+            resultView.frame = CGRect(x: CGFloat(margin), y: CGFloat(yOffset), width: CGFloat(resultViewWidth), height: CGFloat(height))
+            resultView.backgroundColor = UIColor(rgb: colors[index])
+            resultView.update(data: results[index], isTopResult: index == 0)
+            yOffset += (height + spacing)
+        }
     }
 }

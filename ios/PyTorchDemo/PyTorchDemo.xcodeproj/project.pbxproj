@@ -9,10 +9,12 @@
 /* Begin PBXBuildFile section */
 		292D35C9270D6EC12DE809BC /* libPods-PyTorchDemo.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 965AA731F9495085EEA5362E /* libPods-PyTorchDemo.a */; };
 		A0296C4A2333178500C77366 /* NLPViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0296C492333178500C77366 /* NLPViewController.swift */; };
+		A065C92B2335711B006BEAAD /* Labels.txt in Resources */ = {isa = PBXBuildFile; fileRef = A065C92A2335711B006BEAAD /* Labels.txt */; };
 		A06D4CCD2330AAA200763E16 /* CameraController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A06D4CCC2330AAA200763E16 /* CameraController.swift */; };
 		A06D4CD62330ABE000763E16 /* TorchIValue.mm in Sources */ = {isa = PBXBuildFile; fileRef = A06D4CCE2330ABE000763E16 /* TorchIValue.mm */; };
 		A06D4CD72330ABE000763E16 /* TorchModule.mm in Sources */ = {isa = PBXBuildFile; fileRef = A06D4CD22330ABE000763E16 /* TorchModule.mm */; };
 		A06D4CD82330ABE000763E16 /* TorchTensor.mm in Sources */ = {isa = PBXBuildFile; fileRef = A06D4CD32330ABE000763E16 /* TorchTensor.mm */; };
+		A08366C52334BA5400AD35EE /* UIColor+Helper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A08366C42334BA5400AD35EE /* UIColor+Helper.swift */; };
 		A091B19723303F2D0008A5B8 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A091B19623303F2D0008A5B8 /* AppDelegate.swift */; };
 		A091B19923303F2D0008A5B8 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A091B19823303F2D0008A5B8 /* ViewController.swift */; };
 		A091B19C23303F2D0008A5B8 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A091B19A23303F2D0008A5B8 /* Main.storyboard */; };
@@ -33,6 +35,7 @@
 		3FF2BC5A7D46112CF377789C /* Pods-PyTorchDemo.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PyTorchDemo.debug.xcconfig"; path = "Target Support Files/Pods-PyTorchDemo/Pods-PyTorchDemo.debug.xcconfig"; sourceTree = "<group>"; };
 		965AA731F9495085EEA5362E /* libPods-PyTorchDemo.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-PyTorchDemo.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A0296C492333178500C77366 /* NLPViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NLPViewController.swift; sourceTree = "<group>"; };
+		A065C92A2335711B006BEAAD /* Labels.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Labels.txt; sourceTree = "<group>"; };
 		A06D4CCC2330AAA200763E16 /* CameraController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraController.swift; sourceTree = "<group>"; };
 		A06D4CCE2330ABE000763E16 /* TorchIValue.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = TorchIValue.mm; sourceTree = "<group>"; };
 		A06D4CCF2330ABE000763E16 /* TorchIValuePrivate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TorchIValuePrivate.h; sourceTree = "<group>"; };
@@ -42,6 +45,7 @@
 		A06D4CD32330ABE000763E16 /* TorchTensor.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = TorchTensor.mm; sourceTree = "<group>"; };
 		A06D4CD42330ABE000763E16 /* TorchIValue.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TorchIValue.h; sourceTree = "<group>"; };
 		A06D4CD52330ABE000763E16 /* TorchTensorPrivate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TorchTensorPrivate.h; sourceTree = "<group>"; };
+		A08366C42334BA5400AD35EE /* UIColor+Helper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIColor+Helper.swift"; sourceTree = "<group>"; };
 		A091B19323303F2D0008A5B8 /* PyTorchDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PyTorchDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A091B19623303F2D0008A5B8 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		A091B19823303F2D0008A5B8 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
@@ -167,6 +171,7 @@
 		A091B7582330778B0008A5B8 /* model */ = {
 			isa = PBXGroup;
 			children = (
+				A065C92A2335711B006BEAAD /* Labels.txt */,
 				A091B7672331F4AC0008A5B8 /* dog.png */,
 				A091B7592330778B0008A5B8 /* synset_words.txt */,
 				A091B75A2330778B0008A5B8 /* ResNet18.pt */,
@@ -178,6 +183,7 @@
 			isa = PBXGroup;
 			children = (
 				A0A336E92334882A009EFF8A /* BottomView.swift */,
+				A08366C42334BA5400AD35EE /* UIColor+Helper.swift */,
 			);
 			path = view;
 			sourceTree = "<group>";
@@ -241,6 +247,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A065C92B2335711B006BEAAD /* Labels.txt in Resources */,
 				A091B7682331F4AC0008A5B8 /* dog.png in Resources */,
 				A091B1A123303F2D0008A5B8 /* LaunchScreen.storyboard in Resources */,
 				A091B19E23303F2D0008A5B8 /* Assets.xcassets in Resources */,
@@ -293,6 +300,7 @@
 				A06D4CCD2330AAA200763E16 /* CameraController.swift in Sources */,
 				A091B7662331D4110008A5B8 /* TorchTensor+Helper.swift in Sources */,
 				A091B760233078BE0008A5B8 /* ImagePredictor.swift in Sources */,
+				A08366C52334BA5400AD35EE /* UIColor+Helper.swift in Sources */,
 				A091B764233168DE0008A5B8 /* CVPixelBuffer+Helper.swift in Sources */,
 				A0296C4A2333178500C77366 /* NLPViewController.swift in Sources */,
 			);
