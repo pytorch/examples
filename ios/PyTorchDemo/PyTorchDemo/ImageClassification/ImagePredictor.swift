@@ -6,19 +6,22 @@ struct InferenceResult {
 }
 
 enum ModelContext {
-    static let model            = (name: "ResNet18", type: "pt")
-    static let label            = (name: "Labels", type: "txt")
-    static let inputTensorSize  = [1,3,224,224]
+    static let model = (name: "ResNet18", type: "pt")
+    static let label = (name: "Labels", type: "txt")
+    static let inputTensorSize = [1, 3, 224, 224]
+    static let outputTensorSize = [1, 1000]
 }
 
 class ImagePredictor: NSObject {
-    private var module: TorchModule?
+    private var module = TorchModule.sharedInstance()
     private var labels: [String] = []
     private var isRunning = false
 
     override init() {
         super.init()
-        module = loadModel()
+        if !loadModel() {
+            fatalError("Load model failed!")
+        }
         labels = loadLabels()
     }
 
@@ -30,17 +33,15 @@ class ImagePredictor: NSObject {
             return
         }
         isRunning = true
-        guard let inputTensor = TorchTensor.new(withData: UnsafeMutableRawPointer(&tensorBuffer),
-                                                size: ModelContext.inputTensorSize as [NSNumber],
-                                                type: .float) else {
+        guard module.predict(UnsafeMutableRawPointer(&tensorBuffer), tensorSizes: ModelContext.inputTensorSize as [NSNumber], tensorType: .float) else {
             completionHandler([], ImagePredictorError.invalidInputTensor)
             return
         }
-        let inputValue = TorchIValue.new(with: inputTensor)
-        guard let outputs = module?.forward([inputValue])?.toTensor().floatArray() else {
+        guard let outputBuffer = module.data else {
             completionHandler([], ImagePredictorError.invalidOutputTensor)
             return
         }
+        let outputs = outputBuffer.floatArray(size: ModelContext.outputTensorSize[1])
         let results = getTopN(scores: outputs, count: 3)
         completionHandler(results, nil)
         isRunning = false
@@ -61,13 +62,11 @@ class ImagePredictor: NSObject {
         }
     }
 
-    private func loadModel() -> TorchModule? {
-        if let filePath = Bundle.main.path(forResource: ModelContext.model.name, ofType: ModelContext.model.type),
-            let module = TorchModule.loadTorchscriptModel(filePath) {
-            return module
-        } else {
-            fatalError("Model file was not found.")
+    private func loadModel() -> Bool {
+        if let filePath = Bundle.main.path(forResource: ModelContext.model.name, ofType: ModelContext.model.type) {
+            return module.loadModel(filePath)
         }
+        return false
     }
 }
 

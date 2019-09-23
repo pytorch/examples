@@ -46,6 +46,8 @@ typedef NS_ENUM(NSUInteger, TorchTensorType) {
                                 Size:(NSArray<NSNumber*>*)size
                                 Type:(TorchTensorType)type;
 
+- (instancetype)init NS_UNAVAILABLE;
+
 @end
 
 @interface TorchTensor (ObjectSubscripting)

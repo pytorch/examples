@@ -28,15 +28,15 @@ NS_ASSUME_NONNULL_BEGIN
 - (BOOL)isIntList;
 - (BOOL)isTensorList;
 
-- (TorchTensor*)toTensor;
+- (nullable TorchTensor*)toTensor;
 - (bool)toBool;
 - (int64_t)toInt;
 - (double)toDouble;
-- (NSString* )toString;
-- (NSArray<NSNumber*>*)toBoolList;
-- (NSArray<NSNumber*>*)toIntList;
-- (NSArray<NSNumber*>*)toDoubleList;
-- (NSArray<TorchTensor*>*)toTensorList;
+- (nullable NSString* )toString;
+- (nullable NSArray<NSNumber*>*)toBoolList;
+- (nullable NSArray<NSNumber*>*)toIntList;
+- (nullable NSArray<NSNumber*>*)toDoubleList;
+- (nullable NSArray<TorchTensor*>*)toTensorList;
 
 @end
 

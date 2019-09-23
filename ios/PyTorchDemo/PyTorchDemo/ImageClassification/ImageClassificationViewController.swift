@@ -4,10 +4,10 @@ import UIKit
 class ImageClassificationViewController: ViewController {
     lazy var predictor: ImagePredictor = ImagePredictor()
     var cameraController = CameraController()
-    @IBOutlet weak var backButton: UIButton!
+    @IBOutlet var backButton: UIButton!
     @IBOutlet var cameraView: CameraPreviewView!
-    @IBOutlet weak var bottomView: BottomView!
-    
+    @IBOutlet var bottomView: BottomView!
+
     override func viewDidLoad() {
         super.viewDidLoad()
         bottomView.setup(with: 3)
@@ -28,16 +28,19 @@ class ImageClassificationViewController: ViewController {
             })
         }
     }
+
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        self.navigationController?.setNavigationBarHidden(true, animated: false)
+        navigationController?.setNavigationBarHidden(true, animated: false)
         cameraController.startSession()
     }
+
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         cameraController.stopSession()
     }
-    @IBAction func onBackClicked(_ sender: Any) {
+
+    @IBAction func onBackClicked(_: Any) {
         navigationController?.popViewController(animated: true)
     }
 }
