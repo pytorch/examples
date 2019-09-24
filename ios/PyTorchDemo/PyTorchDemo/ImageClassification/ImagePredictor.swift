@@ -8,24 +8,22 @@ struct InferenceResult {
 enum ModelContext {
     static let model = (name: "ResNet18", type: "pt")
     static let label = (name: "Labels", type: "txt")
-    static let inputTensorSize = [1, 3, 224, 224]
+    static let inputTensorSize  = [1, 3, 224, 224]
     static let outputTensorSize = [1, 1000]
 }
 
 class ImagePredictor: NSObject {
-    private var module = TorchModule.sharedInstance()
+    private var module: TorchVisionModule?
     private var labels: [String] = []
     private var isRunning = false
 
     override init() {
         super.init()
-        if !loadModel() {
-            fatalError("Load model failed!")
-        }
+        module = loadModel()
         labels = loadLabels()
     }
 
-    func forward(_ buffer: [Float32]?, completionHandler: ([InferenceResult]?, Error?) -> Void) {
+    func forward(_ buffer: [Float32]?, completionHandler: ([InferenceResult]?, Double, Error?) -> Void) {
         guard var tensorBuffer = buffer else {
             return
         }
@@ -33,21 +31,19 @@ class ImagePredictor: NSObject {
             return
         }
         isRunning = true
-        guard module.predict(UnsafeMutableRawPointer(&tensorBuffer), tensorSizes: ModelContext.inputTensorSize as [NSNumber], tensorType: .float) else {
-            completionHandler([], ImagePredictorError.invalidInputTensor)
+        let startTime = CFAbsoluteTimeGetCurrent()
+        guard let outputBuffer = module?.predict(UnsafeMutableRawPointer(&tensorBuffer), tensorSizes: ModelContext.inputTensorSize as [NSNumber]) else {
+            completionHandler([], 0.0, ImagePredictorError.invalidInputTensor)
             return
         }
-        guard let outputBuffer = module.data else {
-            completionHandler([], ImagePredictorError.invalidOutputTensor)
-            return
-        }
+        let inferenceTime = (CFAbsoluteTimeGetCurrent() - startTime)*1000
         let outputs = outputBuffer.floatArray(size: ModelContext.outputTensorSize[1])
-        let results = getTopN(scores: outputs, count: 3)
-        completionHandler(results, nil)
+        let results = getTopN(scores: outputs, count: 3, inferenceTime: inferenceTime)
+        completionHandler(results, inferenceTime, nil)
         isRunning = false
     }
 
-    private func getTopN(scores: [Float32], count: Int) -> [InferenceResult] {
+    private func getTopN(scores: [Float32], count: Int, inferenceTime: Double) -> [InferenceResult] {
         let zippedResults = zip(labels.indices, scores)
         let sortedResults = zippedResults.sorted { $0.1 > $1.1 }.prefix(count)
         return sortedResults.map { InferenceResult(score: $0.1, label: labels[$0.0]) }
@@ -62,16 +58,19 @@ class ImagePredictor: NSObject {
         }
     }
 
-    private func loadModel() -> Bool {
-        if let filePath = Bundle.main.path(forResource: ModelContext.model.name, ofType: ModelContext.model.type) {
-            return module.loadModel(filePath)
+    private func loadModel() -> TorchVisionModule? {
+        if let filePath = Bundle.main.path(forResource: ModelContext.model.name, ofType: ModelContext.model.type),
+            let module = TorchVisionModule.loadModel(filePath){
+            return module
+        } else {
+            fatalError("Can't find the model with the given path!")
         }
-        return false
     }
 }
 
 extension ImagePredictor {
     enum ImagePredictorError: Swift.Error {
+        case invalidModel
         case invalidInputTensor
         case invalidOutputTensor
     }

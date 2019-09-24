@@ -54,7 +54,7 @@ class BottomView: UIView {
     var container: UIStackView!
     var resultViews: [ResultView] = []
     let colors = [0xE8492B, 0xC52E8B, 0x7C2BDE]
-    let spacing: Float = 10.0
+    let spacing: Float = 16.0
     let margin: Float = 20.0
     var topResultViewHeight: Float = 0.0
     var resultViewHeight: Float = 0.0
@@ -63,7 +63,7 @@ class BottomView: UIView {
         super.init(coder: aDecoder)
     }
 
-    func setup(with count: Int) {
+    func showResult(count: Int) {
         resultViewWidth = (Float(frame.width) - Float(margin * 2))
         let tmpHeight = (Float(frame.height) - Float((count + 1) * Int(spacing))) / Float(count)
         topResultViewHeight = tmpHeight * 1.2

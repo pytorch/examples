@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		292D35C9270D6EC12DE809BC /* libPods-PyTorchDemo.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 965AA731F9495085EEA5362E /* libPods-PyTorchDemo.a */; };
 		A0296C4A2333178500C77366 /* NLPViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0296C492333178500C77366 /* NLPViewController.swift */; };
 		A065C92B2335711B006BEAAD /* Labels.txt in Resources */ = {isa = PBXBuildFile; fileRef = A065C92A2335711B006BEAAD /* Labels.txt */; };
 		A06D4CCD2330AAA200763E16 /* CameraController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A06D4CCC2330AAA200763E16 /* CameraController.swift */; };
@@ -25,13 +24,17 @@
 		A091B764233168DE0008A5B8 /* CVPixelBuffer+Helper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A091B763233168DE0008A5B8 /* CVPixelBuffer+Helper.swift */; };
 		A091B7662331D4110008A5B8 /* TorchTensor+Helper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A091B7652331D4110008A5B8 /* TorchTensor+Helper.swift */; };
 		A091B7682331F4AC0008A5B8 /* dog.png in Resources */ = {isa = PBXBuildFile; fileRef = A091B7672331F4AC0008A5B8 /* dog.png */; };
+		A09E179423398CC9002F8F15 /* VisionModelCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A09E179323398CC9002F8F15 /* VisionModelCard.swift */; };
+		A09E1796233990A0002F8F15 /* VisionModelCard.xib in Resources */ = {isa = PBXBuildFile; fileRef = A09E1795233990A0002F8F15 /* VisionModelCard.xib */; };
 		A0A336EA2334882A009EFF8A /* BottomView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0A336E92334882A009EFF8A /* BottomView.swift */; };
 		A0B12D4E2338944900380B1D /* TorchModule.mm in Sources */ = {isa = PBXBuildFile; fileRef = A0B12D4D2338944900380B1D /* TorchModule.mm */; };
+		B72A75BF484A4802F8726D58 /* libPods-PyTorchDemo.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 456B00F7BE0E8BB923F10306 /* libPods-PyTorchDemo.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		3FF2BC5A7D46112CF377789C /* Pods-PyTorchDemo.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PyTorchDemo.debug.xcconfig"; path = "Target Support Files/Pods-PyTorchDemo/Pods-PyTorchDemo.debug.xcconfig"; sourceTree = "<group>"; };
-		965AA731F9495085EEA5362E /* libPods-PyTorchDemo.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-PyTorchDemo.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		456B00F7BE0E8BB923F10306 /* libPods-PyTorchDemo.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-PyTorchDemo.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		6DB0D779A7BC376F05C76F1E /* Pods-PyTorchDemo.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PyTorchDemo.debug.xcconfig"; path = "Target Support Files/Pods-PyTorchDemo/Pods-PyTorchDemo.debug.xcconfig"; sourceTree = "<group>"; };
+		88EC2A09CD60839A7157B570 /* Pods-PyTorchDemo.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PyTorchDemo.release.xcconfig"; path = "Target Support Files/Pods-PyTorchDemo/Pods-PyTorchDemo.release.xcconfig"; sourceTree = "<group>"; };
 		A0296C492333178500C77366 /* NLPViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NLPViewController.swift; sourceTree = "<group>"; };
 		A065C92A2335711B006BEAAD /* Labels.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Labels.txt; sourceTree = "<group>"; };
 		A06D4CCC2330AAA200763E16 /* CameraController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraController.swift; sourceTree = "<group>"; };
@@ -52,10 +55,11 @@
 		A091B763233168DE0008A5B8 /* CVPixelBuffer+Helper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CVPixelBuffer+Helper.swift"; sourceTree = "<group>"; };
 		A091B7652331D4110008A5B8 /* TorchTensor+Helper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TorchTensor+Helper.swift"; sourceTree = "<group>"; };
 		A091B7672331F4AC0008A5B8 /* dog.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = dog.png; sourceTree = "<group>"; };
+		A09E179323398CC9002F8F15 /* VisionModelCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionModelCard.swift; sourceTree = "<group>"; };
+		A09E1795233990A0002F8F15 /* VisionModelCard.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = VisionModelCard.xib; sourceTree = "<group>"; };
 		A0A336E92334882A009EFF8A /* BottomView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BottomView.swift; sourceTree = "<group>"; };
 		A0B12D4C2338944900380B1D /* TorchModule.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TorchModule.h; sourceTree = "<group>"; };
 		A0B12D4D2338944900380B1D /* TorchModule.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = TorchModule.mm; sourceTree = "<group>"; };
-		F8CEDE10299E8DB677BE5279 /* Pods-PyTorchDemo.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PyTorchDemo.release.xcconfig"; path = "Target Support Files/Pods-PyTorchDemo/Pods-PyTorchDemo.release.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -63,28 +67,19 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				292D35C9270D6EC12DE809BC /* libPods-PyTorchDemo.a in Frameworks */,
+				B72A75BF484A4802F8726D58 /* libPods-PyTorchDemo.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		66F9066882BAF9F98FAD9C9F /* Frameworks */ = {
+		5F9F21202A855B3D71E78AD9 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				965AA731F9495085EEA5362E /* libPods-PyTorchDemo.a */,
+				456B00F7BE0E8BB923F10306 /* libPods-PyTorchDemo.a */,
 			);
 			name = Frameworks;
-			sourceTree = "<group>";
-		};
-		9285C8F230B372B1B55F3E88 /* Pods */ = {
-			isa = PBXGroup;
-			children = (
-				3FF2BC5A7D46112CF377789C /* Pods-PyTorchDemo.debug.xcconfig */,
-				F8CEDE10299E8DB677BE5279 /* Pods-PyTorchDemo.release.xcconfig */,
-			);
-			path = Pods;
 			sourceTree = "<group>";
 		};
 		A0296C482333176500C77366 /* NLP */ = {
@@ -100,8 +95,8 @@
 			children = (
 				A091B19523303F2D0008A5B8 /* PyTorchDemo */,
 				A091B19423303F2D0008A5B8 /* Products */,
-				9285C8F230B372B1B55F3E88 /* Pods */,
-				66F9066882BAF9F98FAD9C9F /* Frameworks */,
+				FEBC782969490282D7016F6C /* Pods */,
+				5F9F21202A855B3D71E78AD9 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -160,6 +155,8 @@
 			children = (
 				A0A336E92334882A009EFF8A /* BottomView.swift */,
 				A08366C42334BA5400AD35EE /* UIColor+Helper.swift */,
+				A09E179323398CC9002F8F15 /* VisionModelCard.swift */,
+				A09E1795233990A0002F8F15 /* VisionModelCard.xib */,
 			);
 			path = view;
 			sourceTree = "<group>";
@@ -174,6 +171,15 @@
 			path = TorchBridge;
 			sourceTree = "<group>";
 		};
+		FEBC782969490282D7016F6C /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				6DB0D779A7BC376F05C76F1E /* Pods-PyTorchDemo.debug.xcconfig */,
+				88EC2A09CD60839A7157B570 /* Pods-PyTorchDemo.release.xcconfig */,
+			);
+			path = Pods;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -181,7 +187,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = A091B1A523303F2D0008A5B8 /* Build configuration list for PBXNativeTarget "PyTorchDemo" */;
 			buildPhases = (
-				F16A4D1B7EFCBC91DE14F632 /* [CP] Check Pods Manifest.lock */,
+				80EFAE15DA889ADF8EAB3175 /* [CP] Check Pods Manifest.lock */,
 				A091B18F23303F2D0008A5B8 /* Sources */,
 				A091B19023303F2D0008A5B8 /* Frameworks */,
 				A091B19123303F2D0008A5B8 /* Resources */,
@@ -240,13 +246,14 @@
 				A091B75B2330778B0008A5B8 /* synset_words.txt in Resources */,
 				A091B19C23303F2D0008A5B8 /* Main.storyboard in Resources */,
 				A091B75C2330778B0008A5B8 /* ResNet18.pt in Resources */,
+				A09E1796233990A0002F8F15 /* VisionModelCard.xib in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		F16A4D1B7EFCBC91DE14F632 /* [CP] Check Pods Manifest.lock */ = {
+		80EFAE15DA889ADF8EAB3175 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -280,6 +287,7 @@
 				A091B76223315D1A0008A5B8 /* CameraPreviewView.swift in Sources */,
 				A0A336EA2334882A009EFF8A /* BottomView.swift in Sources */,
 				A091B19723303F2D0008A5B8 /* AppDelegate.swift in Sources */,
+				A09E179423398CC9002F8F15 /* VisionModelCard.swift in Sources */,
 				A06D4CCD2330AAA200763E16 /* CameraController.swift in Sources */,
 				A0B12D4E2338944900380B1D /* TorchModule.mm in Sources */,
 				A091B7662331D4110008A5B8 /* TorchTensor+Helper.swift in Sources */,
@@ -430,7 +438,7 @@
 		};
 		A091B1A623303F2D0008A5B8 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 3FF2BC5A7D46112CF377789C /* Pods-PyTorchDemo.debug.xcconfig */;
+			baseConfigurationReference = 6DB0D779A7BC376F05C76F1E /* Pods-PyTorchDemo.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -455,7 +463,7 @@
 		};
 		A091B1A723303F2D0008A5B8 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = F8CEDE10299E8DB677BE5279 /* Pods-PyTorchDemo.release.xcconfig */;
+			baseConfigurationReference = 88EC2A09CD60839A7157B570 /* Pods-PyTorchDemo.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
