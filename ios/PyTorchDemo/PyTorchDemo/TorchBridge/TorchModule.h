@@ -6,16 +6,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 + (nullable instancetype)loadModel:(NSString* )modelPath;
 
-@end
+- (nullable const void* ) predictImage:(void* )imageBuffer;
 
-@interface TorchVisionModule: TorchModule
-
-- (nullable const void* ) predict:(void*)imageBuffer tensorSizes:(NSArray<NSNumber* >* )sizes;
+- (nullable const void* ) predictText:(NSString* )text;
 
 @end
-
-@interface TorchNLPModule: TorchModule
-@end
-
 
 NS_ASSUME_NONNULL_END

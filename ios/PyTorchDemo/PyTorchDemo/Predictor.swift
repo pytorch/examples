@@ -5,25 +5,38 @@ struct InferenceResult {
     let label: String
 }
 
-enum ModelContext {
+struct ModelContext {
+    let model: (name: String, type: String)
+    let label: (name: String, type: String)
+    let inputTensorSize: [UInt]
+    let outputTensorSize: [UInt]
+}
+
+enum VisionModelContext {
     static let model = (name: "ResNet18", type: "pt")
     static let label = (name: "Labels", type: "txt")
     static let inputTensorSize  = [1, 3, 224, 224]
     static let outputTensorSize = [1, 1000]
 }
 
-class ImagePredictor: NSObject {
-    private var module: TorchVisionModule?
+class Predictor: NSObject  {
+    private var module: TorchModule?
     private var labels: [String] = []
+    private var context: ModelContext
     private var isRunning = false
 
-    override init() {
-        super.init()
+    init(modelContext: ModelContext) {
+        context = modelContext
         module = loadModel()
         labels = loadLabels()
     }
+//    override init() {
+//        super.init()
+//        module = loadModel()
+//        labels = loadLabels()
+//    }
 
-    func forward(_ buffer: [Float32]?, completionHandler: ([InferenceResult]?, Double, Error?) -> Void) {
+    func forward(_ buffer: [Float32]?, resultCount: Int, completionHandler: ([InferenceResult]?, Double, Error?) -> Void) {
         guard var tensorBuffer = buffer else {
             return
         }
@@ -32,13 +45,13 @@ class ImagePredictor: NSObject {
         }
         isRunning = true
         let startTime = CFAbsoluteTimeGetCurrent()
-        guard let outputBuffer = module?.predict(UnsafeMutableRawPointer(&tensorBuffer), tensorSizes: ModelContext.inputTensorSize as [NSNumber]) else {
-            completionHandler([], 0.0, ImagePredictorError.invalidInputTensor)
+        guard let outputBuffer = module?.predictImage(UnsafeMutableRawPointer(&tensorBuffer)) else {
+            completionHandler([], 0.0, PredictorError.invalidInputTensor)
             return
         }
         let inferenceTime = (CFAbsoluteTimeGetCurrent() - startTime)*1000
-        let outputs = outputBuffer.floatArray(size: ModelContext.outputTensorSize[1])
-        let results = getTopN(scores: outputs, count: 3, inferenceTime: inferenceTime)
+        let outputs = outputBuffer.floatArray(size: VisionModelContext.outputTensorSize[1])
+        let results = getTopN(scores: outputs, count: resultCount, inferenceTime: inferenceTime)
         completionHandler(results, inferenceTime, nil)
         isRunning = false
     }
@@ -50,7 +63,7 @@ class ImagePredictor: NSObject {
     }
 
     private func loadLabels() -> [String] {
-        if let filePath = Bundle.main.path(forResource: ModelContext.label.name, ofType: ModelContext.label.type),
+        if let filePath = Bundle.main.path(forResource: VisionModelContext.label.name, ofType: VisionModelContext.label.type),
             let labels = try? String(contentsOfFile: filePath) {
             return labels.components(separatedBy: .newlines)
         } else {
@@ -58,9 +71,9 @@ class ImagePredictor: NSObject {
         }
     }
 
-    private func loadModel() -> TorchVisionModule? {
-        if let filePath = Bundle.main.path(forResource: ModelContext.model.name, ofType: ModelContext.model.type),
-            let module = TorchVisionModule.loadModel(filePath){
+    private func loadModel() -> TorchModule? {
+        if let filePath = Bundle.main.path(forResource: VisionModelContext.model.name, ofType: VisionModelContext.model.type),
+            let module = TorchModule.loadModel(filePath){
             return module
         } else {
             fatalError("Can't find the model with the given path!")
@@ -68,8 +81,8 @@ class ImagePredictor: NSObject {
     }
 }
 
-extension ImagePredictor {
-    enum ImagePredictorError: Swift.Error {
+extension Predictor {
+    enum PredictorError: Swift.Error {
         case invalidModel
         case invalidInputTensor
         case invalidOutputTensor

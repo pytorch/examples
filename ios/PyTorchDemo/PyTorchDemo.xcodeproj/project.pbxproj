@@ -11,6 +11,7 @@
 		A036EA2B233B167A00054A36 /* NLPPredictor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A036EA2A233B167A00054A36 /* NLPPredictor.swift */; };
 		A036EA2E233B1BFE00054A36 /* NLPModelCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A036EA2D233B1BFE00054A36 /* NLPModelCard.swift */; };
 		A036EA30233B1C0B00054A36 /* NLPModelCard.xib in Resources */ = {isa = PBXBuildFile; fileRef = A036EA2F233B1C0B00054A36 /* NLPModelCard.xib */; };
+		A036EA33233C19F500054A36 /* model-reddit16.pt in Resources */ = {isa = PBXBuildFile; fileRef = A036EA32233C19F500054A36 /* model-reddit16.pt */; };
 		A065C92B2335711B006BEAAD /* Labels.txt in Resources */ = {isa = PBXBuildFile; fileRef = A065C92A2335711B006BEAAD /* Labels.txt */; };
 		A06D4CCD2330AAA200763E16 /* CameraController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A06D4CCC2330AAA200763E16 /* CameraController.swift */; };
 		A08366C52334BA5400AD35EE /* UIColor+Helper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A08366C42334BA5400AD35EE /* UIColor+Helper.swift */; };
@@ -19,14 +20,12 @@
 		A091B19C23303F2D0008A5B8 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A091B19A23303F2D0008A5B8 /* Main.storyboard */; };
 		A091B19E23303F2D0008A5B8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A091B19D23303F2D0008A5B8 /* Assets.xcassets */; };
 		A091B1A123303F2D0008A5B8 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A091B19F23303F2D0008A5B8 /* LaunchScreen.storyboard */; };
-		A091B75B2330778B0008A5B8 /* synset_words.txt in Resources */ = {isa = PBXBuildFile; fileRef = A091B7592330778B0008A5B8 /* synset_words.txt */; };
 		A091B75C2330778B0008A5B8 /* ResNet18.pt in Resources */ = {isa = PBXBuildFile; fileRef = A091B75A2330778B0008A5B8 /* ResNet18.pt */; };
 		A091B75E2330789A0008A5B8 /* ImageClassificationViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A091B75D2330789A0008A5B8 /* ImageClassificationViewController.swift */; };
-		A091B760233078BE0008A5B8 /* ImagePredictor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A091B75F233078BE0008A5B8 /* ImagePredictor.swift */; };
+		A091B760233078BE0008A5B8 /* Predictor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A091B75F233078BE0008A5B8 /* Predictor.swift */; };
 		A091B76223315D1A0008A5B8 /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A091B76123315D1A0008A5B8 /* CameraPreviewView.swift */; };
 		A091B764233168DE0008A5B8 /* CVPixelBuffer+Helper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A091B763233168DE0008A5B8 /* CVPixelBuffer+Helper.swift */; };
 		A091B7662331D4110008A5B8 /* TorchTensor+Helper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A091B7652331D4110008A5B8 /* TorchTensor+Helper.swift */; };
-		A091B7682331F4AC0008A5B8 /* dog.png in Resources */ = {isa = PBXBuildFile; fileRef = A091B7672331F4AC0008A5B8 /* dog.png */; };
 		A09E179423398CC9002F8F15 /* VisionModelCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A09E179323398CC9002F8F15 /* VisionModelCard.swift */; };
 		A09E1796233990A0002F8F15 /* VisionModelCard.xib in Resources */ = {isa = PBXBuildFile; fileRef = A09E1795233990A0002F8F15 /* VisionModelCard.xib */; };
 		A0A336EA2334882A009EFF8A /* ResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0A336E92334882A009EFF8A /* ResultView.swift */; };
@@ -42,6 +41,7 @@
 		A036EA2A233B167A00054A36 /* NLPPredictor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NLPPredictor.swift; sourceTree = "<group>"; };
 		A036EA2D233B1BFE00054A36 /* NLPModelCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NLPModelCard.swift; sourceTree = "<group>"; };
 		A036EA2F233B1C0B00054A36 /* NLPModelCard.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = NLPModelCard.xib; sourceTree = "<group>"; };
+		A036EA32233C19F500054A36 /* model-reddit16.pt */ = {isa = PBXFileReference; lastKnownFileType = file; path = "model-reddit16.pt"; sourceTree = "<group>"; };
 		A065C92A2335711B006BEAAD /* Labels.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Labels.txt; sourceTree = "<group>"; };
 		A06D4CCC2330AAA200763E16 /* CameraController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraController.swift; sourceTree = "<group>"; };
 		A08366C42334BA5400AD35EE /* UIColor+Helper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIColor+Helper.swift"; sourceTree = "<group>"; };
@@ -53,14 +53,12 @@
 		A091B1A023303F2D0008A5B8 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		A091B1A223303F2D0008A5B8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A091B1A9233062970008A5B8 /* PyTorchDemo-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "PyTorchDemo-Bridging-Header.h"; sourceTree = "<group>"; };
-		A091B7592330778B0008A5B8 /* synset_words.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = synset_words.txt; sourceTree = "<group>"; };
 		A091B75A2330778B0008A5B8 /* ResNet18.pt */ = {isa = PBXFileReference; lastKnownFileType = file; path = ResNet18.pt; sourceTree = "<group>"; };
 		A091B75D2330789A0008A5B8 /* ImageClassificationViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageClassificationViewController.swift; sourceTree = "<group>"; };
-		A091B75F233078BE0008A5B8 /* ImagePredictor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePredictor.swift; sourceTree = "<group>"; };
+		A091B75F233078BE0008A5B8 /* Predictor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Predictor.swift; sourceTree = "<group>"; };
 		A091B76123315D1A0008A5B8 /* CameraPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreviewView.swift; sourceTree = "<group>"; };
 		A091B763233168DE0008A5B8 /* CVPixelBuffer+Helper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CVPixelBuffer+Helper.swift"; sourceTree = "<group>"; };
 		A091B7652331D4110008A5B8 /* TorchTensor+Helper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TorchTensor+Helper.swift"; sourceTree = "<group>"; };
-		A091B7672331F4AC0008A5B8 /* dog.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = dog.png; sourceTree = "<group>"; };
 		A09E179323398CC9002F8F15 /* VisionModelCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionModelCard.swift; sourceTree = "<group>"; };
 		A09E1795233990A0002F8F15 /* VisionModelCard.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = VisionModelCard.xib; sourceTree = "<group>"; };
 		A0A336E92334882A009EFF8A /* ResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultView.swift; sourceTree = "<group>"; };
@@ -91,6 +89,7 @@
 		A0296C482333176500C77366 /* NLP */ = {
 			isa = PBXGroup;
 			children = (
+				A036EA31233C19F500054A36 /* model */,
 				A036EA2C233B1BEA00054A36 /* view */,
 				A0296C492333178500C77366 /* NLPViewController.swift */,
 				A036EA2A233B167A00054A36 /* NLPPredictor.swift */,
@@ -105,6 +104,14 @@
 				A036EA2F233B1C0B00054A36 /* NLPModelCard.xib */,
 			);
 			path = view;
+			sourceTree = "<group>";
+		};
+		A036EA31233C19F500054A36 /* model */ = {
+			isa = PBXGroup;
+			children = (
+				A036EA32233C19F500054A36 /* model-reddit16.pt */,
+			);
+			path = model;
 			sourceTree = "<group>";
 		};
 		A091B18A23303F2D0008A5B8 = {
@@ -128,6 +135,8 @@
 		A091B19523303F2D0008A5B8 /* PyTorchDemo */ = {
 			isa = PBXGroup;
 			children = (
+				A091B75F233078BE0008A5B8 /* Predictor.swift */,
+				A091B7652331D4110008A5B8 /* TorchTensor+Helper.swift */,
 				A0B12D4B2338940B00380B1D /* TorchBridge */,
 				A0296C482333176500C77366 /* NLP */,
 				A091B757233077600008A5B8 /* ImageClassification */,
@@ -147,11 +156,9 @@
 				A091BD7323346B690008A5B8 /* view */,
 				A091B7582330778B0008A5B8 /* model */,
 				A091B75D2330789A0008A5B8 /* ImageClassificationViewController.swift */,
-				A091B75F233078BE0008A5B8 /* ImagePredictor.swift */,
 				A06D4CCC2330AAA200763E16 /* CameraController.swift */,
 				A091B76123315D1A0008A5B8 /* CameraPreviewView.swift */,
 				A091B763233168DE0008A5B8 /* CVPixelBuffer+Helper.swift */,
-				A091B7652331D4110008A5B8 /* TorchTensor+Helper.swift */,
 			);
 			path = ImageClassification;
 			sourceTree = "<group>";
@@ -160,8 +167,6 @@
 			isa = PBXGroup;
 			children = (
 				A065C92A2335711B006BEAAD /* Labels.txt */,
-				A091B7672331F4AC0008A5B8 /* dog.png */,
-				A091B7592330778B0008A5B8 /* synset_words.txt */,
 				A091B75A2330778B0008A5B8 /* ResNet18.pt */,
 			);
 			path = model;
@@ -258,10 +263,9 @@
 			files = (
 				A065C92B2335711B006BEAAD /* Labels.txt in Resources */,
 				A036EA30233B1C0B00054A36 /* NLPModelCard.xib in Resources */,
-				A091B7682331F4AC0008A5B8 /* dog.png in Resources */,
 				A091B1A123303F2D0008A5B8 /* LaunchScreen.storyboard in Resources */,
 				A091B19E23303F2D0008A5B8 /* Assets.xcassets in Resources */,
-				A091B75B2330778B0008A5B8 /* synset_words.txt in Resources */,
+				A036EA33233C19F500054A36 /* model-reddit16.pt in Resources */,
 				A091B19C23303F2D0008A5B8 /* Main.storyboard in Resources */,
 				A091B75C2330778B0008A5B8 /* ResNet18.pt in Resources */,
 				A09E1796233990A0002F8F15 /* VisionModelCard.xib in Resources */,
@@ -311,7 +315,7 @@
 				A06D4CCD2330AAA200763E16 /* CameraController.swift in Sources */,
 				A0B12D4E2338944900380B1D /* TorchModule.mm in Sources */,
 				A091B7662331D4110008A5B8 /* TorchTensor+Helper.swift in Sources */,
-				A091B760233078BE0008A5B8 /* ImagePredictor.swift in Sources */,
+				A091B760233078BE0008A5B8 /* Predictor.swift in Sources */,
 				A08366C52334BA5400AD35EE /* UIColor+Helper.swift in Sources */,
 				A091B764233168DE0008A5B8 /* CVPixelBuffer+Helper.swift in Sources */,
 				A0296C4A2333178500C77366 /* NLPViewController.swift in Sources */,

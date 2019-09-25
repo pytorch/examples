@@ -7,6 +7,7 @@
 
 #import "TorchModule.h"
 #import <torch/script.h>
+#import <Foundation/Foundation.h>
 
 @implementation TorchModule {
 @protected
@@ -27,16 +28,7 @@
     }
     return nil;
 }
-@end
-
-@implementation TorchVisionModule
-
-- (nullable const void* ) predict:(void*)imageBuffer tensorSizes:(NSArray<NSNumber* >* )sizes {
-    std::vector<int64_t> dimsVec;
-    for (auto i = 0; i < sizes.count; ++i) {
-        int64_t dim = sizes[i].integerValue;
-        dimsVec.push_back(dim);
-    }
+- (nullable const void* ) predictImage:(void*)imageBuffer {
     @try {
         at::Tensor tensor = torch::from_blob((void*)imageBuffer, {1,3,224,224}, at::kFloat);
         torch::autograd::AutoGradMode guard(false);
@@ -48,6 +40,17 @@
         NSLog(@"%@", exception);
     }
     return nil;
+}
+
+- (nullable const void* ) predictText:(NSString* )text {
+    
+    uint8_t* buffer = (uint8_t* )text.UTF8String;
+    torch::autograd::AutoGradMode guard(false);
+    at::AutoNonVariableTypeMode non_var_type_mode(true);
+    at::Tensor tensor = torch::from_blob((void* )buffer, {1,static_cast<long long>(text.length)}, at::kByte);
+    auto outputTensor = _impl.forward({tensor}).toTensor();
+        return outputTensor.unsafeGetTensorImpl()->data();
+
 }
 
 @end
