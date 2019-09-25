@@ -1,10 +1,3 @@
-//
-//  FBTorchModule.h
-//  PyTorchDemo
-//
-//  Created by taox on 9/22/19.
-//
-
 #import <Foundation/Foundation.h>
 
 NS_ASSUME_NONNULL_BEGIN

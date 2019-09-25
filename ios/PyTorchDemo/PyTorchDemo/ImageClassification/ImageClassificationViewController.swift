@@ -5,16 +5,16 @@ class ImageClassificationViewController: ViewController {
     lazy var predictor: ImagePredictor = ImagePredictor()
     var cameraController = CameraController()
     @IBOutlet var cameraView: CameraPreviewView!
-    @IBOutlet var bottomView: BottomView!
+    @IBOutlet var bottomView: ResultView!
     @IBOutlet weak var inferenceTimeLabel: UILabel!
     @IBOutlet weak var indicator: UIView!
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        indicator.layer.cornerRadius = 20.0
-        indicator.layer.masksToBounds = true
+//        indicator.layer.cornerRadius = 20.0
+//        indicator.layer.masksToBounds = true
         
-        bottomView.showResult(count: 3)
+        bottomView.showResult(count: 3, textColor: .white)
         weak var weakSelf = self
         cameraController.configPreviewLayer(cameraView)
         cameraController.videoCaptureCompletionBlock = { buffer, error in

@@ -10,10 +10,6 @@ class CameraController: NSObject {
     private var sessionQueue = DispatchQueue(label: "session")
     private var bufferQueue = DispatchQueue(label: "buffer")
 
-    deinit {
-        print("\(self) dealloc")
-    }
-
     func configPreviewLayer(_ previewView: CameraPreviewView) {
         previewView.previewLayer.session = captureSession
         previewView.previewLayer.connection?.videoOrientation = .portrait
@@ -101,12 +97,6 @@ class CameraController: NSObject {
         let mainQueue = OperationQueue.main
         center.addObserver(forName: .AVCaptureSessionRuntimeError, object: nil, queue: mainQueue) { _ in
             callback(nil, .sessionError)
-        }
-        center.addObserver(forName: .AVCaptureSessionWasInterrupted, object: nil, queue: mainQueue) { _ in
-            self.stopSession()
-        }
-        center.addObserver(forName: .AVCaptureSessionInterruptionEnded, object: nil, queue: mainQueue) { _ in
-            self.startSession()
         }
     }
 
