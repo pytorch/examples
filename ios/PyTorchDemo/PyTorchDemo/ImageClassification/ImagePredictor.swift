@@ -1,30 +1,25 @@
-//
-//  NLPPredictor.swift
-//  PyTorchDemo
-//
-//  Created by Tao Xu on 9/24/19.
-//
-
 import UIKit
 
-class NLPPredictor: Predictor {
+class ImagePredictor: Predictor {
+    var isRunning: Bool = false
     var module: TorchModule?
     var labels: [String] = []
-    var isRunning: Bool = false
 
     init() {
-        module = loadModel(name: "model-reddit16")
-        labels = loadLabels(name: "reddit_topics")
+        module = loadModel(name: "ResNet18")
+        labels = loadLabels(name: "Label")
     }
 
-    func forward(_ text: String, resultCount: Int, completionHandler: ([InferenceResult]?, Double, Error?) -> Void) {
+    func forward(_ buffer: [Float32]?, resultCount: Int, completionHandler: ([InferenceResult]?, Double, Error?) -> Void) {
+        guard var tensorBuffer = buffer else {
+            return
+        }
         if isRunning {
             return
         }
-
         isRunning = true
         let startTime = CFAbsoluteTimeGetCurrent()
-        guard let outputBuffer = module?.predictText(text) else {
+        guard let outputBuffer = module?.predictImage(UnsafeMutableRawPointer(&tensorBuffer)) else {
             completionHandler([], 0.0, PredictorError.invalidInputTensor)
             return
         }

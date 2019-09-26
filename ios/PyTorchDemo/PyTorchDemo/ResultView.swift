@@ -5,7 +5,7 @@ class ItemView: UIView {
     var scoreLabel: UILabel!
     var tagLabel: UILabel!
     var progressBar: UIView!
-    
+
     required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
@@ -18,12 +18,12 @@ class ItemView: UIView {
         container.distribution = .fill
         container.alignment = .fill
         container.spacing = 5.0
-        
+
         let textContainer = UIStackView()
         textContainer.distribution = .fill
         textContainer.alignment = .fill
         textContainer.spacing = 10.0
-        
+
         tagLabel = UILabel()
         tagLabel.textColor = .white
         scoreLabel = UILabel()
@@ -36,17 +36,17 @@ class ItemView: UIView {
 
         textContainer.addArrangedSubview(tagLabel)
         textContainer.addArrangedSubview(scoreLabel)
-        
-        //progress bar
+
+        // progress bar
         progressBar = UIView()
         progressBar.layer.cornerRadius = 6.0
         progressBar.layer.masksToBounds = true
         let gradient = CAGradientLayer()
         progressBar.layer.insertSublayer(gradient, at: 0)
-        
+
         container.addArrangedSubview(textContainer)
         container.addArrangedSubview(progressBar)
-        
+
         addSubview(container)
     }
 
@@ -62,14 +62,15 @@ class ItemView: UIView {
             scoreLabel.font = UIFont.systemFont(ofSize: 14.0)
             tagLabel.font = UIFont.systemFont(ofSize: 14.0)
         }
-        let containerFrame = bounds.insetBy(dx: 20, dy: 5)
-        container.frame = containerFrame
+        container.frame = bounds.insetBy(dx: 20, dy: 5)
         let gradientLayer = progressBar.layer.sublayers?[0] as? CAGradientLayer
         if let gradientLayer = gradientLayer {
             gradientLayer.colors = [progressBarColor.cgColor, UIColor.black.cgColor]
-            gradientLayer.startPoint = CGPoint(x:0, y:0)
-            gradientLayer.endPoint = CGPoint(x:1, y:0)
-            gradientLayer.frame = progressBar.bounds
+            gradientLayer.startPoint = CGPoint(x: 0, y: 0)
+            gradientLayer.endPoint = CGPoint(x: 1, y: 0)
+            DispatchQueue.main.async {
+                gradientLayer.frame = self.progressBar.bounds
+            }
         }
     }
 }

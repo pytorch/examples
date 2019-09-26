@@ -2,16 +2,13 @@ import AVFoundation
 import UIKit
 
 class ImageClassificationViewController: ViewController {
-    lazy var predictor = Predictor(modelContext: ModelContext(model: (name:"ResNet", type:"pt"),
-                                                              label: (name: "Label", type: "txt"),
-                                                              inputTensorSize: [1,3,224,224],
-                                                              outputTensorSize: [1,1000]))
-    var cameraController = CameraController()
     @IBOutlet var cameraView: CameraPreviewView!
     @IBOutlet var bottomView: ResultView!
-    @IBOutlet weak var inferenceTimeLabel: UILabel!
-    @IBOutlet weak var indicator: UIView!
-    
+    @IBOutlet var inferenceTimeLabel: UILabel!
+    @IBOutlet var indicator: UIView!
+    lazy var predictor = ImagePredictor()
+    var cameraController = CameraController()
+
     override func viewDidLoad() {
         super.viewDidLoad()
         bottomView.showResult(count: 3, textColor: .white)
@@ -23,7 +20,7 @@ class ImageClassificationViewController: ViewController {
                 print(error!)
                 return
             }
-            weakSelf?.predictor.forward(buffer, resultCount:3, completionHandler: { results, inferenceTime, error in
+            weakSelf?.predictor.forward(buffer, resultCount: 3, completionHandler: { results, inferenceTime, error in
                 if error != nil {
                     // TODO: error handling
                     print(error!)
@@ -51,9 +48,10 @@ class ImageClassificationViewController: ViewController {
         cameraController.stopSession()
     }
 
-    @IBAction func onInfoBtnClicked(_ sender: Any) {
+    @IBAction func onInfoBtnClicked(_: Any) {
         VisionModelCard.show()
     }
+
     @IBAction func onBackClicked(_: Any) {
         navigationController?.popViewController(animated: true)
     }
