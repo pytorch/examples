@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/nlpPrimaryColor">
+
+    <Button
+        android:id="@+id/text_classification_clear_button"
+        style="@style/Button"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/button_height"
+        android:layout_marginLeft="16dp"
+        android:layout_marginRight="16dp"
+        android:layout_marginBottom="72dp"
+        android:background="@drawable/bg_text_classification_clear_button"
+        android:text="@string/clear"
+        android:textColor="@android:color/white"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent" />
+
+    <EditText
+        android:id="@+id/text_classification_edit_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:background="@drawable/bg_nlp_edittext"
+        android:lineSpacingMultiplier="1.5"
+        android:padding="16dp"
+        android:singleLine="false"
+        android:textAppearance="@style/TextAppearanceNLPEditText"
+        android:textColor="@android:color/white"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/toolbar" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/text_classification_result_content"
+        android:background="@drawable/bg_text_classification_results"
+        android:orientation="vertical"
+        android:layout_margin="16dp"
+        android:elevation="1dp"
+        android:padding="16dp"
+        android:visibility="gone"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/text_classification_edit_text">
+
+        <org.pytorch.demo.vision.view.ResultRowView
+            android:id="@+id/text_classification_result_header_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="@dimen/image_classification_result_row_padding"
+            app:textAppearance="@style/TextAppearanceTextClassificationResultHeader" />
+
+        <org.pytorch.demo.vision.view.ResultRowView
+            android:id="@+id/text_classification_top1_result_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="@dimen/image_classification_result_row_padding"
+            app:progressBarDrawableRes="@drawable/result_row_progress_bar_top3"
+            app:progressBarDrawableProgressStateRes="@drawable/result_row_progress_bar_progress_state_nlp"
+            app:progressBarHeightRes="@dimen/result_row_progress_bar_height_top1"
+            app:progressBarPaddingRes="@dimen/result_row_progress_bar_padding"
+            app:textAppearance="@style/TextAppearanceTextClassificationResultTop1" />
+
+        <org.pytorch.demo.vision.view.ResultRowView
+            android:id="@+id/text_classification_top2_result_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="@dimen/image_classification_result_row_padding"
+            app:progressBarDrawableRes="@drawable/result_row_progress_bar_top2"
+            app:progressBarDrawableProgressStateRes="@drawable/result_row_progress_bar_progress_state_nlp"
+            app:progressBarHeightRes="@dimen/result_row_progress_bar_height_top2plus"
+            app:progressBarPaddingRes="@dimen/result_row_progress_bar_padding"
+            app:textAppearance="@style/TextAppearanceTextClassificationResultTop2Plus" />
+
+        <org.pytorch.demo.vision.view.ResultRowView
+            android:id="@+id/text_classification_top3_result_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="@dimen/image_classification_result_row_padding"
+            app:progressBarDrawableRes="@drawable/result_row_progress_bar_top1"
+            app:progressBarDrawableProgressStateRes="@drawable/result_row_progress_bar_progress_state_nlp"
+            app:progressBarHeightRes="@dimen/result_row_progress_bar_height_top2plus"
+            app:progressBarPaddingRes="@dimen/result_row_progress_bar_padding"
+            app:textAppearance="@style/TextAppearanceTextClassificationResultTop2Plus" />
+    </LinearLayout>
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:layout_marginTop="@dimen/toolbar_top_margin"
+        android:background="@null"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
+        app:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+        app:title="@string/text_classification" />
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>

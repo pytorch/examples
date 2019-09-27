@@ -1,0 +1,13 @@
+<resources>
+    <dimen name="fab_margin">16dp</dimen>
+    <dimen name="image_classification_result_row_margin">16dp</dimen>
+    <dimen name="image_classification_result_row_padding">8dp</dimen>
+    <dimen name="button_height">72dp</dimen>
+    <dimen name="result_row_progress_bar_padding">8dp</dimen>
+    <dimen name="result_row_progress_bar_height_top1">12dp</dimen>
+    <dimen name="result_row_progress_bar_height_top2plus">8dp</dimen>
+    <dimen name="toolbar_top_margin">24dp</dimen>
+    <dimen name="list_title_margin_top">16dp</dimen>
+    <dimen name="list_content_margin">32dp</dimen>
+    <dimen name="round_corners_radius">4dp</dimen>
+</resources>

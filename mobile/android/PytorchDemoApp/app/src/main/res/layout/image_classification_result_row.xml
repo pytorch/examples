@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <TextView
+        android:id="@+id/result_row_score_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:minHeight="24dp"
+        style="@style/ImageClassificationResultRowTextView"
+        android:layout_alignParentRight="true" />
+
+    <TextView
+        android:id="@+id/result_row_name_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="24dp"
+        style="@style/ImageClassificationResultRowTextView"
+        android:layout_toLeftOf="@id/result_row_score_text"
+        android:layout_alignParentLeft="true" />
+
+</RelativeLayout>

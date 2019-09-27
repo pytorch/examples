@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/black"
+    android:fitsSystemWindows="true">
+
+    <TextView
+        android:id="@+id/image_classification_ms_text"
+        style="@style/ImageClassificationFpsMsText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginRight="8dp"
+        android:layout_marginBottom="8dp"
+        android:elevation="1dp"
+        android:visibility="invisible"
+        app:layout_constraintBottom_toBottomOf="@id/image_classification_texture_view"
+        app:layout_constraintRight_toRightOf="@id/image_classification_texture_view" />
+
+    <TextView
+        android:id="@+id/image_classification_fps_text"
+        style="@style/ImageClassificationFpsMsText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginRight="8dp"
+        android:layout_marginBottom="8dp"
+        android:elevation="1dp"
+        android:visibility="invisible"
+        app:layout_constraintBottom_toBottomOf="@id/image_classification_texture_view"
+        app:layout_constraintRight_toLeftOf="@id/image_classification_ms_text" />
+
+    <TextureView
+        android:id="@+id/image_classification_texture_view"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toTopOf="@id/image_classification_result_header_row"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:layout_marginTop="@dimen/toolbar_top_margin"
+        android:background="@null"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
+        app:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+        app:title="@string/image_classification_title" />
+
+    <org.pytorch.demo.vision.view.ResultRowView
+        android:id="@+id/image_classification_result_header_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/image_classification_result_row_margin"
+        android:padding="@dimen/image_classification_result_row_padding"
+        app:layout_constraintBottom_toTopOf="@id/image_classification_top1_result_row"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:textAppearance="@style/TextAppearanceImageClassificationResultHeader" />
+
+    <org.pytorch.demo.vision.view.ResultRowView
+        android:id="@+id/image_classification_top3_result_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/image_classification_result_row_margin"
+        android:padding="@dimen/image_classification_result_row_padding"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:progressBarDrawableRes="@drawable/result_row_progress_bar_top3"
+        app:progressBarDrawableProgressStateRes="@drawable/result_row_progress_bar_progress_state"
+        app:progressBarHeightRes="@dimen/result_row_progress_bar_height_top2plus"
+        app:progressBarPaddingRes="@dimen/result_row_progress_bar_padding"
+        app:textAppearance="@style/TextAppearanceImageClassificationResultTop2Plus" />
+
+    <org.pytorch.demo.vision.view.ResultRowView
+        android:id="@+id/image_classification_top2_result_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/image_classification_result_row_margin"
+        android:padding="@dimen/image_classification_result_row_padding"
+        app:layout_constraintBottom_toTopOf="@id/image_classification_top3_result_row"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:progressBarDrawableRes="@drawable/result_row_progress_bar_top2"
+        app:progressBarDrawableProgressStateRes="@drawable/result_row_progress_bar_progress_state"
+        app:progressBarHeightRes="@dimen/result_row_progress_bar_height_top2plus"
+        app:progressBarPaddingRes="@dimen/result_row_progress_bar_padding"
+        app:textAppearance="@style/TextAppearanceImageClassificationResultTop2Plus" />
+
+    <org.pytorch.demo.vision.view.ResultRowView
+        android:id="@+id/image_classification_top1_result_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/image_classification_result_row_margin"
+        android:padding="@dimen/image_classification_result_row_padding"
+        app:layout_constraintBottom_toTopOf="@id/image_classification_top2_result_row"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:progressBarDrawableRes="@drawable/result_row_progress_bar_top1"
+        app:progressBarDrawableProgressStateRes="@drawable/result_row_progress_bar_progress_state"
+        app:progressBarHeightRes="@dimen/result_row_progress_bar_height_top1"
+        app:progressBarPaddingRes="@dimen/result_row_progress_bar_padding"
+        app:textAppearance="@style/TextAppearanceImageClassificationResultTop1" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

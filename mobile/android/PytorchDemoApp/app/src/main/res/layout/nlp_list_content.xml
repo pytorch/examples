@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_horizontal"
+    android:orientation="vertical">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginTop="@dimen/list_title_margin_top"
+        android:text="@string/main_nlp_button"
+        android:textAppearance="@style/TextAppearanceMainVisionNlp" />
+
+    <org.pytorch.demo.ListCardView
+        android:id="@+id/nlp_card_lstm_click_area"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/list_content_margin"
+        android:elevation="1dp"
+        app:descriptionRes="@string/nlp_card_lstm_description"
+        app:imageRes="@drawable/ic_text_classification_s"
+        app:titleRes="@string/nlp_card_lstm_title" />
+</LinearLayout>

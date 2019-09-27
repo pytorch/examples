@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/ErrorDialogText"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_error_dialog"
+    android:drawableLeft="@drawable/ic_error_icon"
+    android:drawablePadding="16dp"
+    android:gravity="center_vertical"
+    android:minHeight="72dp"
+    android:padding="16dp"
+    android:text="@string/error_dialog_text" />

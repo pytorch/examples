@@ -1,0 +1,126 @@
+<resources>
+
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="android:screenOrientation">portrait</item>
+
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="android:windowTranslucentNavigation">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+
+    </style>
+
+    <style name="AppTheme.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+
+    <style name="AppTheme.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar">
+        <item name="android:colorBackground">@android:color/transparent</item>
+    </style>
+
+    <style name="AppTheme.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" />
+
+    <style name="TextAppearanceImageClassificationResultTop1" parent="TextAppearance.AppCompat.Large">
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <style name="TextAppearanceImageClassificationResultTop2Plus" parent="TextAppearance.AppCompat.Medium">
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <style name="TextAppearanceImageClassificationResultHeader" parent="TextAppearance.AppCompat.Small">
+        <item name="android:textColor">#808080</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <style name="ImageClassificationFpsMsText" parent="TextAppearance.AppCompat.Small">
+        <item name="android:singleLine">true</item>
+        <item name="android:textColor">@color/textColor</item>
+        <item name="android:paddingTop">8dp</item>
+        <item name="android:paddingBottom">8dp</item>
+        <item name="android:paddingLeft">16dp</item>
+        <item name="android:paddingRight">16dp</item>
+        <item name="android:background">@drawable/image_classification_fpsms_bg</item>
+    </style>
+
+    <style name="ImageClassificationResultRowTextView">
+        <item name="android:singleLine">true</item>
+        <item name="android:ellipsize">marquee</item>
+    </style>
+
+    <style name="TextAppearanceWelcomeTitle" parent="TextAppearance.AppCompat.Large">
+        <item name="android:textColor">@android:color/white</item>
+    </style>
+
+    <style name="TextAppearanceWelcomeDescription" parent="TextAppearance.AppCompat.Medium">
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:fontFamily">sans-serif-light</item>
+    </style>
+
+    <style name="TextAppearanceListCardTitle" parent="TextAppearance.AppCompat.Large">
+        <item name="android:textColor">@android:color/black</item>
+    </style>
+
+    <style name="TextAppearanceListCardDescription" parent="TextAppearance.AppCompat.Medium">
+        <item name="android:textColor">@android:color/black</item>
+        <item name="android:fontFamily">sans-serif-light</item>
+    </style>
+
+    <style name="ActivityContentBase">
+        <item name="android:paddingLeft">24dp</item>
+        <item name="android:paddingRight">24dp</item>
+        <item name="android:paddingTop">72dp</item>
+        <item name="android:paddingBottom">72dp</item>
+    </style>
+
+    <style name="Button" parent="Clickable">
+        <item name="android:textAppearance">@style/TextAppearance.AppCompat.Medium</item>
+        <item name="android:paddingLeft">24dp</item>
+    </style>
+
+    <style name="TextAppearanceMainVisionNlp" parent="TextAppearance.AppCompat.Display1">
+        <item name="android:textAllCaps">true</item>
+        <item name="android:textColor">@color/textColor</item>
+        <item name="android:letterSpacing">0.2</item>
+        <item name="android:fontFamily">sans-serif-light</item>
+    </style>
+
+    <style name="TextAppearanceNLPEditText" parent="TextAppearance.AppCompat.Medium">
+    </style>
+
+    <style name="TextAppearanceTextClassificationResultTop1" parent="TextAppearance.AppCompat.Large">
+        <item name="android:textColor">@color/nlpPrimaryColor</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <style name="TextAppearanceTextClassificationResultTop2Plus" parent="TextAppearance.AppCompat.Medium">
+        <item name="android:textColor">@color/nlpPrimaryColor</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <style name="TextAppearanceTextClassificationResultHeader" parent="TextAppearance.AppCompat.Small">
+        <item name="android:textColor">#808080</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <style name="Clickable">
+        <item name="android:foreground">?attr/selectableItemBackground</item>
+    </style>
+
+    <style name="ErrorDialogText" parent="@style/Clickable">
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:textAppearance">@style/TextAppearance.AppCompat.Medium</item>
+        <item name="android:fontFamily">sans-serif-light</item>
+    </style>
+
+    <style name="CustomDialog" parent="android:Theme.Dialog">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+    </style>
+</resources>

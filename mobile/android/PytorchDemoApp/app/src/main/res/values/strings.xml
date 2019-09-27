@@ -1,0 +1,38 @@
+<resources>
+    <string name="app_name">PytorchDemo</string>
+    <string name="action_settings">Settings</string>
+    <string name="welcome_skip_button">Skip</string>
+    <string name="main_vision_button">Vision</string>
+    <string name="main_nlp_button">Language</string>
+    <string name="nlp_list_lstm_button">LSTM</string>
+
+    <string name="vision_list_image_classification_button">Image Classification</string>
+    <string name="image_classification_title">Image Classification</string>
+    <string name="image_classification_results_header_row_name">Classification</string>
+    <string name="image_classification_results_header_row_score">Score</string>
+
+    <string name="text_classification">Text Classification</string>
+
+    <string name="welcome_page_title">Welcome</string>
+    <string name="welcome_page_description">Pytorch mobile demo application</string>
+
+    <string name="welcome_page_image_classification_title">Image Classification</string>
+    <string name="welcome_page_image_classification_description">Image classifications example runs packaged inside app model using device camera as an input source</string>
+
+    <string name="welcome_page_nlp_title">Text Classification</string>
+    <string name="welcome_page_nlp_description">Text classification example runs packaged inside app model on user typed text</string>
+
+    <string name="vision_card_mobilenet_title">Image Classification\nQuantized mobilenetV2</string>
+    <string name="vision_card_mobilenet_description">Inference is run in int32. Input is float32 tensor with shape:1x3x224x224</string>
+
+    <string name="vision_card_resnet_title">Image Classification\nResnet18</string>
+    <string name="vision_card_resnet_description">Default torch vision pretrained resnet18 model. Input is float32 tensor with shape:1x3x224x224</string>
+
+    <string name="nlp_card_lstm_title">Text Classification.\nLSTM trained on Reddit comments</string>
+    <string name="nlp_card_lstm_description">Input: uint8 1xN shaped tensor, where N is text length, utf-8 text encoding. Output classes are subreddits.</string>
+    <string name="clear">Clear</string>
+    <string name="text_classification_topic">Topic</string>
+    <string name="text_classification_score">Score</string>
+    <string name="error_dialog_text">Sorry there was an error.</string>
+
+</resources>
