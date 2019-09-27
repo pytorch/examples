@@ -18,10 +18,6 @@ class NLPViewController: UIViewController {
     @IBAction func onBackClicked(_: Any) {
         navigationController?.popViewController(animated: true)
     }
-
-    deinit {
-        print("NLP delloced")
-    }
 }
 
 extension NLPViewController: UITextViewDelegate {
