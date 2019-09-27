@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="14868" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" colorMatched="YES">
+    <device id="retina6_1" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="14824"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <objects>
+        <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner" customClass="ImageClassificationResultView" customModule="PyTorchDemo" customModuleProvider="target">
+            <connections>
+                <outlet property="containerView" destination="t6E-dN-5Jy" id="RbV-jv-2sX"/>
+                <outlet property="contentView" destination="iN0-l3-epB" id="5K8-bP-d7t"/>
+            </connections>
+        </placeholder>
+        <placeholder placeholderIdentifier="IBFirstResponder" id="-2" customClass="UIResponder"/>
+        <view contentMode="scaleToFill" id="iN0-l3-epB">
+            <rect key="frame" x="0.0" y="0.0" width="646" height="376"/>
+            <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+            <subviews>
+                <stackView opaque="NO" contentMode="scaleToFill" distribution="equalSpacing" translatesAutoresizingMaskIntoConstraints="NO" id="rlM-yk-wCC">
+                    <rect key="frame" x="20" y="10" width="606" height="30"/>
+                    <subviews>
+                        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Classification" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="dnf-UU-9oJ">
+                            <rect key="frame" x="0.0" y="0.0" width="86.5" height="30"/>
+                            <fontDescription key="fontDescription" type="system" pointSize="14"/>
+                            <color key="textColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                            <nil key="highlightedColor"/>
+                        </label>
+                        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Score" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="5gA-6f-y23">
+                            <rect key="frame" x="568.5" y="0.0" width="37.5" height="30"/>
+                            <fontDescription key="fontDescription" type="system" pointSize="14"/>
+                            <color key="textColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                            <nil key="highlightedColor"/>
+                        </label>
+                    </subviews>
+                    <constraints>
+                        <constraint firstAttribute="height" constant="30" id="Ry4-gX-zh2"/>
+                    </constraints>
+                </stackView>
+                <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" distribution="fillProportionally" spacing="20" translatesAutoresizingMaskIntoConstraints="NO" id="t6E-dN-5Jy">
+                    <rect key="frame" x="20" y="45" width="606" height="321"/>
+                </stackView>
+            </subviews>
+            <color key="backgroundColor" red="0.094117647058823528" green="0.094117647058823528" blue="0.094117647058823528" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+            <constraints>
+                <constraint firstItem="rlM-yk-wCC" firstAttribute="top" secondItem="iN0-l3-epB" secondAttribute="top" constant="10" id="0Fo-8c-4hx"/>
+                <constraint firstAttribute="trailing" secondItem="t6E-dN-5Jy" secondAttribute="trailing" constant="20" id="MNn-FH-wDg"/>
+                <constraint firstAttribute="trailing" secondItem="rlM-yk-wCC" secondAttribute="trailing" constant="20" id="RRL-lF-w8X"/>
+                <constraint firstAttribute="bottom" secondItem="t6E-dN-5Jy" secondAttribute="bottom" constant="10" id="a35-gU-fGo"/>
+                <constraint firstItem="rlM-yk-wCC" firstAttribute="leading" secondItem="iN0-l3-epB" secondAttribute="leading" constant="20" id="hux-wH-hGS"/>
+                <constraint firstItem="t6E-dN-5Jy" firstAttribute="top" secondItem="rlM-yk-wCC" secondAttribute="bottom" constant="5" id="juK-qL-xPf"/>
+                <constraint firstItem="t6E-dN-5Jy" firstAttribute="leading" secondItem="iN0-l3-epB" secondAttribute="leading" constant="20" id="nOc-sG-91v"/>
+            </constraints>
+            <nil key="simulatedTopBarMetrics"/>
+            <nil key="simulatedBottomBarMetrics"/>
+            <freeformSimulatedSizeMetrics key="simulatedDestinationMetrics"/>
+            <point key="canvasLocation" x="-526" y="36"/>
+        </view>
+    </objects>
+</document>

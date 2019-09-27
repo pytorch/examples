@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="14868" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" colorMatched="YES">
+    <device id="retina6_1" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="14824"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <objects>
+        <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner" customClass="NLPResultView" customModule="PyTorchDemo" customModuleProvider="target">
+            <connections>
+                <outlet property="containerView" destination="x0u-ij-L8O" id="IUV-lX-Kda"/>
+                <outlet property="contentView" destination="iN0-l3-epB" id="he7-jZ-HVG"/>
+            </connections>
+        </placeholder>
+        <placeholder placeholderIdentifier="IBFirstResponder" id="-2" customClass="UIResponder"/>
+        <view contentMode="scaleToFill" id="iN0-l3-epB">
+            <rect key="frame" x="0.0" y="0.0" width="514" height="263"/>
+            <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+            <subviews>
+                <stackView opaque="NO" contentMode="scaleToFill" distribution="equalSpacing" translatesAutoresizingMaskIntoConstraints="NO" id="GPp-db-gWp">
+                    <rect key="frame" x="20" y="10" width="474" height="30"/>
+                    <subviews>
+                        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Topic" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="Dka-hs-Lf9">
+                            <rect key="frame" x="0.0" y="0.0" width="35" height="30"/>
+                            <fontDescription key="fontDescription" type="system" pointSize="14"/>
+                            <color key="textColor" white="0.66666666666666663" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                            <nil key="highlightedColor"/>
+                        </label>
+                        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Score" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="5N2-Cj-05J">
+                            <rect key="frame" x="436.5" y="0.0" width="37.5" height="30"/>
+                            <fontDescription key="fontDescription" type="system" pointSize="14"/>
+                            <color key="textColor" white="0.66666666669999997" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                            <nil key="highlightedColor"/>
+                        </label>
+                    </subviews>
+                    <constraints>
+                        <constraint firstAttribute="height" constant="30" id="3iN-9N-csa"/>
+                    </constraints>
+                </stackView>
+                <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" distribution="fillProportionally" spacing="20" translatesAutoresizingMaskIntoConstraints="NO" id="x0u-ij-L8O">
+                    <rect key="frame" x="20" y="60" width="474" height="183"/>
+                </stackView>
+            </subviews>
+            <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+            <constraints>
+                <constraint firstAttribute="trailing" secondItem="x0u-ij-L8O" secondAttribute="trailing" constant="20" id="04P-8U-pGh"/>
+                <constraint firstItem="x0u-ij-L8O" firstAttribute="leading" secondItem="iN0-l3-epB" secondAttribute="leading" constant="20" id="8tj-sc-ctW"/>
+                <constraint firstItem="GPp-db-gWp" firstAttribute="top" secondItem="iN0-l3-epB" secondAttribute="top" constant="10" id="TtL-eO-cJ7"/>
+                <constraint firstItem="GPp-db-gWp" firstAttribute="leading" secondItem="iN0-l3-epB" secondAttribute="leading" constant="20" id="akv-7T-kHW"/>
+                <constraint firstAttribute="bottom" secondItem="x0u-ij-L8O" secondAttribute="bottom" constant="20" id="cTv-7o-d5I"/>
+                <constraint firstItem="x0u-ij-L8O" firstAttribute="top" secondItem="GPp-db-gWp" secondAttribute="bottom" constant="20" id="icG-Ln-jBP"/>
+                <constraint firstAttribute="trailing" secondItem="GPp-db-gWp" secondAttribute="trailing" constant="20" id="v8j-z1-A5j"/>
+            </constraints>
+            <nil key="simulatedTopBarMetrics"/>
+            <nil key="simulatedBottomBarMetrics"/>
+            <freeformSimulatedSizeMetrics key="simulatedDestinationMetrics"/>
+            <point key="canvasLocation" x="195.6521739130435" y="-89.397321428571431"/>
+        </view>
+    </objects>
+</document>
