@@ -99,7 +99,7 @@ void test(
                      output,
                      targets,
                      /*weight=*/{},
-                     Reduction::Sum)
+                     at::Reduction::Sum)
                      .template item<float>();
     auto pred = output.argmax(1);
     correct += pred.eq(targets).sum().template item<int64_t>();
