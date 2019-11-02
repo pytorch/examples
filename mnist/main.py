@@ -28,31 +28,31 @@ class Net(nn.Module):
 
 class Net2(nn.Module):
     def __init__(self):
-        super(Net, self).__init__()
+        super(Net2, self).__init__()
         self.conv1 = nn.Conv2d(1, 32, 3, 1)
         self.conv2 = nn.Conv2d(32, 64, 3, 1)
         self.max_pool = nn.MaxPool2d(2)
         self.dropout1 = nn.Dropout2d(0.25)
         self.dropout2 = nn.Dropout2d(0.5)
+        self.relu1 = nn.ReLU()
+        self.flatten_layer = nn.Flatten()
+        self.dense1 = nn.Linear(9216, 128)
+        self.relu2 = nn.ReLU()
+        self.dense2 = nn.Linear(128, 10)
+        self.softmax = nn.LogSoftmax(dim=1)
 
     def forward(self, x):
         x = self.conv1(x)
-        relu1 = nn.ReLU()
-        x = relu1(x)
+        x = self.relu1(x)
         x = self.conv2(x)
         x = self.max_pool(x)
         x = self.dropout1(x)
-        flatten_layer = nn.Flatten()
-        x = flatten_layer(x)
-        dense1 = nn.Linear(9216, 128)
-        x = dense1(x)
-        relu2 = nn.ReLU()
-        x = relu2(x)
+        x = self.flatten_layer(x)
+        x = self.dense1(x)
+        x = self.relu2(x)
         x = self.dropout2(x)
-        dense2 = nn.Linear(128, 10)
-        x = dense2(x)
-        softmax = nn.Softmax(dim=1)
-        output = softmax(x)
+        x = self.dense2(x)
+        output = self.softmax(x)
         return output
 
     
@@ -95,7 +95,7 @@ def main():
                         help='input batch size for training (default: 64)')
     parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
                         help='input batch size for testing (default: 1000)')
-    parser.add_argument('--epochs', type=int, default=10, metavar='N',
+    parser.add_argument('--epochs', type=int, default=14, metavar='N',
                         help='number of epochs to train (default: 10)')
     parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
                         help='learning rate (default: 0.01)')
@@ -133,8 +133,8 @@ def main():
         batch_size=args.test_batch_size, shuffle=True, **kwargs)
 
 
-    model = Net().to(device)
-    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+    model = Net2().to(device)
+    optimizer = optim.Adadelta(model.parameters(), lr=0.5)
 
     for epoch in range(1, args.epochs + 1):
         train(args, model, device, train_loader, optimizer, epoch)
