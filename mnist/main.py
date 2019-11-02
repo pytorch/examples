@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
-
+from torch.optim.lr_scheduler import StepLR
 
 class Net(nn.Module):
     def __init__(self):
@@ -134,11 +134,13 @@ def main():
 
 
     model = Net2().to(device)
-    optimizer = optim.Adadelta(model.parameters(), lr=0.5)
+    optimizer = optim.Adadelta(model.parameters(), lr=1)
 
+    scheduler = StepLR(optimizer, step_size=1, gamma=0.7)
     for epoch in range(1, args.epochs + 1):
         train(args, model, device, train_loader, optimizer, epoch)
         test(args, model, device, test_loader)
+        scheduler.step()
 
     if (args.save_model):
         torch.save(model.state_dict(),"mnist_cnn.pt")
