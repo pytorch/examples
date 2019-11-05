@@ -21,7 +21,7 @@ class Net(nn.Module):
         self.dense1 = nn.Linear(9216, 128)
         self.relu2 = nn.ReLU()
         self.dense2 = nn.Linear(128, 10)
-        self.softmax = nn.LogSoftmax(dim=1)
+        self.logsoftmax = nn.LogSoftmax(dim=1)
 
     def forward(self, x):
         x = self.conv1(x)
@@ -34,7 +34,7 @@ class Net(nn.Module):
         x = self.relu2(x)
         x = self.dropout2(x)
         x = self.dense2(x)
-        output = self.softmax(x)
+        output = self.logsoftmax(x)
         return output
 
 
