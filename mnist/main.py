@@ -13,13 +13,10 @@ class Net(nn.Module):
         super(Net, self).__init__()
         self.conv1 = nn.Conv2d(1, 32, 3, 1)
         self.conv2 = nn.Conv2d(32, 64, 3, 1)
-        self.max_pool = nn.MaxPool2d(2)
         self.dropout1 = nn.Dropout2d(0.25)
         self.dropout2 = nn.Dropout2d(0.5)
-        self.flatten_layer = nn.Flatten()
         self.fc1 = nn.Linear(9216, 128)
         self.fc2 = nn.Linear(128, 10)
-        self.softmax = nn.LogSoftmax(dim=1)
 
     def forward(self, x):
         x = self.conv1(x)
