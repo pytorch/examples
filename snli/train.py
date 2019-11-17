@@ -14,7 +14,7 @@ from util import get_args, makedirs
 
 
 args = get_args()
-if torch.cuda.is_available():
+if not args.no_cuda and torch.cuda.is_available():
     torch.cuda.set_device(args.gpu)
     device = torch.device('cuda:{}'.format(args.gpu))
 else:
