@@ -44,7 +44,7 @@ int main(int argc, const char* argv[]) {
   nn::Sequential generator(
       // Layer 1
       nn::Conv2d(nn::Conv2dOptions(kNoiseSize, 256, 4)
-                     .with_bias(false)
+                     .bias(false)
                      .transposed(true)),
       nn::BatchNorm(256),
       nn::Functional(torch::relu),
@@ -52,7 +52,7 @@ int main(int argc, const char* argv[]) {
       nn::Conv2d(nn::Conv2dOptions(256, 128, 3)
                      .stride(2)
                      .padding(1)
-                     .with_bias(false)
+                     .bias(false)
                      .transposed(true)),
       nn::BatchNorm(128),
       nn::Functional(torch::relu),
@@ -60,7 +60,7 @@ int main(int argc, const char* argv[]) {
       nn::Conv2d(nn::Conv2dOptions(128, 64, 4)
                      .stride(2)
                      .padding(1)
-                     .with_bias(false)
+                     .bias(false)
                      .transposed(true)),
       nn::BatchNorm(64),
       nn::Functional(torch::relu),
@@ -68,7 +68,7 @@ int main(int argc, const char* argv[]) {
       nn::Conv2d(nn::Conv2dOptions(64, 1, 4)
                      .stride(2)
                      .padding(1)
-                     .with_bias(false)
+                     .bias(false)
                      .transposed(true)),
       nn::Functional(torch::tanh));
   generator->to(device);
@@ -76,21 +76,21 @@ int main(int argc, const char* argv[]) {
   nn::Sequential discriminator(
       // Layer 1
       nn::Conv2d(
-          nn::Conv2dOptions(1, 64, 4).stride(2).padding(1).with_bias(false)),
+          nn::Conv2dOptions(1, 64, 4).stride(2).padding(1).bias(false)),
       nn::Functional(torch::leaky_relu, 0.2),
       // Layer 2
       nn::Conv2d(
-          nn::Conv2dOptions(64, 128, 4).stride(2).padding(1).with_bias(false)),
+          nn::Conv2dOptions(64, 128, 4).stride(2).padding(1).bias(false)),
       nn::BatchNorm(128),
       nn::Functional(torch::leaky_relu, 0.2),
       // Layer 3
       nn::Conv2d(
-          nn::Conv2dOptions(128, 256, 4).stride(2).padding(1).with_bias(false)),
+          nn::Conv2dOptions(128, 256, 4).stride(2).padding(1).bias(false)),
       nn::BatchNorm(256),
       nn::Functional(torch::leaky_relu, 0.2),
       // Layer 4
       nn::Conv2d(
-          nn::Conv2dOptions(256, 1, 3).stride(1).padding(0).with_bias(false)),
+          nn::Conv2dOptions(256, 1, 3).stride(1).padding(0).bias(false)),
       nn::Functional(torch::sigmoid));
   discriminator->to(device);
 
