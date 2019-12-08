@@ -37,7 +37,7 @@ optional arguments:
   --batch_size N                   batch size
   --bptt BPTT                      sequence length
   --dropout DROPOUT                dropout applied to layers (0 = no dropout)
-  --decay DECAY                    learning rate decay per epoch
+  --lr_decay DECAY                 learning rate decay per epoch (0 = no decay)
   --tied                           tie the word embedding and softmax weights
   --seed SEED                      random seed
   --cuda                           use CUDA

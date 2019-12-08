@@ -33,6 +33,8 @@ parser.add_argument('--bptt', type=int, default=35,
                     help='sequence length')
 parser.add_argument('--dropout', type=float, default=0.2,
                     help='dropout applied to layers (0 = no dropout)')
+parser.add_argument('--lr_decay', type=float, default=0,
+                    help='learning rate decay per epoch (0 = no decay)')
 parser.add_argument('--tied', action='store_true',
                     help='tie the word embedding and softmax weights')
 parser.add_argument('--seed', type=int, default=1111,
@@ -221,9 +223,12 @@ try:
             with open(args.save, 'wb') as f:
                 torch.save(model, f)
             best_val_loss = val_loss
-        else:
+        elif not args.lr_decay:
             # Anneal the learning rate if no improvement has been seen in the validation dataset.
             lr /= 4.0
+        if args.lr_decay:
+            # Decay the learning rate if lr_decay has been set.
+            lr = args.lr / (1 + epoch * args.lr_decay)
 except KeyboardInterrupt:
     print('-' * 89)
     print('Exiting from training early')
