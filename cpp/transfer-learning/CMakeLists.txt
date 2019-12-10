@@ -14,5 +14,5 @@ target_link_libraries(example "${TORCH_LIBRARIES}")
 target_link_libraries(classify ${OpenCV_LIBS})
 target_link_libraries(classify "${TORCH_LIBRARIES}")
 
-set_property(TARGET classify PROPERTY CXX_STANDARD 11)
-set_property(TARGET example PROPERTY CXX_STANDARD 11)
+set_property(TARGET classify PROPERTY CXX_STANDARD 14)
+set_property(TARGET example PROPERTY CXX_STANDARD 14)
