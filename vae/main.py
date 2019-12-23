@@ -7,7 +7,6 @@ from torch.nn import functional as F
 from torchvision import datasets, transforms
 from torchvision.utils import save_image
 
-
 parser = argparse.ArgumentParser(description='VAE MNIST Example')
 parser.add_argument('--batch-size', type=int, default=128, metavar='N',
                     help='input batch size for training (default: 128)')
@@ -57,7 +56,8 @@ class VAE(nn.Module):
 
     def decode(self, z):
         h3 = F.relu(self.fc3(z))
-        return torch.sigmoid(self.fc4(h3))
+        # clamp to avoid numerical issues with the continuous Bernoulli log normalizing constant
+        return torch.clamp(torch.sigmoid(self.fc4(h3)), min=1e-4, max=1.0 - 1e-4)
 
     def forward(self, x):
         mu, logvar = self.encode(x.view(-1, 784))
@@ -68,10 +68,28 @@ class VAE(nn.Module):
 model = VAE().to(device)
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
+def atanh(x):
+    # inverse hyperbolic tangent, used to compute the log normalizing constant of the continuous Bernoulli
+    return 0.5 * (torch.log(1.0 + x) - torch.log(1.0 - x))
+
+def cont_bern_log_norm(lam, l_lim=0.49, u_lim=0.51):
+    # computes the log normalizing constant of a continuous Bernoulli distribution in a numerically stable way.
+    # returns the log normalizing constant for lam in (0, l_lim) U (u_lim, 1) and a Taylor approximation in
+    # [l_lim, u_lim].
+    cut_lam = torch.where(torch.max(torch.le(lam, l_lim), torch.gt(lam, u_lim)), lam, l_lim * torch.ones_like(lam))
+    log_norm = torch.log(torch.abs(2.0 * atanh(1 - 2.0 * cut_lam))) - torch.log(torch.abs(1 - 2.0 * cut_lam))
+    taylor = torch.log(torch.tensor(2.0)) + 4.0 / 3.0 * torch.pow(lam - 0.5, 2) + 104.0 / 45.0 * torch.pow(lam - 0.5, 4)
+    return torch.where(torch.max(torch.le(lam, l_lim), torch.gt(lam, u_lim)), log_norm, taylor)
 
 # Reconstruction + KL divergence losses summed over all elements and batch
 def loss_function(recon_x, x, mu, logvar):
     BCE = F.binary_cross_entropy(recon_x, x.view(-1, 784), reduction='sum')
+
+    # this term correctly accounts for using a binary cross entropy reconstruction term when the data is not binarized:
+    # Loaiza-Ganem and Cunningham. The continuous Bernoulli: fixing a pervasive error in variational autoencoders.
+    # NeurIPS, 2019
+    # https://arxiv.org/abs/1907.06845
+    NLNC = -torch.sum(cont_bern_log_norm(recon_x)) # negative log normalizing constant
 
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -79,7 +97,7 @@ def loss_function(recon_x, x, mu, logvar):
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
-    return BCE + KLD
+    return BCE + NLNC + KLD
 
 
 def train(epoch):
@@ -96,11 +114,11 @@ def train(epoch):
         if batch_idx % args.log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
-                100. * batch_idx / len(train_loader),
-                loss.item() / len(data)))
+                       100. * batch_idx / len(train_loader),
+                       loss.item() / len(data)))
 
     print('====> Epoch: {} Average loss: {:.4f}'.format(
-          epoch, train_loss / len(train_loader.dataset)))
+        epoch, train_loss / len(train_loader.dataset)))
 
 
 def test(epoch):
@@ -114,9 +132,9 @@ def test(epoch):
             if i == 0:
                 n = min(data.size(0), 8)
                 comparison = torch.cat([data[:n],
-                                      recon_batch.view(args.batch_size, 1, 28, 28)[:n]])
+                                        recon_batch.view(args.batch_size, 1, 28, 28)[:n]])
                 save_image(comparison.cpu(),
-                         'results/reconstruction_' + str(epoch) + '.png', nrow=n)
+                           'results/reconstruction_' + str(epoch) + '.png', nrow=n)
 
     test_loss /= len(test_loader.dataset)
     print('====> Test set loss: {:.4f}'.format(test_loss))
