@@ -1,6 +1,5 @@
 import torch
 from PIL import Image
-from torch.autograd import Variable
 
 
 def load_image(filename, size=None, scale=None):
@@ -29,15 +28,7 @@ def gram_matrix(y):
 
 def normalize_batch(batch):
     # normalize using imagenet mean and std
-    mean = batch.data.new(batch.data.size())
-    std = batch.data.new(batch.data.size())
-    mean[:, 0, :, :] = 0.485
-    mean[:, 1, :, :] = 0.456
-    mean[:, 2, :, :] = 0.406
-    std[:, 0, :, :] = 0.229
-    std[:, 1, :, :] = 0.224
-    std[:, 2, :, :] = 0.225
-    batch = torch.div(batch, 255.0)
-    batch -= Variable(mean)
-    batch = batch / Variable(std)
-    return batch
+    mean = batch.new_tensor([0.485, 0.456, 0.406]).view(-1, 1, 1)
+    std = batch.new_tensor([0.229, 0.224, 0.225]).view(-1, 1, 1)
+    batch = batch.div_(255.0)
+    return (batch - mean) / std

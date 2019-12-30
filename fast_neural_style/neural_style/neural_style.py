@@ -2,14 +2,15 @@ import argparse
 import os
 import sys
 import time
+import re
 
 import numpy as np
 import torch
-from torch.autograd import Variable
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 from torchvision import datasets
 from torchvision import transforms
+import torch.onnx
 
 import utils
 from transformer_net import TransformerNet
@@ -28,11 +29,10 @@ def check_paths(args):
 
 
 def train(args):
+    device = torch.device("cuda" if args.cuda else "cpu")
+
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
-
-    if args.cuda:
-        torch.cuda.manual_seed(args.seed)
 
     transform = transforms.Compose([
         transforms.Resize(args.image_size),
@@ -43,27 +43,20 @@ def train(args):
     train_dataset = datasets.ImageFolder(args.dataset, transform)
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size)
 
-    transformer = TransformerNet()
+    transformer = TransformerNet().to(device)
     optimizer = Adam(transformer.parameters(), args.lr)
     mse_loss = torch.nn.MSELoss()
 
-    vgg = Vgg16(requires_grad=False)
+    vgg = Vgg16(requires_grad=False).to(device)
     style_transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Lambda(lambda x: x.mul(255))
     ])
     style = utils.load_image(args.style_image, size=args.style_size)
     style = style_transform(style)
-    style = style.repeat(args.batch_size, 1, 1, 1)
+    style = style.repeat(args.batch_size, 1, 1, 1).to(device)
 
-    if args.cuda:
-        transformer.cuda()
-        vgg.cuda()
-        style = style.cuda()
-
-    style_v = Variable(style)
-    style_v = utils.normalize_batch(style_v)
-    features_style = vgg(style_v)
+    features_style = vgg(utils.normalize_batch(style))
     gram_style = [utils.gram_matrix(y) for y in features_style]
 
     for e in range(args.epochs):
@@ -75,10 +68,8 @@ def train(args):
             n_batch = len(x)
             count += n_batch
             optimizer.zero_grad()
-            x = Variable(x)
-            if args.cuda:
-                x = x.cuda()
 
+            x = x.to(device)
             y = transformer(x)
 
             y = utils.normalize_batch(y)
@@ -99,8 +90,8 @@ def train(args):
             total_loss.backward()
             optimizer.step()
 
-            agg_content_loss += content_loss.data[0]
-            agg_style_loss += style_loss.data[0]
+            agg_content_loss += content_loss.item()
+            agg_style_loss += style_loss.item()
 
             if (batch_id + 1) % args.log_interval == 0:
                 mesg = "{}\tEpoch {}:\t[{}/{}]\tcontent: {:.6f}\tstyle: {:.6f}\ttotal: {:.6f}".format(
@@ -112,20 +103,14 @@ def train(args):
                 print(mesg)
 
             if args.checkpoint_model_dir is not None and (batch_id + 1) % args.checkpoint_interval == 0:
-                transformer.eval()
-                if args.cuda:
-                    transformer.cpu()
+                transformer.eval().cpu()
                 ckpt_model_filename = "ckpt_epoch_" + str(e) + "_batch_id_" + str(batch_id + 1) + ".pth"
                 ckpt_model_path = os.path.join(args.checkpoint_model_dir, ckpt_model_filename)
                 torch.save(transformer.state_dict(), ckpt_model_path)
-                if args.cuda:
-                    transformer.cuda()
-                transformer.train()
+                transformer.to(device).train()
 
     # save model
-    transformer.eval()
-    if args.cuda:
-        transformer.cpu()
+    transformer.eval().cpu()
     save_model_filename = "epoch_" + str(args.epochs) + "_" + str(time.ctime()).replace(' ', '_') + "_" + str(
         args.content_weight) + "_" + str(args.style_weight) + ".model"
     save_model_path = os.path.join(args.save_model_dir, save_model_filename)
@@ -135,26 +120,53 @@ def train(args):
 
 
 def stylize(args):
+    device = torch.device("cuda" if args.cuda else "cpu")
+
     content_image = utils.load_image(args.content_image, scale=args.content_scale)
     content_transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Lambda(lambda x: x.mul(255))
     ])
     content_image = content_transform(content_image)
-    content_image = content_image.unsqueeze(0)
-    if args.cuda:
-        content_image = content_image.cuda()
-    content_image = Variable(content_image, volatile=True)
+    content_image = content_image.unsqueeze(0).to(device)
 
-    style_model = TransformerNet()
-    style_model.load_state_dict(torch.load(args.model))
-    if args.cuda:
-        style_model.cuda()
-    output = style_model(content_image)
-    if args.cuda:
-        output = output.cpu()
-    output_data = output.data[0]
-    utils.save_image(args.output_image, output_data)
+    if args.model.endswith(".onnx"):
+        output = stylize_onnx_caffe2(content_image, args)
+    else:
+        with torch.no_grad():
+            style_model = TransformerNet()
+            state_dict = torch.load(args.model)
+            # remove saved deprecated running_* keys in InstanceNorm from the checkpoint
+            for k in list(state_dict.keys()):
+                if re.search(r'in\d+\.running_(mean|var)$', k):
+                    del state_dict[k]
+            style_model.load_state_dict(state_dict)
+            style_model.to(device)
+            if args.export_onnx:
+                assert args.export_onnx.endswith(".onnx"), "Export model file should end with .onnx"
+                output = torch.onnx._export(style_model, content_image, args.export_onnx).cpu()
+            else:
+                output = style_model(content_image).cpu()
+    utils.save_image(args.output_image, output[0])
+
+
+def stylize_onnx_caffe2(content_image, args):
+    """
+    Read ONNX model and run it using Caffe2
+    """
+
+    assert not args.export_onnx
+
+    import onnx
+    import onnx_caffe2.backend
+
+    model = onnx.load(args.model)
+
+    prepared_backend = onnx_caffe2.backend.prepare(model, device='CUDA' if args.cuda else 'CPU')
+    inp = {model.graph.input[0].name: content_image.numpy()}
+    c2_out = prepared_backend.run(inp)[0]
+
+    return torch.from_numpy(c2_out)
 
 
 def main():
@@ -202,9 +214,11 @@ def main():
     eval_arg_parser.add_argument("--output-image", type=str, required=True,
                                  help="path for saving the output image")
     eval_arg_parser.add_argument("--model", type=str, required=True,
-                                 help="saved model to be used for stylizing the image")
+                                 help="saved model to be used for stylizing the image. If file ends in .pth - PyTorch path is used, if in .onnx - Caffe2 path")
     eval_arg_parser.add_argument("--cuda", type=int, required=True,
                                  help="set it to 1 for running on GPU, 0 for CPU")
+    eval_arg_parser.add_argument("--export_onnx", type=str,
+                                 help="export ONNX model to a given file")
 
     args = main_arg_parser.parse_args()
 

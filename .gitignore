@@ -2,3 +2,5 @@ dcgan/data
 data
 *.pyc
 OpenNMT/data
+cpp/mnist/build
+cpp/dcgan/build
