@@ -17,7 +17,7 @@ endif()
 
 add_executable(dcgan dcgan.cpp)
 target_link_libraries(dcgan "${TORCH_LIBRARIES}")
-set_property(TARGET dcgan PROPERTY CXX_STANDARD 11)
+set_property(TARGET dcgan PROPERTY CXX_STANDARD 14)
 
 if (MSVC)
   file(GLOB TORCH_DLLS "${TORCH_INSTALL_PREFIX}/lib/*.dll")
