@@ -47,7 +47,7 @@ struct Net : torch::nn::Module {
 
   torch::nn::Conv2d conv1;
   torch::nn::Conv2d conv2;
-  torch::nn::FeatureDropout conv2_drop;
+  torch::nn::Dropout2d conv2_drop;
   torch::nn::Linear fc1;
   torch::nn::Linear fc2;
 };
