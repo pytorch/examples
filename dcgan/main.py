@@ -52,7 +52,7 @@ cudnn.benchmark = True
 if torch.cuda.is_available() and not opt.cuda:
     print("WARNING: You have a CUDA device, so you should probably run with --cuda")
   
-if opt.dataroot is None and opt.dataset != 'fake':
+if opt.dataroot is None and str(opt.dataset).lower() != 'fake':
     raise ValueError("`dataroot` parameter is required for dataset \"%s\"" % opt.dataset)
 
 if opt.dataset in ['imagenet', 'folder', 'lfw']:
