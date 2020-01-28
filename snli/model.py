@@ -30,7 +30,7 @@ class Encoder(nn.Module):
     def forward(self, inputs):
         batch_size = inputs.size()[1]
         state_shape = self.config.n_cells, batch_size, self.config.d_hidden
-        h0 = c0 =  inputs.new_zeros(state_shape)
+        h0 = c0 = inputs.new_zeros(state_shape)
         outputs, (ht, ct) = self.rnn(inputs, (h0, c0))
         return ht[-1] if not self.config.birnn else ht[-2:].transpose(0, 1).contiguous().view(batch_size, -1)
 
@@ -65,8 +65,8 @@ class SNLIClassifier(nn.Module):
         prem_embed = self.embed(batch.premise)
         hypo_embed = self.embed(batch.hypothesis)
         if self.config.fix_emb:
-            prem_embed =prem_embed.detach()
-            hypo_embed =hypo_embed.detach()
+            prem_embed = prem_embed.detach()
+            hypo_embed = hypo_embed.detach()
         if self.config.projection:
             prem_embed = self.relu(self.projection(prem_embed))
             hypo_embed = self.relu(self.projection(hypo_embed))
