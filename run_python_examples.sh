@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # This script runs through the code in each of the python examples.
 # The purpose is just as an integrtion test, not to actually train
@@ -35,6 +35,7 @@ function error() {
 
 function install_deps() {
   echo "installing requirements"
+  echo $BASE_DIR/*/requirements.txt
   cat $BASE_DIR/*/requirements.txt | \
     sort -u | \
     # testing the installed version of torch, so don't pip install it.
