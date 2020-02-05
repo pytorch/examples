@@ -1,0 +1,23 @@
+name: CI
+
+on: push
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.x
+      uses: actions/setup-python@v1
+      with:
+        python-version: '3.x' # Semantic version range syntax or exact version of a Python version
+   
+    - name: Display Python version
+      run: python -c "import sys; print(sys.version)"
+   
+    - name: Run python examples script
+      run: |
+        pip install torch 
+        ./run_python_examples.sh "install_deps,run_all,clean"
