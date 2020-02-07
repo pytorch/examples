@@ -3,6 +3,7 @@ import torch
 import torch.distributed.rpc as rpc
 import os
 from threading import Lock
+from torchvision import datasets, transforms
 import torch.multiprocessing as mp
 from torch.distributed.optim import DistributedOptimizer
 import torch.distributed.autograd as dist_autograd
@@ -118,31 +119,35 @@ class TrainerNet(nn.Module):
 
 
     def forward(self, x, cid):
-        model_output = remote_method(ParameterServer.forward, self.param_server_rref, torch.rand(1,1,28,28))
+        model_output = remote_method(ParameterServer.forward, self.param_server_rref, x)
         return model_output
 
-def run_training_loop(rank):
+def run_training_loop(rank, train_loader, test_loader):
     # Runs the typical nueral network forward + backward + optimizer step, but in a distributed fashion.
     net = TrainerNet()
-    with dist_autograd.context() as cid:
-        # TODO get real data.
-        model_output = net(torch.ones(1), cid)
-        loss = model_output.sum()
-        dist_autograd.backward([loss])
-        param_rrefs = net.get_global_param_rrefs()
-        opt = DistributedOptimizer(optim.SGD, param_rrefs, lr=0.03)
-        opt.step()
-        # verify that we have remote gradients
-        assert remote_method(ParameterServer.get_dist_gradients, net.param_server_rref, cid) != {}
+    for data, target in train_loader:
+        with dist_autograd.context() as cid:
+            print("Training....")
+            # TODO get real data.
+            model_output = net(data, cid)
+            loss = F.nll_loss(model_output, target)
+            print(loss)
+            dist_autograd.backward([loss])
+            param_rrefs = net.get_global_param_rrefs()
+            opt = DistributedOptimizer(optim.SGD, param_rrefs, lr=0.03)
+            opt.step()
+            # verify that we have remote gradients
+            assert remote_method(ParameterServer.get_dist_gradients, net.param_server_rref, cid) != {}
+
 
 # Main loop for trainers.
-def run_worker(rank, world_size):
+def run_worker(rank, world_size, train_loader, test_loader):
     rpc.init_rpc(
         name="trainer_{}".format(rank),
         rank=rank,
         world_size=world_size)
 
-    run_training_loop(rank)
+    run_training_loop(rank, train_loader, test_loader)
     rpc.shutdown()
 
 # --------- Launcher --------------------
@@ -151,15 +156,29 @@ def run_worker(rank, world_size):
 if __name__ == '__main__':
     os.environ['MASTER_ADDR'] = "localhost"
     os.environ["MASTER_PORT"] = "29500"
+    # Get data to train on
+    train_loader = torch.utils.data.DataLoader(
+        datasets.MNIST('../data', train=True, download=True,
+                       transform=transforms.Compose([
+                           transforms.ToTensor(),
+                           transforms.Normalize((0.1307,), (0.3081,))
+                       ])),
+        batch_size=32, shuffle=True,)
+    test_loader = torch.utils.data.DataLoader(
+        datasets.MNIST('../data', train=False, transform=transforms.Compose([
+                           transforms.ToTensor(),
+                           transforms.Normalize((0.1307,), (0.3081,))
+                       ])),
+        batch_size=32, shuffle=True, )
     processes = []
     # Run num_trainers workers, plus 1 for the parameter serever.
-    num_trainers = 2
+    num_trainers = 5
     p = mp.Process(target=run_parameter_server, args=(0, num_trainers + 1))
     p.start()
     processes.append(p)
     # run num_trainers workers
     for i in range(num_trainers):
-        p = mp.Process(target=run_worker, args=(i + 1, num_trainers + 1))
+        p = mp.Process(target=run_worker, args=(i + 1, num_trainers + 1, train_loader, test_loader))
         p.start()
         processes.append(p)
 
