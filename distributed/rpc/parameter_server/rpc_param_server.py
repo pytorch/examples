@@ -1,4 +1,4 @@
-
+import time
 import torch
 import torch.distributed.rpc as rpc
 import os
@@ -12,6 +12,7 @@ from torch import optim
 import torch.nn.functional as F
 
 # --------- MNIST Network to train, from pytorch/examples --------------------
+
 
 class Net(nn.Module):
     def __init__(self):
@@ -45,13 +46,17 @@ class Net(nn.Module):
 def call_method(method, rref, *args, **kwargs):
     return method(rref.local_value(), *args, **kwargs)
 
-# Syncrhnous RPC to run a method remotely and get a result. The method should be a class method corresponding to 
+# Syncrhnous RPC to run a method remotely and get a result. The method should be a class method corresponding to
 # Given an RRef, return the result of calling the passed in method on the value held by the RRef. This call is done on the remote node that owns the RRef. args and kwargs are passed into the method.
-# Example: If the value held by the RRef is of type Foo, then remote_method(Foo.bar, rref, arg1, arg2) is equivalent to calling <foo_instance>.bar(arg1, arg2) on the remote node and getting the result back.
+# Example: If the value held by the RRef is of type Foo, then
+# remote_method(Foo.bar, rref, arg1, arg2) is equivalent to calling
+# <foo_instance>.bar(arg1, arg2) on the remote node and getting the result
+# back.
+
+
 def remote_method(method, rref, *args, **kwargs):
     args = [method, rref] + list(args)
     return rpc.rpc_sync(rref.owner(), call_method, args=args, kwargs=kwargs)
-
 
 
 # --------- Parameter Server --------------------
@@ -61,16 +66,18 @@ class ParameterServer(nn.Module):
         model = Net()
         self.model = model
 
-    def forward(self, inp):       
+    def forward(self, inp):
         out = self.model(inp)
         return out
 
-    # Use dist autograds to retrieve gradients accumulated for this model. Primarily used for verification.
+    # Use dist autograds to retrieve gradients accumulated for this model.
+    # Primarily used for verification.
     def get_dist_gradients(self, cid):
         grads = dist_autograd.get_gradients(cid)
         return grads
 
-    # Wrap local parameters in a RRef. Needed for building the DistributedOptimizer which optimizes paramters remotely.
+    # Wrap local parameters in a RRef. Needed for building the
+    # DistributedOptimizer which optimizes paramters remotely.
     def get_param_rrefs(self):
         param_rrefs = [rpc.RRef(param) for param in self.model.parameters()]
         return param_rrefs
@@ -79,6 +86,8 @@ class ParameterServer(nn.Module):
 param_server = None
 global_lock = Lock()
 # Ensure that we get only one handle to the ParameterServer.
+
+
 def get_parameter_server():
     global param_server
     with global_lock:
@@ -98,37 +107,39 @@ def run_parameter_server(rank, world_size):
     rpc.shutdown()
 
 
-
-
-
-
 # --------- Trainers --------------------
 
-# nn.Module corresponding to the network trained by this trainer. The forward() method simply invokes the network on the given parameter server.
+# nn.Module corresponding to the network trained by this trainer. The
+# forward() method simply invokes the network on the given parameter
+# server.
 class TrainerNet(nn.Module):
     def __init__(self):
         super().__init__()
         model = Net()
         self.model = model
         # TODO take this in as an arg
-        self.param_server_rref = rpc.remote("parameter_server", get_parameter_server, args=())
+        self.param_server_rref = rpc.remote(
+            "parameter_server", get_parameter_server, args=())
 
     def get_global_param_rrefs(self):
-        remote_params = remote_method(ParameterServer.get_param_rrefs, self.param_server_rref)
+        remote_params = remote_method(
+            ParameterServer.get_param_rrefs,
+            self.param_server_rref)
         return remote_params
 
-
     def forward(self, x, cid):
-        model_output = remote_method(ParameterServer.forward, self.param_server_rref, x)
+        model_output = remote_method(
+            ParameterServer.forward, self.param_server_rref, x)
         return model_output
 
+
 def run_training_loop(rank, train_loader, test_loader):
-    # Runs the typical nueral network forward + backward + optimizer step, but in a distributed fashion.
+    # Runs the typical nueral network forward + backward + optimizer step, but
+    # in a distributed fashion.
     net = TrainerNet()
-    for data, target in train_loader:
+    for i, (data, target) in enumerate(train_loader):
         with dist_autograd.context() as cid:
-            print("Training....")
-            # TODO get real data.
+            print("Training batch {}".format(i))
             model_output = net(data, cid)
             loss = F.nll_loss(model_output, target)
             print(loss)
@@ -137,7 +148,26 @@ def run_training_loop(rank, train_loader, test_loader):
             opt = DistributedOptimizer(optim.SGD, param_rrefs, lr=0.03)
             opt.step()
             # verify that we have remote gradients
-            assert remote_method(ParameterServer.get_dist_gradients, net.param_server_rref, cid) != {}
+            assert remote_method(
+                ParameterServer.get_dist_gradients,
+                net.param_server_rref,
+                cid) != {}
+
+    print("Training complete!")
+    print("Getting accuracy....")
+    get_accuracy(test_loader, net)
+
+
+def get_accuracy(test_loader, model):
+    model.eval()
+    correct_sum = 0
+    with torch.no_grad():
+        for data, target in test_loader:
+            out = model(data, -1)
+            pred = out.argmax(dim=1, keepdim=True)
+            correct = pred.eq(target.view_as(pred)).sum().item()
+            correct_sum += correct
+    print("Accuracy {}".format(correct_sum / len(test_loader.dataset)))
 
 
 # Main loop for trainers.
@@ -154,6 +184,7 @@ def run_worker(rank, world_size, train_loader, test_loader):
 
 
 if __name__ == '__main__':
+    start = time.time()
     os.environ['MASTER_ADDR'] = "localhost"
     os.environ["MASTER_PORT"] = "29500"
     # Get data to train on
@@ -166,22 +197,30 @@ if __name__ == '__main__':
         batch_size=32, shuffle=True,)
     test_loader = torch.utils.data.DataLoader(
         datasets.MNIST('../data', train=False, transform=transforms.Compose([
-                           transforms.ToTensor(),
-                           transforms.Normalize((0.1307,), (0.3081,))
-                       ])),
+            transforms.ToTensor(),
+            transforms.Normalize((0.1307,), (0.3081,))
+        ])),
         batch_size=32, shuffle=True, )
     processes = []
     # Run num_trainers workers, plus 1 for the parameter serever.
-    num_trainers = 5
+    num_trainers = 3
     p = mp.Process(target=run_parameter_server, args=(0, num_trainers + 1))
     p.start()
     processes.append(p)
     # run num_trainers workers
     for i in range(num_trainers):
-        p = mp.Process(target=run_worker, args=(i + 1, num_trainers + 1, train_loader, test_loader))
+        p = mp.Process(
+            target=run_worker,
+            args=(
+                i + 1,
+                num_trainers + 1,
+                train_loader,
+                test_loader))
         p.start()
         processes.append(p)
 
     # Run to completeion.
     for p in processes:
         p.join()
+
+    print("Script took {} seconds".format(time.time() - start))
