@@ -6,6 +6,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
+from matplotlib import pyplot as plt
 
 
 class Net(nn.Module):
@@ -66,6 +67,27 @@ def test(args, model, device, test_loader):
         test_loss, correct, len(test_loader.dataset),
         100. * correct / len(test_loader.dataset)))
 
+def show_test(args, model, device, test_loader):
+    model.eval()
+    i = 0
+    fig = plt.figure()
+
+    with torch.no_grad():
+         for data, target in test_loader:
+             i += 1
+             subplot = fig.add_subplot(2, 5, i)
+             subplot.set_xticks([])
+             subplot.set_yticks([])
+
+             data, target = data.to(device), target.to(device)
+             subplot.imshow(data[0].reshape(28, 28), cmap=plt.cm.gray_r)
+
+             output = model(data)
+             pred = output.argmax(dim=1, keepdim=True)
+             subplot.set_title('%d' % pred[0])
+
+    plt.show()
+
 
 def main():
     # Training settings
@@ -89,6 +111,9 @@ def main():
 
     parser.add_argument('--save-model', action='store_true', default=False,
                         help='For Saving the current Model')
+    parser.add_argument('--show-test', action='store_true', default=True,
+                        help='For showing example of handwriting prediction')
+
     args = parser.parse_args()
     use_cuda = not args.no_cuda and torch.cuda.is_available()
 
@@ -122,6 +147,9 @@ def main():
 
     if args.save_model:
         torch.save(model.state_dict(), "mnist_cnn.pt")
+
+    if args.show_test:
+        show_test(args, model, device, test_loader)
 
 
 if __name__ == '__main__':
