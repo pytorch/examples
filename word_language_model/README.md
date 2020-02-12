@@ -47,6 +47,7 @@ optional arguments:
   --transformer_encoder_layers N   the number of layers in the encoder of the transformer model
   --transformer_decoder_layers N   the number of layers in the decoder of the transformer model
   --transformer_d_ff N             the number of nodes on the hidden layer in feed forward nn
+  --nhead                          the number of heads in the multiheadattention model
 ```
 
 With these arguments, a variety of models can be tested.
