@@ -10,6 +10,7 @@ import torch.distributed.autograd as dist_autograd
 import torch.nn as nn
 from torch import optim
 import torch.nn.functional as F
+import argparse
 
 # --------- MNIST Network to train, from pytorch/examples --------------------
 
@@ -65,8 +66,12 @@ class ParameterServer(nn.Module):
         super().__init__()
         model = Net()
         self.model = model
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.model.to(self.device)
+    # net.to(device)
 
     def forward(self, inp):
+        inp.to(self.device)
         out = self.model(inp)
         return out
 
@@ -104,7 +109,9 @@ def run_parameter_server(rank, world_size):
     # in this case means that the parameter server will wait for all trainers
     # to complete, and then exit.
     rpc.init_rpc(name="parameter_server", rank=rank, world_size=world_size)
+    print("RPC initialized! Running parameter server...")
     rpc.shutdown()
+    print("RPC shutdown on parameter server.")
 
 
 # --------- Trainers --------------------
@@ -115,8 +122,6 @@ def run_parameter_server(rank, world_size):
 class TrainerNet(nn.Module):
     def __init__(self):
         super().__init__()
-        model = Net()
-        self.model = model
         # TODO take this in as an arg
         self.param_server_rref = rpc.remote(
             "parameter_server", get_parameter_server, args=())
@@ -184,9 +189,15 @@ def run_worker(rank, world_size, train_loader, test_loader):
 
 
 if __name__ == '__main__':
-    start = time.time()
-    os.environ['MASTER_ADDR'] = "localhost"
-    os.environ["MASTER_PORT"] = "29500"
+    parser = argparse.ArgumentParser(description="Parameter-Server RPC based training")
+    parser.add_argument("--world_size", type=int, default=4, help="Total number of participating processes. Should be the sum of master node and all training nodes, add 1 if creating training node on master.")
+    parser.add_argument("--rank", type=int, default=None, help="Global rank of this process. Pass in 0 for master. Note that ranks should be unique across all nodes participating in training.")
+    parser.add_argument("--master_addr", type=str, default="localhost", help="Address of master, will default to localhost if not provided. Master must be able to accept network traffic on the address + port.")
+    parser.add_argument("--master_port", type=str, default="29500", help="Port that master is listening on, will default to 29500 if not provided. Master must be able to accept network traffic on the host and port.")
+    args = parser.parse_args()
+    assert args.rank is not None, "must provide rank argument."
+    os.environ['MASTER_ADDR'] = args.master_addr
+    os.environ["MASTER_PORT"] = args.master_port
     # Get data to train on
     train_loader = torch.utils.data.DataLoader(
         datasets.MNIST('../data', train=True, download=True,
@@ -202,25 +213,16 @@ if __name__ == '__main__':
         ])),
         batch_size=32, shuffle=True, )
     processes = []
-    # Run num_trainers workers, plus 1 for the parameter serever.
-    num_trainers = 3
-    p = mp.Process(target=run_parameter_server, args=(0, num_trainers + 1))
-    p.start()
-    processes.append(p)
-    # run num_trainers workers
-    for i in range(num_trainers):
-        p = mp.Process(
-            target=run_worker,
-            args=(
-                i + 1,
-                num_trainers + 1,
-                train_loader,
-                test_loader))
+    world_size = args.world_size
+    if args.rank == 0:
+        p = mp.Process(target=run_parameter_server, args=(0, world_size))
+        p.start()
+        processes.append(p)
+    else:
+        # start training worker on this node
+        p = mp.Process(target=run_worker, args=(args.rank, world_size, train_loader, test_loader))
         p.start()
         processes.append(p)
 
-    # Run to completeion.
     for p in processes:
         p.join()
-
-    print("Script took {} seconds".format(time.time() - start))
