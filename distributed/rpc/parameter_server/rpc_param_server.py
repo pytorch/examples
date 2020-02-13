@@ -75,7 +75,6 @@ class ParameterServer(nn.Module):
             "cuda:0" if torch.cuda.is_available() else "cpu")
         print("training on {}".format(str(self.device)))
         self.model.to(self.device)
-    # net.to(device)
 
     def forward(self, inp):
         inp = inp.to(self.device)
