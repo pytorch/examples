@@ -1,0 +1,16 @@
+version: 2.1
+
+jobs:
+  build:
+    machine:
+      resource_class: gpu.nvidia.small
+      image: ubuntu-1604-cuda-10.1:201909-23
+    steps:
+      - checkout
+      - run: nvidia-smi
+      - run: docker run --gpus all nvidia/cuda:9.0-base nvidia-smi
+      - run:
+          name: Run python examples script
+          command: |
+            pip install torch
+            ./run_python_examples.sh "install_deps,run_all,clean"
