@@ -8,6 +8,9 @@ jobs:
     executor: python/default
     steps:
       - checkout
+      - run: 
+          name: Display Python version
+          command: python -c "import sys; print(sys.version)"
       - python/load-cache
       - python/install-deps
       - python/save-cache
