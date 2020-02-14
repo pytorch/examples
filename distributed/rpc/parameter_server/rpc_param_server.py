@@ -155,18 +155,21 @@ def run_training_loop(rank, train_loader, test_loader):
     opt = DistributedOptimizer(optim.SGD, param_rrefs, lr=0.03)
     for i, (data, target) in enumerate(train_loader):
         with dist_autograd.context() as cid:
-            print("Training batch {}".format(i))
             model_output = net(data, cid)
             target = target.to(net.device)
             loss = F.nll_loss(model_output, target)
-            print(loss)
+            if i % 5 == 0:
+                print("Rank {} training batch {} loss {}".format(rank, i, loss.item()))
             dist_autograd.backward([loss])
             # verify that we have remote gradients
+            print("Rank {} verifying gradients on master with cid {}".format(rank, cid))
             assert remote_method(
                 ParameterServer.get_dist_gradients,
                 net.param_server_rref,
                 cid) != {}
             opt.step()
+            if i == 50:
+                break # break at 50 iters.
 
     print("Training complete!")
     print("Getting accuracy....")
