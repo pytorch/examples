@@ -11,12 +11,6 @@ jobs:
       - run: 
           name: Display Python version
           command: python -c "import sys; print(sys.version)"
-      - python/load-cache
-      - python/install-deps
-      - python/save-cache
-      - run:
-          command: ./manage.py test
-          name: Test
 
 workflows:
   main:
