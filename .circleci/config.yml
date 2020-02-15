@@ -1,7 +1,5 @@
 version: 2.1
 
-orbs:
-  python: circleci/python@0.2.1
 
 jobs:
   build:
