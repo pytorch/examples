@@ -6,6 +6,7 @@ orbs:
 jobs:
   build:
     machine:
+      resource_class: gpu.nvidia.small
     executor: python/default
     steps:
       - checkout
