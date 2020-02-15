@@ -10,7 +10,13 @@ jobs:
     executor: python/default
     steps:
       - checkout
+      - run: nvidia-smi
+      - run: docker run --gpus all nvidia/cuda:9.0-base nvidia-smi
       - run: 
           name: Display Python version
           command: python -c "import sys; print(sys.version)"
-
+      - run: 
+          name: Run python examples script
+          command: |
+            pip install torch 
+            ./run_python_examples.sh "install_deps,run_all,clean"
