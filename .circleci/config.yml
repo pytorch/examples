@@ -5,12 +5,22 @@ orbs:
 
 jobs:
   build-and-test:
+    machine:
+    resource_class: gpu.nvidia.small
+    image: ubuntu-1604-cuda-10.1:201909-23
     executor: python/default
     steps:
       - checkout
+      - run: nvidia-smi
+      - run: docker run --gpus all nvidia/cuda:9.0-base nvidia-smi
       - run: 
           name: Display Python version
           command: python -c "import sys; print(sys.version)"
+      - run:
+          name: Run python examples script
+          command: |
+            pip install torch
+            ./run_python_examples.sh "install_deps,run_all,clean"
 
 workflows:
   main:
