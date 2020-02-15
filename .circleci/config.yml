@@ -4,7 +4,7 @@ orbs:
   python: circleci/python@0.2.1
 
 jobs:
-  build-and-test:
+  build:
     machine:
       resource_class: gpu.nvidia.small
       image: ubuntu-1604-cuda-10.1:201909-23
@@ -15,8 +15,3 @@ jobs:
           name: Display Python version
           command: python -c "import sys; print(sys.version)"
 
-
-workflows:
-  main:
-    jobs:
-      - build-and-test
