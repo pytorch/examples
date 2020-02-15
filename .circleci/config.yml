@@ -16,11 +16,7 @@ jobs:
       - run: 
           name: Display Python version
           command: python -c "import sys; print(sys.version)"
-      - run:
-          name: Run python examples script
-          command: |
-            pip install torch
-            ./run_python_examples.sh "install_deps,run_all,clean"
+
 
 workflows:
   main:
