@@ -147,4 +147,4 @@ class TransformerModel(nn.Module):
         src = self.pos_encoder(src)
         output = self.transformer_encoder(src, self.src_mask)
         output = self.decoder(output)
-        return F.log_softmax(output, dim=-1)
+        return output
