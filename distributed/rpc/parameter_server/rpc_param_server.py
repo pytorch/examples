@@ -17,22 +17,39 @@ from torchvision import datasets, transforms
 
 
 class Net(nn.Module):
-    def __init__(self):
+    def __init__(self, num_gpus=0):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(1, 32, 3, 1)
-        self.conv2 = nn.Conv2d(32, 64, 3, 1)
-        self.dropout1 = nn.Dropout2d(0.25)
-        self.dropout2 = nn.Dropout2d(0.5)
-        self.fc1 = nn.Linear(9216, 128)
-        self.fc2 = nn.Linear(128, 10)
+        print("Net got ngpus {}".format(num_gpus))
+        self.num_gpus = num_gpus
+        device = torch.device(
+            "cuda:0" if torch.cuda.is_available() and self.num_gpus > 0 else "cpu")
+        print("Putting first 2 convs on {}".format(str(device)))
+        # Put conv layers on the first cuda device
+        self.conv1 = nn.Conv2d(1, 32, 3, 1).to(device)
+        self.conv2 = nn.Conv2d(32, 64, 3, 1).to(device)
+        # Put rest of the network on the 2nd cuda device, if there is one
+        if "cuda" in str(device) and args.num_gpus > 1:
+            device = torch.device("cuda:1")
+
+        print("Putting rest of layers on {}".format(str(device)))
+        self.dropout1 = nn.Dropout2d(0.25).to(device)
+        self.dropout2 = nn.Dropout2d(0.5).to(device)
+        self.fc1 = nn.Linear(9216, 128).to(device)
+        self.fc2 = nn.Linear(128, 10).to(device)
 
     def forward(self, x):
         x = self.conv1(x)
         x = F.relu(x)
         x = self.conv2(x)
         x = F.max_pool2d(x, 2)
+
         x = self.dropout1(x)
         x = torch.flatten(x, 1)
+        # need to put this on CUDA
+        next_device = next(self.fc1.parameters()).device
+        # print("In forward, changing device to {}".format(str(next_device)))
+        x = x.to(next_device)
+
         x = self.fc1(x)
         x = F.relu(x)
         x = self.dropout2(x)
@@ -67,14 +84,15 @@ def remote_method(method, rref, *args, **kwargs):
 
 # --------- Parameter Server --------------------
 class ParameterServer(nn.Module):
-    def __init__(self):
+    def __init__(self, num_gpus=0):
         super().__init__()
-        model = Net()
+        # TODO - configure with num_gpus.
+        model = Net(num_gpus=num_gpus)
         self.model = model
         self.device = torch.device(
-            "cuda:0" if torch.cuda.is_available() else "cpu")
-        print("training on {}".format(str(self.device)))
-        self.model.to(self.device)
+            "cuda:0" if torch.cuda.is_available() and num_gpus > 0 else "cpu")
+        # print("training on {}".format(str(self.device)))
+        # self.model.to(self.device)
 
     def forward(self, inp):
         inp = inp.to(self.device)
@@ -99,12 +117,15 @@ global_lock = Lock()
 # Ensure that we get only one handle to the ParameterServer.
 
 
-def get_parameter_server():
+def get_parameter_server(num_gpus=0):
     global param_server
     with global_lock:
         if not param_server:
             # construct it once
-            param_server = ParameterServer()
+            param_server = ParameterServer(num_gpus=num_gpus)
+            print(
+                "Returning parameter server with ID {}".format(
+                    id(param_server)))
         return param_server
 
 
@@ -126,13 +147,13 @@ def run_parameter_server(rank, world_size):
 # forward() method simply invokes the network on the given parameter
 # server.
 class TrainerNet(nn.Module):
-    def __init__(self):
+    def __init__(self, num_gpus=0):
         super().__init__()
         self.device = torch.device(
             "cuda:0" if torch.cuda.is_available() else "cpu")
         # TODO take this in as an arg
         self.param_server_rref = rpc.remote(
-            "parameter_server", get_parameter_server, args=())
+            "parameter_server", get_parameter_server, args=(num_gpus,))
 
     def get_global_param_rrefs(self):
         remote_params = remote_method(
@@ -146,30 +167,35 @@ class TrainerNet(nn.Module):
         return model_output
 
 
-def run_training_loop(rank, train_loader, test_loader):
+def run_training_loop(rank, num_gpus, train_loader, test_loader):
     # Runs the typical nueral network forward + backward + optimizer step, but
     # in a distributed fashion.
-    net = TrainerNet()
+    net = TrainerNet(num_gpus=num_gpus)
     # Build DistributedOptmizer.
     param_rrefs = net.get_global_param_rrefs()
     opt = DistributedOptimizer(optim.SGD, param_rrefs, lr=0.03)
     for i, (data, target) in enumerate(train_loader):
         with dist_autograd.context() as cid:
             model_output = net(data, cid)
-            target = target.to(net.device)
+            print("Model output device {}".format(model_output.device))
+            target = target.to(model_output.device)
             loss = F.nll_loss(model_output, target)
             if i % 5 == 0:
-                print("Rank {} training batch {} loss {}".format(rank, i, loss.item()))
+                print(
+                    "Rank {} training batch {} loss {}".format(
+                        rank, i, loss.item()))
             dist_autograd.backward([loss])
             # verify that we have remote gradients
-            print("Rank {} verifying gradients on master with cid {}".format(rank, cid))
+            print(
+                "Rank {} verifying gradients on master with cid {}".format(
+                    rank, cid))
             assert remote_method(
                 ParameterServer.get_dist_gradients,
                 net.param_server_rref,
                 cid) != {}
             opt.step()
             if i == 50:
-                break # break at 50 iters.
+                break  # break at 50 iters.
 
     print("Training complete!")
     print("Getting accuracy....")
@@ -183,20 +209,20 @@ def get_accuracy(test_loader, model):
         for data, target in test_loader:
             out = model(data, -1)
             pred = out.argmax(dim=1, keepdim=True)
-            target = target.to(model.device)
+            target = target.to(pred.device)
             correct = pred.eq(target.view_as(pred)).sum().item()
             correct_sum += correct
     print("Accuracy {}".format(correct_sum / len(test_loader.dataset)))
 
 
 # Main loop for trainers.
-def run_worker(rank, world_size, train_loader, test_loader):
+def run_worker(rank, world_size, num_gpus, train_loader, test_loader):
     rpc.init_rpc(
         name="trainer_{}".format(rank),
         rank=rank,
         world_size=world_size)
 
-    run_training_loop(rank, train_loader, test_loader)
+    run_training_loop(rank, num_gpus, train_loader, test_loader)
     rpc.shutdown()
 
 # --------- Launcher --------------------
@@ -216,6 +242,11 @@ if __name__ == '__main__':
         default=None,
         help="Global rank of this process. Pass in 0 for master. Note that ranks should be unique across all nodes participating in training.")
     parser.add_argument(
+        "num_gpus",
+        type=int,
+        default=0,
+        help="Number of GPUs to use for training, currently only supports 1 or 2.")
+    parser.add_argument(
         "--master_addr",
         type=str,
         default="localhost",
@@ -225,6 +256,7 @@ if __name__ == '__main__':
         type=str,
         default="29500",
         help="Port that master is listening on, will default to 29500 if not provided. Master must be able to accept network traffic on the host and port.")
+
     args = parser.parse_args()
     assert args.rank is not None, "must provide rank argument."
     os.environ['MASTER_ADDR'] = args.master_addr
@@ -255,7 +287,7 @@ if __name__ == '__main__':
             target=run_worker,
             args=(
                 args.rank,
-                world_size,
+                world_size, args.num_gpus,
                 train_loader,
                 test_loader))
         p.start()
