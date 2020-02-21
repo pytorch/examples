@@ -21,6 +21,7 @@ class Net(nn.Module):
         super(Net, self).__init__()
         print("Net got ngpus {}".format(num_gpus))
         self.num_gpus = num_gpus
+        print("Cuda available: {}".format(torch.cuda.is_available()))
         device = torch.device(
             "cuda:0" if torch.cuda.is_available() and self.num_gpus > 0 else "cpu")
         print("Putting first 2 convs on {}".format(str(device)))
@@ -28,7 +29,7 @@ class Net(nn.Module):
         self.conv1 = nn.Conv2d(1, 32, 3, 1).to(device)
         self.conv2 = nn.Conv2d(32, 64, 3, 1).to(device)
         # Put rest of the network on the 2nd cuda device, if there is one
-        if "cuda" in str(device) and args.num_gpus > 1:
+        if "cuda" in str(device) and num_gpus > 1:
             device = torch.device("cuda:1")
 
         print("Putting rest of layers on {}".format(str(device)))
@@ -135,6 +136,7 @@ def run_parameter_server(rank, world_size):
     # rpc.shutdown() will wait for all workers to complete by default, which
     # in this case means that the parameter server will wait for all trainers
     # to complete, and then exit.
+    print("PS master initializing RPC")
     rpc.init_rpc(name="parameter_server", rank=rank, world_size=world_size)
     print("RPC initialized! Running parameter server...")
     rpc.shutdown()
@@ -217,10 +219,13 @@ def get_accuracy(test_loader, model):
 
 # Main loop for trainers.
 def run_worker(rank, world_size, num_gpus, train_loader, test_loader):
+    print("Worker rank {} initializing RPC".format(rank))
     rpc.init_rpc(
         name="trainer_{}".format(rank),
         rank=rank,
         world_size=world_size)
+
+    print("Worker {} done initializing RPC".format(rank))
 
     run_training_loop(rank, num_gpus, train_loader, test_loader)
     rpc.shutdown()
