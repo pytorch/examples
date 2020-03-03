@@ -1,6 +1,7 @@
 from __future__ import print_function
 import argparse
 import torch
+import threading
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.multiprocessing as mp
@@ -27,6 +28,11 @@ parser.add_argument('--num-processes', type=int, default=2, metavar='N',
                     help='how many training processes to use (default: 2)')
 parser.add_argument('--cuda', action='store_true', default=False,
                     help='enables CUDA training')
+parser.add_argument('--run-mode', type=str, default="multiprocess",
+                    help='what mode to (default: multiprocess')
+parser.add_argument('--num-threads', type=int, default=2, metavar='N',
+                    help='how many training threads to use (default: 2)')
+
 
 class Net(nn.Module):
     def __init__(self):
@@ -57,16 +63,33 @@ if __name__ == '__main__':
     mp.set_start_method('spawn')
 
     model = Net().to(device)
-    model.share_memory() # gradients are allocated lazily, so they are not shared here
+    if args.run_mode == "multiprocess":
+        model.share_memory() # gradients are allocated lazily, so they are not shared here
+        launcher = mp.Process
+        num_workers = args.num_processes
+    elif args.run_mode == "multithread":
+        # turn model to TorchScript to get rid of GIL
+        # model = torch.jit.script(model)
+        launcher = threading.Thread
+        num_workers = args.num_threads
+    else:
+        raise RuntimeError(
+            "run-mode only support multithread/multiprocess, but got: " + str(args.run_mode)
+        )
 
-    processes = []
-    for rank in range(args.num_processes):
-        p = mp.Process(target=train, args=(rank, args, model, device, dataloader_kwargs))
+
+    workers = []
+    # print("num_workers: {}, device: {}".format(num_workers, device))
+    for rank in range(num_workers):
+        print("before landing thread")
+        p = launcher(target=train, args=(rank, args, model, device, dataloader_kwargs))
         # We first train the model across `num_processes` processes
         p.start()
-        processes.append(p)
-    for p in processes:
+        workers.append(p)
+    for p in workers:
         p.join()
+
+    print("after finish")
 
     # Once training is complete, we can test the model
     test(args, model, device, dataloader_kwargs)
