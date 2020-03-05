@@ -43,6 +43,7 @@ optional arguments:
   --cuda                           use CUDA
   --log-interval N                 report interval
   --save SAVE                      path to save the final model
+  --onnx-export                    path to export the final model in onnx format
   --transformer_head N             the number of heads in the encoder/decoder of the transformer model
   --transformer_encoder_layers N   the number of layers in the encoder of the transformer model
   --transformer_decoder_layers N   the number of layers in the decoder of the transformer model
