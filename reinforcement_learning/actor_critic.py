@@ -93,7 +93,7 @@ def select_action(state):
 
 def finish_episode():
     """
-    Training code. Calcultes actor and critic loss and performs backprop.
+    Training code. Calculates actor and critic loss and performs backprop.
     """
     R = 0
     saved_actions = model.saved_actions
