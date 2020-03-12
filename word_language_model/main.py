@@ -145,10 +145,10 @@ def evaluate(data_source):
             data, targets = get_batch(data_source, i)
             if args.model == 'Transformer':
                 output = model(data)
+                output = output.view(-1, ntokens)
             else:
                 output, hidden = model(data, hidden)
                 hidden = repackage_hidden(hidden)
-            # output_flat = output.view(-1, ntokens)
             total_loss += len(data) * criterion(output, targets).item()
     return total_loss / (len(data_source) - 1)
 
@@ -168,6 +168,7 @@ def train():
         model.zero_grad()
         if args.model == 'Transformer':
             output = model(data)
+            output = output.view(-1, ntokens)
         else:
             hidden = repackage_hidden(hidden)
             output, hidden = model(data, hidden)
