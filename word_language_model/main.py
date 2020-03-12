@@ -148,8 +148,8 @@ def evaluate(data_source):
             else:
                 output, hidden = model(data, hidden)
                 hidden = repackage_hidden(hidden)
-            output_flat = output.view(-1, ntokens)
-            total_loss += len(data) * criterion(output_flat, targets).item()
+            # output_flat = output.view(-1, ntokens)
+            total_loss += len(data) * criterion(output, targets).item()
     return total_loss / (len(data_source) - 1)
 
 
@@ -171,7 +171,7 @@ def train():
         else:
             hidden = repackage_hidden(hidden)
             output, hidden = model(data, hidden)
-        loss = criterion(output.view(-1, ntokens), targets)
+        loss = criterion(output, targets)
         loss.backward()
 
         # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
