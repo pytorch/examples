@@ -19,11 +19,11 @@ from torchvision import datasets, transforms
 class Net(nn.Module):
     def __init__(self, num_gpus=0):
         super(Net, self).__init__()
-        print("Using {} GPUs to train".format(num_gpus))
+        print(f"Using {num_gpus} GPUs to train")
         self.num_gpus = num_gpus
         device = torch.device(
             "cuda:0" if torch.cuda.is_available() and self.num_gpus > 0 else "cpu")
-        print("Putting first 2 convs on {}".format(str(device)))
+        print(f"Putting first 2 convs on {str(device)}")
         # Put conv layers on the first cuda device
         self.conv1 = nn.Conv2d(1, 32, 3, 1).to(device)
         self.conv2 = nn.Conv2d(32, 64, 3, 1).to(device)
@@ -31,7 +31,7 @@ class Net(nn.Module):
         if "cuda" in str(device) and num_gpus > 1:
             device = torch.device("cuda:1")
 
-        print("Putting rest of layers on {}".format(str(device)))
+        print(f"Putting rest of layers on {str(device)}")
         self.dropout1 = nn.Dropout2d(0.25).to(device)
         self.dropout2 = nn.Dropout2d(0.5).to(device)
         self.fc1 = nn.Linear(9216, 128).to(device)
@@ -179,9 +179,7 @@ def run_training_loop(rank, num_gpus, train_loader, test_loader):
             target = target.to(model_output.device)
             loss = F.nll_loss(model_output, target)
             if i % 5 == 0:
-                print(
-                    "Rank {} training batch {} loss {}".format(
-                        rank, i, loss.item()))
+                print(f"Rank {rank} training batch {i} loss {loss.item()}")
             dist_autograd.backward(cid, [loss])
             # Ensure that dist autograd ran successfully and gradients were
             # returned.
@@ -209,18 +207,18 @@ def get_accuracy(test_loader, model):
             correct = pred.eq(target.view_as(pred)).sum().item()
             correct_sum += correct
 
-    print("Accuracy {}".format(correct_sum / len(test_loader.dataset)))
+    print(f"Accuracy {correct_sum / len(test_loader.dataset)}")
 
 
 # Main loop for trainers.
 def run_worker(rank, world_size, num_gpus, train_loader, test_loader):
-    print("Worker rank {} initializing RPC".format(rank))
+    print(f"Worker rank {rank} initializing RPC")
     rpc.init_rpc(
-        name="trainer_{}".format(rank),
+        name=f"trainer_{rank}",
         rank=rank,
         world_size=world_size)
 
-    print("Worker {} done initializing RPC".format(rank))
+    print(f"Worker {rank} done initializing RPC")
 
     run_training_loop(rank, num_gpus, train_loader, test_loader)
     rpc.shutdown()
