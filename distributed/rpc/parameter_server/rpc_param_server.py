@@ -19,9 +19,8 @@ from torchvision import datasets, transforms
 class Net(nn.Module):
     def __init__(self, num_gpus=0):
         super(Net, self).__init__()
-        print("Net got ngpus {}".format(num_gpus))
+        print("Using {} GPUs to train".format(num_gpus))
         self.num_gpus = num_gpus
-        print("Cuda available: {}".format(torch.cuda.is_available()))
         device = torch.device(
             "cuda:0" if torch.cuda.is_available() and self.num_gpus > 0 else "cpu")
         print("Putting first 2 convs on {}".format(str(device)))
@@ -46,9 +45,8 @@ class Net(nn.Module):
 
         x = self.dropout1(x)
         x = torch.flatten(x, 1)
-        # need to put this on CUDA
+        # Move tensor to next device if necessary
         next_device = next(self.fc1.parameters()).device
-        # print("In forward, changing device to {}".format(str(next_device)))
         x = x.to(next_device)
 
         x = self.fc1(x)
@@ -87,20 +85,17 @@ def remote_method(method, rref, *args, **kwargs):
 class ParameterServer(nn.Module):
     def __init__(self, num_gpus=0):
         super().__init__()
-        # TODO - configure with num_gpus.
         model = Net(num_gpus=num_gpus)
         self.model = model
-        self.device = torch.device(
+        self.input_device = torch.device(
             "cuda:0" if torch.cuda.is_available() and num_gpus > 0 else "cpu")
-        # print("training on {}".format(str(self.device)))
-        # self.model.to(self.device)
 
     def forward(self, inp):
-        inp = inp.to(self.device)
+        inp = inp.to(self.input_device)
         out = self.model(inp)
         return out
 
-    # Use dist autograds to retrieve gradients accumulated for this model.
+    # Use dist autograd to retrieve gradients accumulated for this model.
     # Primarily used for verification.
     def get_dist_gradients(self, cid):
         grads = dist_autograd.get_gradients(cid)
@@ -115,18 +110,14 @@ class ParameterServer(nn.Module):
 
 param_server = None
 global_lock = Lock()
-# Ensure that we get only one handle to the ParameterServer.
-
 
 def get_parameter_server(num_gpus=0):
     global param_server
+    # Ensure that we get only one handle to the ParameterServer.
     with global_lock:
         if not param_server:
             # construct it once
             param_server = ParameterServer(num_gpus=num_gpus)
-            print(
-                "Returning parameter server with ID {}".format(
-                    id(param_server)))
         return param_server
 
 
@@ -151,8 +142,6 @@ def run_parameter_server(rank, world_size):
 class TrainerNet(nn.Module):
     def __init__(self, num_gpus=0):
         super().__init__()
-        self.device = torch.device(
-            "cuda:0" if torch.cuda.is_available() else "cpu")
         # TODO take this in as an arg
         self.param_server_rref = rpc.remote(
             "parameter_server", get_parameter_server, args=(num_gpus,))
@@ -179,23 +168,19 @@ def run_training_loop(rank, num_gpus, train_loader, test_loader):
     for i, (data, target) in enumerate(train_loader):
         with dist_autograd.context() as cid:
             model_output = net(data, cid)
-            print("Model output device {}".format(model_output.device))
             target = target.to(model_output.device)
             loss = F.nll_loss(model_output, target)
             if i % 5 == 0:
                 print(
                     "Rank {} training batch {} loss {}".format(
                         rank, i, loss.item()))
-            dist_autograd.backward([loss])
-            # verify that we have remote gradients
-            print(
-                "Rank {} verifying gradients on master with cid {}".format(
-                    rank, cid))
+            dist_autograd.backward(cid, [loss])
+            # Ensure that dist autograd ran successfully and gradients were returned.
             assert remote_method(
                 ParameterServer.get_dist_gradients,
                 net.param_server_rref,
                 cid) != {}
-            opt.step()
+            opt.step(cid)
             if i == 50:
                 break  # break at 50 iters.
 
@@ -240,17 +225,17 @@ if __name__ == '__main__':
         "world_size",
         type=int,
         default=4,
-        help="Total number of participating processes. Should be the sum of master node and all training nodes, add 1 if creating training node on master.")
+        help="Total number of participating processes. Should be the sum of master node and all training nodes.")
     parser.add_argument(
         "rank",
         type=int,
         default=None,
-        help="Global rank of this process. Pass in 0 for master. Note that ranks should be unique across all nodes participating in training.")
+        help="Global rank of this process. Pass in 0 for master.")
     parser.add_argument(
         "num_gpus",
         type=int,
         default=0,
-        help="Number of GPUs to use for training, currently only supports 1 or 2.")
+        help="Number of GPUs to use for training, Currently supports between 0 and 2 GPUs.")
     parser.add_argument(
         "--master_addr",
         type=str,
@@ -266,20 +251,6 @@ if __name__ == '__main__':
     assert args.rank is not None, "must provide rank argument."
     os.environ['MASTER_ADDR'] = args.master_addr
     os.environ["MASTER_PORT"] = args.master_port
-    # Get data to train on
-    train_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('../data', train=True, download=True,
-                       transform=transforms.Compose([
-                           transforms.ToTensor(),
-                           transforms.Normalize((0.1307,), (0.3081,))
-                       ])),
-        batch_size=32, shuffle=True,)
-    test_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('../data', train=False, transform=transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,))
-        ])),
-        batch_size=32, shuffle=True, )
     processes = []
     world_size = args.world_size
     if args.rank == 0:
@@ -287,6 +258,20 @@ if __name__ == '__main__':
         p.start()
         processes.append(p)
     else:
+        # Get data to train on
+        train_loader = torch.utils.data.DataLoader(
+            datasets.MNIST('../data', train=True, download=True,
+                           transform=transforms.Compose([
+                               transforms.ToTensor(),
+                               transforms.Normalize((0.1307,), (0.3081,))
+                           ])),
+            batch_size=32, shuffle=True,)
+        test_loader = torch.utils.data.DataLoader(
+            datasets.MNIST('../data', train=False, transform=transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize((0.1307,), (0.3081,))
+            ])),
+            batch_size=32, shuffle=True, )
         # start training worker on this node
         p = mp.Process(
             target=run_worker,
