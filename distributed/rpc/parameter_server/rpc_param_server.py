@@ -93,13 +93,22 @@ class ParameterServer(nn.Module):
     def forward(self, inp):
         inp = inp.to(self.input_device)
         out = self.model(inp)
+        # This output is forwarded over RPC, which as of 1.5.0 only accepts CPU tensors.
+        # Tensors must be moved in and out of GPU memory due to this.
+        out = out.to("cpu")
         return out
 
     # Use dist autograd to retrieve gradients accumulated for this model.
     # Primarily used for verification.
     def get_dist_gradients(self, cid):
         grads = dist_autograd.get_gradients(cid)
-        return grads
+        # This output is forwarded over RPC, which as of 1.5.0 only accepts CPU tensors.
+        # Tensors must be moved in and out of GPU memory due to this.
+        cpu_grads = {}
+        for k, v in grads.items():
+            k_cpu, v_cpu = k.to("cpu"), v.to("cpu")
+            cpu_grads[k_cpu] = v_cpu
+        return cpu_grads
 
     # Wrap local parameters in a RRef. Needed for building the
     # DistributedOptimizer which optimizes paramters remotely.
@@ -110,6 +119,7 @@ class ParameterServer(nn.Module):
 
 param_server = None
 global_lock = Lock()
+
 
 def get_parameter_server(num_gpus=0):
     global param_server
@@ -142,7 +152,7 @@ def run_parameter_server(rank, world_size):
 class TrainerNet(nn.Module):
     def __init__(self, num_gpus=0):
         super().__init__()
-        # TODO take this in as an arg
+        self.num_gpus = num_gpus
         self.param_server_rref = rpc.remote(
             "parameter_server", get_parameter_server, args=(num_gpus,))
 
@@ -175,13 +185,14 @@ def run_training_loop(rank, num_gpus, train_loader, test_loader):
                     "Rank {} training batch {} loss {}".format(
                         rank, i, loss.item()))
             dist_autograd.backward(cid, [loss])
-            # Ensure that dist autograd ran successfully and gradients were returned.
+            # Ensure that dist autograd ran successfully and gradients were
+            # returned.
             assert remote_method(
                 ParameterServer.get_dist_gradients,
                 net.param_server_rref,
                 cid) != {}
             opt.step(cid)
-            if i == 50:
+            if i == 30:
                 break  # break at 50 iters.
 
     print("Training complete!")
@@ -192,13 +203,19 @@ def run_training_loop(rank, num_gpus, train_loader, test_loader):
 def get_accuracy(test_loader, model):
     model.eval()
     correct_sum = 0
+    # Use GPU to evaluate if possible
+    device = torch.device("cuda:0" if model.num_gpus > 0 else "cpu")
     with torch.no_grad():
-        for data, target in test_loader:
+        for i, (data, target) in enumerate(test_loader):
             out = model(data, -1)
             pred = out.argmax(dim=1, keepdim=True)
-            target = target.to(pred.device)
+            pred, target = pred.to(device), target.to(device)
             correct = pred.eq(target.view_as(pred)).sum().item()
             correct_sum += correct
+            # stop at 100
+            if i == 100:
+                break
+
     print("Accuracy {}".format(correct_sum / len(test_loader.dataset)))
 
 
@@ -235,7 +252,7 @@ if __name__ == '__main__':
         "num_gpus",
         type=int,
         default=0,
-        help="Number of GPUs to use for training, Currently supports between 0 and 2 GPUs.")
+        help="Number of GPUs to use for training, Currently supports between 0 and 2 GPUs. Note that this argument will be passed to the parameter servers.")
     parser.add_argument(
         "--master_addr",
         type=str,
@@ -267,11 +284,20 @@ if __name__ == '__main__':
                            ])),
             batch_size=32, shuffle=True,)
         test_loader = torch.utils.data.DataLoader(
-            datasets.MNIST('../data', train=False, transform=transforms.Compose([
-                transforms.ToTensor(),
-                transforms.Normalize((0.1307,), (0.3081,))
-            ])),
-            batch_size=32, shuffle=True, )
+            datasets.MNIST(
+                '../data',
+                train=False,
+                transform=transforms.Compose(
+                    [
+                        transforms.ToTensor(),
+                        transforms.Normalize(
+                            (0.1307,
+                             ),
+                            (0.3081,
+                             ))])),
+            batch_size=32,
+            shuffle=True,
+        )
         # start training worker on this node
         p = mp.Process(
             target=run_worker,
