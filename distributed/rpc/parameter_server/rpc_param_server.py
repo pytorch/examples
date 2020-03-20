@@ -65,9 +65,7 @@ class Net(nn.Module):
 def call_method(method, rref, *args, **kwargs):
     return method(rref.local_value(), *args, **kwargs)
 
-# Synchronous RPC to run a method remotely and get a result.
-# The method should be a class method corresponding to Given an RRef,
-# return the result of calling the passed in method on the value
+# Given an RRef, return the result of calling the passed in method on the value
 # held by the RRef. This call is done on the remote node that owns
 # the RRef. args and kwargs are passed into the method.
 # Example: If the value held by the RRef is of type Foo, then
@@ -192,8 +190,6 @@ def run_training_loop(rank, num_gpus, train_loader, test_loader):
                 net.param_server_rref,
                 cid) != {}
             opt.step(cid)
-            if i == 30:
-                break  # break at 50 iters.
 
     print("Training complete!")
     print("Getting accuracy....")
@@ -204,7 +200,7 @@ def get_accuracy(test_loader, model):
     model.eval()
     correct_sum = 0
     # Use GPU to evaluate if possible
-    device = torch.device("cuda:0" if model.num_gpus > 0 else "cpu")
+    device = torch.device("cuda:0" if model.num_gpus > 0 and torch.cuda.is_available() else "cpu")
     with torch.no_grad():
         for i, (data, target) in enumerate(test_loader):
             out = model(data, -1)
@@ -212,9 +208,6 @@ def get_accuracy(test_loader, model):
             pred, target = pred.to(device), target.to(device)
             correct = pred.eq(target.view_as(pred)).sum().item()
             correct_sum += correct
-            # stop at 100
-            if i == 100:
-                break
 
     print("Accuracy {}".format(correct_sum / len(test_loader.dataset)))
 
@@ -242,7 +235,8 @@ if __name__ == '__main__':
         "world_size",
         type=int,
         default=4,
-        help="Total number of participating processes. Should be the sum of master node and all training nodes.")
+        help="""Total number of participating processes. Should be the sum of
+        master node and all training nodes.""")
     parser.add_argument(
         "rank",
         type=int,
@@ -252,17 +246,20 @@ if __name__ == '__main__':
         "num_gpus",
         type=int,
         default=0,
-        help="Number of GPUs to use for training, Currently supports between 0 and 2 GPUs. Note that this argument will be passed to the parameter servers.")
+        help="""Number of GPUs to use for training, Currently supports between 0
+         and 2 GPUs. Note that this argument will be passed to the parameter servers.""")
     parser.add_argument(
         "--master_addr",
         type=str,
         default="localhost",
-        help="Address of master, will default to localhost if not provided. Master must be able to accept network traffic on the address + port.")
+        help="""Address of master, will default to localhost if not provided.
+        Master must be able to accept network traffic on the address + port.""")
     parser.add_argument(
         "--master_port",
         type=str,
         default="29500",
-        help="Port that master is listening on, will default to 29500 if not provided. Master must be able to accept network traffic on the host and port.")
+        help="""Port that master is listening on, will default to 29500 if not
+        provided. Master must be able to accept network traffic on the host and port.""")
 
     args = parser.parse_args()
     assert args.rank is not None, "must provide rank argument."
