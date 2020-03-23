@@ -262,6 +262,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     assert args.rank is not None, "must provide rank argument."
+    assert args.num_gpus <= 3, f"Only 0-2 GPUs currently supported (got {args.num_gpus})."
     os.environ['MASTER_ADDR'] = args.master_addr
     os.environ["MASTER_PORT"] = args.master_port
     processes = []
