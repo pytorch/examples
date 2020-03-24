@@ -25,14 +25,14 @@ multiple nodes where each node can consist of multiple GPU
 devices. Each node in turn can run multiple copies of the DDP
 application, each of which processes its models on multiple GPUs.
 
-Let $N$ be the number of nodes on which the application is running and
-$G$ be the number of GPUs per node. The total number of application
+Let _N_ be the number of nodes on which the application is running and
+_G_ be the number of GPUs per node. The total number of application
 processes running across all the nodes at one time is called the
-**World Size**, $W$ and the number of processes running on each node
-is referred to as the **Local World Size**, $L$.
+**World Size**, _W_ and the number of processes running on each node
+is referred to as the **Local World Size**, _L_.
 
-Each application process is assigned two IDs: a _local_ rank in $[0,
-L-1]$ and a _global_ rank in $[0, W-1]$.
+Each application process is assigned two IDs: a _local_ rank in \[0,
+_L_-1\] and a _global_ rank in \[0, _W_-1\].
 
 To illustrate the terminology defined above, consider the case where a
 DDP application is launched on two nodes, each of which has four
