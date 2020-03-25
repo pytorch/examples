@@ -60,10 +60,6 @@ def spmd_main(local_world_size, local_rank):
         + f"rank = {dist.get_rank()}, backend={dist.get_backend()}"
     )
 
-    # Explicitly setting seed to make sure that models created in two processes
-    # start from same random weights and biases.
-    torch.manual_seed(42)
-
     demo_basic(local_world_size, local_rank)
 
     # Tear down the process group
