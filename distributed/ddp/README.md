@@ -108,9 +108,6 @@ def spmd_main(local_world_size, local_rank):
         f"[{os.getpid()}] world_size = {dist.get_world_size()}, "
         + f"rank = {dist.get_rank()}, backend={dist.get_backend()}"
     )
-    # Explicitly setting seed to make sure that models created in two processes
-    # start from same random weights and biases.
-    torch.manual_seed(42)
 
     demo_basic(local_world_size, local_rank)
 
@@ -191,5 +188,5 @@ that in turn produces the following output
 [262816] rank = 0, world_size = 1, n = 8, device_ids = [0, 1, 2, 3, 4, 5, 6, 7]
 ```
 
-# Conclusions and next steps
-As a writer of a distribued data parallel application, your code needs to be aware of two types of resources: the compute nodes and the GPUs within each node. The process of setting up bookkeeping to track how the set of GPUs is mapped to the processes of your application can be tedious and error-prone. We hope that by structuring your application as shown in this example and using the launcher, the mechanics of setting up distributed training will be significiantly simplified.
+# Conclusions
+As the author of a distributed data parallel application, your code needs to be aware of two types of resources: compute nodes and the GPUs within each node. The process of setting up bookkeeping to track how the set of GPUs is mapped to the processes of your application can be tedious and error-prone. We hope that by structuring your application as shown in this example and using the launcher, the mechanics of setting up distributed training can be significantly simplified.
