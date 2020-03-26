@@ -39,7 +39,7 @@ DDP application is launched on two nodes, each of which has four
 GPUs. We would then like each process to span two GPUs each. The
 mapping of processes to nodes is shown in the figure below:
 
-<img src="ProcessMapping.svg">
+![ProcessMapping](https://user-images.githubusercontent.com/875518/77676984-4c81e400-6f4c-11ea-87d8-f2ff505a99da.png)
 
 While there are quite a few ways to map processes to nodes, a good
 rule of thumb is to have one process span a single GPU. This enables
