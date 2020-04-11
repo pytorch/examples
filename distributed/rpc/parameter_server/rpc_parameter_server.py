@@ -160,7 +160,7 @@ class TrainerNet(nn.Module):
             self.param_server_rref)
         return remote_params
 
-    def forward(self, x, cid):
+    def forward(self, x):
         model_output = remote_method(
             ParameterServer.forward, self.param_server_rref, x)
         return model_output
@@ -175,7 +175,7 @@ def run_training_loop(rank, num_gpus, train_loader, test_loader):
     opt = DistributedOptimizer(optim.SGD, param_rrefs, lr=0.03)
     for i, (data, target) in enumerate(train_loader):
         with dist_autograd.context() as cid:
-            model_output = net(data, cid)
+            model_output = net(data)
             target = target.to(model_output.device)
             loss = F.nll_loss(model_output, target)
             if i % 5 == 0:
@@ -231,18 +231,18 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description="Parameter-Server RPC based training")
     parser.add_argument(
-        "world_size",
+        "--world_size",
         type=int,
         default=4,
         help="""Total number of participating processes. Should be the sum of
         master node and all training nodes.""")
     parser.add_argument(
-        "rank",
+        "--rank",
         type=int,
         default=None,
         help="Global rank of this process. Pass in 0 for master.")
     parser.add_argument(
-        "num_gpus",
+        "--num_gpus",
         type=int,
         default=0,
         help="""Number of GPUs to use for training, Currently supports between 0
