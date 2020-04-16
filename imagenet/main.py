@@ -329,6 +329,10 @@ def validate(val_loader, model, criterion, args):
             # compute output
             output = model(images)
             loss = criterion(output, target)
+            
+            if not torch.isfinite(loss):
+                print('WARNING: non-finite loss, ending training ')
+                exit(1)
 
             # measure accuracy and record loss
             acc1, acc5 = accuracy(output, target, topk=(1, 5))
