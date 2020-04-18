@@ -11,24 +11,31 @@ from torch.optim.lr_scheduler import StepLR
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.rnn = nn.RNN(input_size=28,hidden_size=28, batch_first=True)
-        self.batchnorm = nn.BatchNorm1d(28)
-        self.dense = nn.Linear(28, 10)
+        self.rnn = nn.LSTM(input_size=28,hidden_size=64, batch_first=True)
+        self.batchnorm = nn.BatchNorm1d(64)
+        self.dropout1 = nn.Dropout2d(0.25)
+        self.dropout2 = nn.Dropout2d(0.5)
+        self.fc1 = nn.Linear(64, 32)
+        self.fc2 = nn.Linear(32, 10)
 
 
-    def forward(self, x):
-        # shape of x is (batch_size,1,28,28)
-        # coverting shape of x to (batch_size, 28,28)
-        # As required by RNN when batch_first is set True
-        x = x.reshape(-1,28,28)
-        output, hn = self.rnn(x)
+    def forward(self, input):
+        # Shape of input is (batch_size,1,28,28)
+        # converting shape of input to (batch_size, 28,28)
+        # as required by RNN when batch_first is set True
+        input = input.reshape(-1,28,28)
+        output, hidden = self.rnn(input)
 
         # RNN output shape is (seq_len, batch, input_size)
         # Get last output of RNN
-        last_output = output[:,-1,:]
-        batchnorm_out = self.batchnorm(last_output)
-        dence_out = self.dense(batchnorm_out)
-        output = F.log_softmax(dence_out, dim=1)
+        output = output[:,-1,:]
+        output = self.batchnorm(output)
+        output = self.dropout1(output)
+        output = self.fc1(output)
+        output = F.relu(output)
+        output = self.dropout2(output)
+        output = self.fc2(output)
+        output = F.log_softmax(output, dim=1)
         return output
 
 
@@ -110,14 +117,8 @@ def main():
                        ])),
         batch_size=args.test_batch_size, shuffle=True, **kwargs)
 
-    # for i, (images, labels) in enumerate(train_loader):
-    #     print(images.shape)
-    #     exit()
-
     model = Net().to(device)
     optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
-
-
 
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
     for epoch in range(1, args.epochs + 1):
