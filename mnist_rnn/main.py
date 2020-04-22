@@ -11,24 +11,23 @@ from torch.optim.lr_scheduler import StepLR
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.rnn = nn.LSTM(input_size=28,hidden_size=64, batch_first=True)
+        self.rnn = nn.LSTM(input_size=28, hidden_size=64, batch_first=True)
         self.batchnorm = nn.BatchNorm1d(64)
         self.dropout1 = nn.Dropout2d(0.25)
         self.dropout2 = nn.Dropout2d(0.5)
         self.fc1 = nn.Linear(64, 32)
         self.fc2 = nn.Linear(32, 10)
 
-
     def forward(self, input):
-        # Shape of input is (batch_size,1,28,28)
-        # converting shape of input to (batch_size, 28,28)
+        # Shape of input is (batch_size,1, 28, 28)
+        # converting shape of input to (batch_size, 28, 28)
         # as required by RNN when batch_first is set True
-        input = input.reshape(-1,28,28)
+        input = input.reshape(-1, 28, 28)
         output, hidden = self.rnn(input)
 
         # RNN output shape is (seq_len, batch, input_size)
         # Get last output of RNN
-        output = output[:,-1,:]
+        output = output[:, -1, :]
         output = self.batchnorm(output)
         output = self.dropout1(output)
         output = self.fc1(output)
@@ -51,7 +50,7 @@ def train(args, model, device, train_loader, optimizer, epoch):
         if batch_idx % args.log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
-                100. * batch_idx / len(train_loader), loss.item()))
+                       100. * batch_idx / len(train_loader), loss.item()))
 
 
 def test(model, device, test_loader):
@@ -85,7 +84,7 @@ def main():
     parser.add_argument('--lr', type=float, default=0.1, metavar='LR',
                         help='learning rate (default: 0.1)')
     parser.add_argument('--gamma', type=float, default=0.7, metavar='M',
-                        help='Learning rate step gamma (default: 0.7)')
+                        help='learning rate step gamma (default: 0.7)')
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
     parser.add_argument('--seed', type=int, default=1, metavar='S',
@@ -94,7 +93,7 @@ def main():
                         help='how many batches to wait before logging training status')
 
     parser.add_argument('--save-model', action='store_true', default=False,
-                        help='For Saving the current Model')
+                        help='for Saving the current Model')
     args = parser.parse_args()
     use_cuda = not args.no_cuda and torch.cuda.is_available()
 
@@ -112,9 +111,9 @@ def main():
         batch_size=args.batch_size, shuffle=True, **kwargs)
     test_loader = torch.utils.data.DataLoader(
         datasets.MNIST('../data', train=False, transform=transforms.Compose([
-                           transforms.ToTensor(),
-                           transforms.Normalize((0.1307,), (0.3081,))
-                       ])),
+            transforms.ToTensor(),
+            transforms.Normalize((0.1307,), (0.3081,))
+        ])),
         batch_size=args.test_batch_size, shuffle=True, **kwargs)
 
     model = Net().to(device)
