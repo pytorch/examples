@@ -226,7 +226,8 @@ image_w = 128
 image_h = 128
 
 
-def run_master(num_split):
+def run_master(split_size):
+
     # put the two model parts on worker1 and worker2 respectively
     model = DistResNet50(split_size, ["worker1", "worker2"])
     loss_fn = nn.MSELoss()
