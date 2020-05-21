@@ -202,7 +202,7 @@ def get_accuracy(test_loader, model):
         and torch.cuda.is_available() else "cpu")
     with torch.no_grad():
         for i, (data, target) in enumerate(test_loader):
-            out = model(data, -1)
+            out = model(data)
             pred = out.argmax(dim=1, keepdim=True)
             pred, target = pred.to(device), target.to(device)
             correct = pred.eq(target.view_as(pred)).sum().item()
