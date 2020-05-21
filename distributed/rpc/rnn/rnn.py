@@ -42,7 +42,7 @@ class EmbeddingTable(nn.Module):
         super(EmbeddingTable, self).__init__()
         self.drop = nn.Dropout(dropout)
         self.encoder = nn.Embedding(ntoken, ninp).cuda()
-        self.encoder.weight.data.uniform_(-0.1, 0.1)
+        nn.init.uniform_(self.encoder.weight, -0.1, 0.1)
 
     def forward(self, input):
         return self.drop(self.encoder(input.cuda())).cpu()
@@ -56,8 +56,8 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
         self.drop = nn.Dropout(dropout)
         self.decoder = nn.Linear(nhid, ntoken)
-        self.decoder.bias.data.zero_()
-        self.decoder.weight.data.uniform_(-0.1, 0.1)
+        nn.init.zeros_(self.decoder.bias)
+        nn.init.uniform_(self.decoder.weight, -0.1, 0.1)
 
     def forward(self, output):
         return self.decoder(self.drop(output))
