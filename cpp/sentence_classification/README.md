@@ -35,5 +35,5 @@ Epoch: 7 Training Loss: 0.009
 Epoch: 8 Training Loss: 0.006
 Epoch: 9 Training Loss: 0.005
 Epoch: 10 Training Loss: 0.004
-Test Loss: 0.049 Test Accuracy: 0.840
+Test Loss: 0.732 Test Accuracy: 0.850
 ```
