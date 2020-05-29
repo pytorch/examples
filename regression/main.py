@@ -57,7 +57,7 @@ for batch_idx in count(1):
 
     # Apply gradients
     for param in fc.parameters():
-        param.add_(-0.1 * param.grad)
+        param.data.add_(-0.1 * param.grad)
 
     # Stop criterion
     if loss < 1e-3:
