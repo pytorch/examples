@@ -123,7 +123,7 @@ function super_resolution() {
   python main.py --upscale_factor 3 --batchSize 4 --testBatchSize 100 --nEpochs 1 --lr 0.001  || error "super resolution failed"
 }
 
-function time_sequence_prediciton() {
+function time_sequence_prediction() {
   start
   python generate_sine_wave.py || { error "generate sine wave failed";  return; }
   python train.py || error "time sequence prediction training failed"
