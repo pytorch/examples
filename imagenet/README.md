@@ -48,11 +48,14 @@ python main.py -a resnet50 --dist-url 'tcp://IP_OF_NODE0:FREEPORT' --dist-backen
 ```
 
 ### Single node process, multiple node GPUs
-Take two node -- A/B -- with 8 GPUs each, 16 in total
-we no longer need to execute the code on both device with the same code, same data nor same development-environment
-Now we only need to set up one copy of code/data/dev-env, with **virtaitech/orion** support
-after install the **virtaitech/orion** packages, the only thing you need to consider is the number of gpus you want to use
-by running the following command to use up all 16 gpus, without notice the distribution of gpus on several nodes
+Take two node -- A & B -- with 8 GPUs each, 16 in total, as an example; original usage require us to start multiple processes on each node (A & B) with GPUs, like previous section `Multiple nodes` discribed. 
+
+With the help of `orion` we no longer need to execute the code on both device with the same code, same data nor same development-environment. Now we only need to set up one copy of code/data/dev-env, no mather A or B node as you like.
+
+After install the **virtaitech/orion** packages, the only thing you need to consider is the number of gpus you want to use  
+by running the following command to use up all 16 gpus, without notice the distribution of gpus on several nodes.
+
+Simply use `--virtai-crossnode` to enable the modified code, and add `--num_gpus NUM_GPUS` equals to the amount of vGPU you want to use. 
 ```
 export ORION_VGPU=16
 export ORION_RATIO=100
@@ -60,6 +63,7 @@ export ORION_GMEM=30000
 export ORION_CROSS_NODE=1
 time python main.py -a resnet50 --dist-url 'tcp://10.10.10.23:12345' --dist-backend 'nccl' --world-size 1 --rank 0 --epoch 1 --seed 1 --multiprocessing-distributed --virtai-crossnode  --num-gpu $ORION_VGPU /root/ImageNet_ILSVRC2012
 ```
+This also support multiple nodes at any number, as many as you have.
 
 
 ## Usage
