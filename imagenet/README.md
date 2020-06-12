@@ -97,4 +97,14 @@ optional arguments:
                         processes per node, which has N GPUs. This is the
                         fastest way to use PyTorch for either single node or
                         multi node data parallel training
+  --virtai-crossnode
+                        enable modifications from virtaitech, which 
+                        Use virtai modified code to support crossnode function call,
+                        which disable torch.cuda.device_count(),
+                        and replace with manual-set `--num_gpus`, to run on n gpus.
+                        this will also export a fake openmpi env setting `OMPI_COMM_WORLD_LOCAL_RANK`.
+  --num-gpus
+                        along with `--virtai_modification`,
+                        to manual set number of gpus to use,
+                        default with num_gpus=1
 ```
