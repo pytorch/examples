@@ -2,6 +2,8 @@
 
 This implements training of popular model architectures, such as ResNet, AlexNet, and VGG on the ImageNet dataset.
 
+This is a extension version with **virtaitech/orion** vGPU support, go to https://virtaitech.com for more vGPU information
+
 ## Requirements
 
 - Install PyTorch ([pytorch.org](http://pytorch.org))
@@ -44,6 +46,21 @@ Node 1:
 ```bash
 python main.py -a resnet50 --dist-url 'tcp://IP_OF_NODE0:FREEPORT' --dist-backend 'nccl' --multiprocessing-distributed --world-size 2 --rank 1 [imagenet-folder with train and val folders]
 ```
+
+### Single node process, multiple node GPUs
+Take two node -- A/B -- with 8 GPUs each, 16 in total
+we no longer need to execute the code on both device with the same code, same data nor same development-environment
+Now we only need to set up one copy of code/data/dev-env, with **virtaitech/orion** support
+after install the **virtaitech/orion** packages, the only thing you need to consider is the number of gpus you want to use
+by running the following command to use up all 16 gpus, without notice the distribution of gpus on several nodes
+```
+export ORION_VGPU=16
+export ORION_RATIO=100
+export ORION_GMEM=30000
+export ORION_CROSS_NODE=1
+time python main.py -a resnet50 --dist-url 'tcp://10.10.10.23:12345' --dist-backend 'nccl' --world-size 1 --rank 0 --epoch 1 --seed 1 --multiprocessing-distributed --virtai-crossnode  --num-gpu $ORION_VGPU /root/ImageNet_ILSVRC2012
+```
+
 
 ## Usage
 
