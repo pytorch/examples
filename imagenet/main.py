@@ -18,6 +18,9 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
 
+
+
+
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
     and callable(models.__dict__[name]))
@@ -73,6 +76,15 @@ parser.add_argument('--multiprocessing-distributed', action='store_true',
                          'N processes per node, which has N GPUs. This is the '
                          'fastest way to use PyTorch for either single node or '
                          'multi node data parallel training')
+parser.add_argument('--virtai-crossnode', action='store_true',
+                    help='Use virtai modified code to support crossnode function call,'
+                         ' which disable torch.cuda.device_count(),'
+                         ' and replace with manual-set `--num_gpus`, to run on n gpus. '
+                         ' this will also export a fake openmpi env setting `OMPI_COMM_WORLD_LOCAL_RANK`.')
+parser.add_argument('--num-gpus', default=1, type=int,
+                    help='along with --virtai_modification,'
+                         ' to manual set number of gpus to use,'
+                         'default with num_gpus=1')
 
 best_acc1 = 0
 
@@ -99,7 +111,12 @@ def main():
 
     args.distributed = args.world_size > 1 or args.multiprocessing_distributed
 
-    ngpus_per_node = torch.cuda.device_count()
+    if args.virtai_crossnode:
+        ngpus_per_node = args.num_gpus
+        print("virtaitech: disable torch.cuda.device_count, use hard code fixed num - %d"%ngpus_per_node)
+    else:
+        ngpus_per_node = torch.cuda.device_count()
+
     if args.multiprocessing_distributed:
         # Since we have ngpus_per_node processes per node, the total world_size
         # needs to be adjusted accordingly
@@ -115,7 +132,6 @@ def main():
 def main_worker(gpu, ngpus_per_node, args):
     global best_acc1
     args.gpu = gpu
-
     if args.gpu is not None:
         print("Use GPU: {} for training".format(args.gpu))
 
@@ -128,6 +144,10 @@ def main_worker(gpu, ngpus_per_node, args):
             args.rank = args.rank * ngpus_per_node + gpu
         dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url,
                                 world_size=args.world_size, rank=args.rank)
+        
+        if args.virtai_crossnode:
+            print('virtaitech: args.rank = %d'%args.rank)
+            os.environ.setdefault('OMPI_COMM_WORLD_LOCAL_RANK', str(args.rank))
     # create model
     if args.pretrained:
         print("=> using pre-trained model '{}'".format(args.arch))
@@ -176,12 +196,7 @@ def main_worker(gpu, ngpus_per_node, args):
     if args.resume:
         if os.path.isfile(args.resume):
             print("=> loading checkpoint '{}'".format(args.resume))
-            if args.gpu is None:
-                checkpoint = torch.load(args.resume)
-            else:
-                # Map model to be loaded to specified single gpu.
-                loc = 'cuda:{}'.format(args.gpu)
-                checkpoint = torch.load(args.resume, map_location=loc)
+            checkpoint = torch.load(args.resume)
             args.start_epoch = checkpoint['epoch']
             best_acc1 = checkpoint['best_acc1']
             if args.gpu is not None:
@@ -234,6 +249,7 @@ def main_worker(gpu, ngpus_per_node, args):
         validate(val_loader, model, criterion, args)
         return
 
+    print('virtaitech: batchsize - %d'%args.batch_size)
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             train_sampler.set_epoch(epoch)
@@ -422,4 +438,5 @@ def accuracy(output, target, topk=(1,)):
 
 
 if __name__ == '__main__':
+    torch.multiprocessing.set_start_method('forkserver', force=True)
     main()
