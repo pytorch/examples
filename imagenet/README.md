@@ -61,7 +61,7 @@ export ORION_VGPU=16
 export ORION_RATIO=100
 export ORION_GMEM=30000
 export ORION_CROSS_NODE=1
-time python main.py -a resnet50 --dist-url 'tcp://10.10.10.23:12345' --dist-backend 'nccl' --world-size 1 --rank 0 --epoch 1 --seed 1 --multiprocessing-distributed --virtai-crossnode  --num-gpu $ORION_VGPU /root/ImageNet_ILSVRC2012
+time python main.py -a resnet50 --dist-url 'tcp://IP_OF_NODE0:FREEPORT' --dist-backend 'nccl' --world-size 1 --rank 0 --epoch 1 --seed 1 --multiprocessing-distributed --virtai-crossnode  --num-gpu $ORION_VGPU /root/ImageNet_ILSVRC2012
 ```
 This also support multiple nodes at any number, as many as you have.
 
