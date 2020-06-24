@@ -48,6 +48,8 @@ parser.add_argument('--onnx-export', type=str, default='',
 
 parser.add_argument('--nhead', type=int, default=2,
                     help='the number of heads in the encoder/decoder of the transformer model')
+parser.add_argument('--dry-run', action='store_true',
+                    help='verify the code and the model')
 
 args = parser.parse_args()
 
@@ -191,6 +193,8 @@ def train():
                 elapsed * 1000 / args.log_interval, cur_loss, math.exp(cur_loss)))
             total_loss = 0
             start_time = time.time()
+        if args.dry_run:
+            break
 
 
 def export_onnx(path, batch_size, seq_len):

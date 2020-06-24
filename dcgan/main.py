@@ -26,6 +26,7 @@ parser.add_argument('--niter', type=int, default=25, help='number of epochs to t
 parser.add_argument('--lr', type=float, default=0.0002, help='learning rate, default=0.0002')
 parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam. default=0.5')
 parser.add_argument('--cuda', action='store_true', help='enables cuda')
+parser.add_argument('--dry-run', action='store_true', help='check a single training cycle works')
 parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs to use')
 parser.add_argument('--netG', default='', help="path to netG (to continue training)")
 parser.add_argument('--netD', default='', help="path to netD (to continue training)")
@@ -211,6 +212,9 @@ fake_label = 0
 optimizerD = optim.Adam(netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 optimizerG = optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 
+if opt.dry_run:
+    opt.niter = 1
+
 for epoch in range(opt.niter):
     for i, data in enumerate(dataloader, 0):
         ############################
@@ -261,6 +265,8 @@ for epoch in range(opt.niter):
                     '%s/fake_samples_epoch_%03d.png' % (opt.outf, epoch),
                     normalize=True)
 
+        if opt.dry_run:
+            break
     # do checkpointing
     torch.save(netG.state_dict(), '%s/netG_epoch_%d.pth' % (opt.outf, epoch))
     torch.save(netD.state_dict(), '%s/netD_epoch_%d.pth' % (opt.outf, epoch))

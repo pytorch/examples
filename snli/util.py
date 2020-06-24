@@ -65,5 +65,7 @@ def get_args():
                         'glove.6B.50d glove.6B.100d glove.6B.200d glove.6B.300d')
     parser.add_argument('--resume_snapshot', type=str, default='',
                         help='model snapshot to resume.')
+    parser.add_argument('--dry-run', action='store_true',
+                        help='run only a few iterations')
     args = parser.parse_args()
     return args

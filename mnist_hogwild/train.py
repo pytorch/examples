@@ -2,36 +2,22 @@ import os
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
-from torchvision import datasets, transforms
 
 
-def train(rank, args, model, device, dataloader_kwargs):
+def train(rank, args, model, device, dataset, dataloader_kwargs):
     torch.manual_seed(args.seed + rank)
 
-    train_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('../data', train=True, download=True,
-                    transform=transforms.Compose([
-                        transforms.ToTensor(),
-                        transforms.Normalize((0.1307,), (0.3081,))
-                    ])),
-        batch_size=args.batch_size, shuffle=True, num_workers=1,
-        **dataloader_kwargs)
+    train_loader = torch.utils.data.DataLoader(dataset, **dataloader_kwargs)
 
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
     for epoch in range(1, args.epochs + 1):
         train_epoch(epoch, args, model, device, train_loader, optimizer)
 
 
-def test(args, model, device, dataloader_kwargs):
+def test(args, model, device, dataset, dataloader_kwargs):
     torch.manual_seed(args.seed)
 
-    test_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('../data', train=False, transform=transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,))
-        ])),
-        batch_size=args.batch_size, shuffle=True, num_workers=1,
-        **dataloader_kwargs)
+    test_loader = torch.utils.data.DataLoader(dataset, **dataloader_kwargs)
 
     test_epoch(model, device, test_loader)
 
