@@ -3,27 +3,34 @@
 # This script runs through the code in each of the python examples.
 # The purpose is just as an integrtion test, not to actually train
 # models in any meaningful way. For that reason, most of these set
-# epochs = 1.
+# epochs = 1 and --dry-run.
 #
 # Optionally specify a comma separated list of examples to run.
 # can be run as:
 # ./run_python_examples.sh "install_deps,run_all,clean"
 # to pip install dependencies (other than pytorch), run all examples,
 # and remove temporary/changed data files.
-# Expects pytorch to be installed.
+# Expects pytorch, torchvision to be installed.
 
 BASE_DIR=`pwd`"/"`dirname $0`
 EXAMPLES=`echo $1 | sed -e 's/ //g'`
 
-if which nvcc ; then
-  echo "using cuda"
-  CUDA=1
-  CUDA_FLAG="--cuda"
-else
-  echo "not using cuda"
-  CUDA=0
-  CUDA_FLAG=""
-fi
+USE_CUDA=$(python -c "import torchvision, torch; print(torch.cuda.is_available())")
+case $USE_CUDA in
+  "True")
+    echo "using cuda"
+    CUDA=1
+    CUDA_FLAG="--cuda"
+    ;;
+  "False")
+    echo "not using cuda"
+    CUDA=0
+    CUDA_FLAG=""
+    ;;
+  "")
+    exit 1;
+    ;;
+esac
 
 ERRORS=""
 
@@ -63,7 +70,7 @@ function dcgan() {
     unzip ${DATACLASS}_train_lmdb.zip || { error "couldn't unzip $DATACLASS"; return; }
     popd
   fi
-  python main.py --dataset lsun --dataroot lsun --classes $DATACLASS --niter 1 $CUDA_FLAG || error "dcgan failed"
+  python main.py --dataset lsun --dataroot lsun --classes $DATACLASS --niter 1 $CUDA_FLAG --dry-run || error "dcgan failed"
 }
 
 function fast_neural_style() {
@@ -92,12 +99,12 @@ function imagenet() {
 
 function mnist() {
   start
-  python main.py --epochs 1 || error "mnist example failed"
+  python main.py --epochs 1 --dry-run || error "mnist example failed"
 }
 
 function mnist_hogwild() {
   start
-  python main.py --epochs 1 $CUDA_FLAG || error "mnist hogwild failed"
+  python main.py --epochs 1 --dry-run $CUDA_FLAG || error "mnist hogwild failed"
 }
 
 function regression() {
@@ -115,7 +122,7 @@ function snli() {
   echo "installing 'en' model if not installed"
   python -m spacy download en || { error "couldn't download 'en' model needed for snli";  return; }
   echo "training..."
-  python train.py --epochs 1 --no-bidirectional || error "couldn't train snli"
+  python train.py --epochs 1 --dev_every 1 --no-bidirectional --dry-run || error "couldn't train snli"
 }
 
 function super_resolution() {
@@ -126,7 +133,7 @@ function super_resolution() {
 function time_sequence_prediction() {
   start
   python generate_sine_wave.py || { error "generate sine wave failed";  return; }
-  python train.py || error "time sequence prediction training failed"
+  python train.py --steps 2 || error "time sequence prediction training failed"
 }
 
 function vae() {
@@ -136,18 +143,38 @@ function vae() {
 
 function word_language_model() {
   start
-  python main.py --epochs 1 $CUDA_FLAG || error "word_language_model failed"
+  python main.py --epochs 1 --dry-run $CUDA_FLAG || error "word_language_model failed"
 }
 
 function clean() {
   cd $BASE_DIR
-  rm -rf dcgan/_cache_lsun_classroom_train_lmdb dcgan/fake_samples_epoch_000.png dcgan/lsun/ dcgan/netD_epoch_0.pth dcgan/netG_epoch_0.pth dcgan/real_samples.png fast_neural_style/saved_models.zip fast_neural_style/saved_models/ imagenet/checkpoint.pth.tar imagenet/lsun/ imagenet/model_best.pth.tar imagenet/sample/ snli/.data/ snli/.vector_cache/ snli/results/ super_resolution/dataset/ super_resolution/model_epoch_1.pth word_language_model/model.pt || error "couldn't clean up some files"
+  rm -rf dcgan/_cache_lsun_classroom_train_lmdb \
+    dcgan/fake_samples_epoch_000.png dcgan/lsun/ \
+    dcgan/_cache_lsunclassroomtrainlmdb \
+    dcgan/netD_epoch_0.pth dcgan/netG_epoch_0.pth \
+    dcgan/real_samples.png \
+    fast_neural_style/saved_models.zip \
+    fast_neural_style/saved_models/ \
+    imagenet/checkpoint.pth.tar \
+    imagenet/lsun/ \
+    imagenet/model_best.pth.tar \
+    imagenet/sample/ \
+    snli/.data/ \
+    snli/.vector_cache/ \
+    snli/results/ \
+    super_resolution/dataset/ \
+    super_resolution/model_epoch_1.pth \
+    time_sequence_prediction/predict*.pdf \
+    time_sequence_prediction/traindata.pt \
+    word_language_model/model.pt || error "couldn't clean up some files"
 
   git checkout fast_neural_style/images/output-images/amber-candy.jpg || error "couldn't clean up fast neural style image"
 }
 
 function run_all() {
+  # cpp
   dcgan
+  # distributed
   fast_neural_style
   imagenet
   mnist

@@ -140,3 +140,5 @@ for epoch in range(args.epochs):
             print(log_template.format(time.time()-start,
                 epoch, iterations, 1+batch_idx, len(train_iter),
                 100. * (1+batch_idx) / len(train_iter), loss.item(), ' '*8, n_correct/n_total*100, ' '*12))
+        if args.dry_run:
+            break

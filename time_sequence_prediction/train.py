@@ -1,4 +1,5 @@
 from __future__ import print_function
+import argparse
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -36,6 +37,9 @@ class Sequence(nn.Module):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--steps', type=int, default=15, help='steps to run')
+    opt = parser.parse_args()
     # set random seed to 0
     np.random.seed(0)
     torch.manual_seed(0)
@@ -52,7 +56,7 @@ if __name__ == '__main__':
     # use LBFGS as optimizer since we can load the whole data to train
     optimizer = optim.LBFGS(seq.parameters(), lr=0.8)
     #begin to train
-    for i in range(15):
+    for i in range(opt.steps):
         print('STEP: ', i)
         def closure():
             optimizer.zero_grad()
