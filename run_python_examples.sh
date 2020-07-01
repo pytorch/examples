@@ -172,7 +172,7 @@ function clean() {
 }
 
 function run_all() {
-  #cpp
+  # cpp
   dcgan
   # distributed
   fast_neural_style

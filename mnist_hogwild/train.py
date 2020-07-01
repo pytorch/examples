@@ -35,6 +35,8 @@ def train_epoch(epoch, args, model, device, data_loader, optimizer):
             print('{}\tTrain Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 pid, epoch, batch_idx * len(data), len(data_loader.dataset),
                 100. * batch_idx / len(data_loader), loss.item()))
+            if args.dry_run:
+                break
 
 
 def test_epoch(model, device, data_loader):

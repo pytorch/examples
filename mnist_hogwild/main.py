@@ -51,20 +51,6 @@ class Net(nn.Module):
         return F.log_softmax(x, dim=1)
 
 
-class DryRunSampler(Sampler):
-    r"""Return only two datum from the set of data
-    """
-
-    def __init__(self, data_source):
-        self.data_source = data_source
-
-    def __iter__(self):
-        return iter(range(2))
-
-    def __len__(self):
-        return 2
-
-
 if __name__ == '__main__':
     args = parser.parse_args()
 
@@ -84,12 +70,6 @@ if __name__ == '__main__':
         kwargs.update({'num_workers': 1,
                        'pin_memory': True,
                       })
-
-    if args.dry_run:
-
-        kwargs['sampler'] = DryRunSampler(dataset1)
-        kwargs['shuffle'] = False
-
 
     torch.manual_seed(args.seed)
     mp.set_start_method('spawn')
