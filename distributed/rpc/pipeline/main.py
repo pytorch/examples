@@ -16,57 +16,13 @@ from torchvision.models.resnet import Bottleneck
 
 
 #########################################################
-#                   helper functions                    #
-#########################################################
-
-
-def _call_method(method, rref, *args, **kwargs):
-    r"""
-    a helper function to call a method on the given RRef
-    """
-    return method(rref.local_value(), *args, **kwargs)
-
-
-def _remote_on_rref(method, rref, *args, **kwargs):
-    r"""
-    a helper function to run method on the owner of rref and return an RRef
-    of the result.
-    """
-    return rpc.remote(
-        rref.owner(),
-        _call_method,
-        args=[method, rref] + list(args),
-        kwargs=kwargs
-    )
-
-
-def _async_on_rref(method, rref, *args, **kwargs):
-    r"""
-    a helper function to run method on the owner of rref and fetch back the
-    result using RPC
-    """
-    return rpc.rpc_async(
-        rref.owner(),
-        _call_method,
-        args=[method, rref] + list(args),
-        kwargs=kwargs
-    )
-
-
-def _parameter_rrefs(module):
-    r"""
-    Create one RRef for each parameter in the given local module, and return a
-    list of RRefs.
-    """
-    param_rrefs = []
-    for param in module.parameters():
-        param_rrefs.append(RRef(param))
-    return param_rrefs
-
-
-#########################################################
 #           Define Model Parallel ResNet50              #
 #########################################################
+
+# In order to split the ResNet50 and place it on two different workers, we
+# implement it in two model shards. The ResNetBase class defines common
+# attributes and methods shared by two shards. ResNetShard1 and ResNetShard2
+# contain two partitions of the model layers respectively.
 
 
 num_classes = 1000
@@ -76,9 +32,8 @@ def conv1x1(in_planes, out_planes, stride=1):
     """1x1 convolution"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
-
 class ResNetBase(nn.Module):
-    def __init__(self, block, inplanes, num_classes=1000, 
+    def __init__(self, block, inplanes, num_classes=1000,
                  groups=1, width_per_group=64, norm_layer=None):
         super(ResNetBase, self).__init__()
 
@@ -111,13 +66,20 @@ class ResNetBase(nn.Module):
 
         return nn.Sequential(*layers)
 
+    def parameter_rrefs(self):
+        r"""
+        Create one RRef for each parameter in the given local module, and return a
+        list of RRefs.
+        """
+        return [RRef(p) for p in self.parameters()]
 
-class ResNetPart1(ResNetBase):
+
+class ResNetShard1(ResNetBase):
     """
     The first part of ResNet.
     """
     def __init__(self, device, *args, **kwargs):
-        super(ResNetPart1, self).__init__(
+        super(ResNetShard1, self).__init__(
             Bottleneck, 64, num_classes=num_classes, *args, **kwargs)
 
         self.device = device
@@ -144,12 +106,12 @@ class ResNetPart1(ResNetBase):
         return out.cpu()
 
 
-class ResNetPart2(ResNetBase):
+class ResNetShard2(ResNetBase):
     """
     The second part of ResNet.
     """
     def __init__(self, device, *args, **kwargs):
-        super(ResNetPart2, self).__init__(
+        super(ResNetShard2, self).__init__(
             Bottleneck, 512, num_classes=num_classes, *args, **kwargs)
 
         self.device = device
@@ -180,7 +142,7 @@ class DistResNet50(nn.Module):
         # Put the first part of the ResNet50 on workers[0]
         self.p1_rref = rpc.remote(
             workers[0],
-            ResNetPart1,
+            ResNetShard1,
             args = ("cuda:0",) + args,
             kwargs = kwargs
         )
@@ -188,7 +150,7 @@ class DistResNet50(nn.Module):
         # Put the second part of the ResNet50 on workers[1]
         self.p2_rref = rpc.remote(
             workers[1],
-            ResNetPart2,
+            ResNetShard2,
             args = ("cuda:1",) + args,
             kwargs = kwargs
         )
@@ -199,22 +161,19 @@ class DistResNet50(nn.Module):
         out_futures = []
         for x in iter(xs.split(self.split_size, dim=0)):
             x_rref = RRef(x)
-            y_rref = _remote_on_rref(ResNetPart1.forward, self.p1_rref, x_rref)
-            z_fut = _async_on_rref(ResNetPart2.forward, self.p2_rref, y_rref)
+            y_rref = self.p1_rref.remote().forward(x_rref)
+            z_fut = self.p2_rref.rpc_async().forward(y_rref)
             out_futures.append(z_fut)
 
-        # wait for all RPC to finish
-        outs = [fut.wait() for fut in out_futures]
-        # cat all tensors into one tensor.
-        out = torch.cat(outs)
-        return out
-        
+        # collect and cat all output tensors into one tensor.
+        return torch.cat(torch.futures.wait_all(out_futures))
+
     def parameter_rrefs(self):
         remote_params = []
-        remote_params.extend(_remote_on_rref(_parameter_rrefs, self.p1_rref).to_here())
-        remote_params.extend(_remote_on_rref(_parameter_rrefs, self.p2_rref).to_here())
+        remote_params.extend(self.p1_rref.remote().parameter_rrefs().to_here())
+        remote_params.extend(self.p2_rref.remote().parameter_rrefs().to_here())
         return remote_params
-        
+
 
 #########################################################
 #                   Run RPC Processes                   #
@@ -248,6 +207,9 @@ def run_master(split_size):
         labels = torch.zeros(batch_size, num_classes) \
                       .scatter_(1, one_hot_indices, 1)
 
+        # The distributed autograd context is the dedicated scope for the
+        # distributed backward pass to store gradients, which can later be
+        # retrieved using the context_id by the distributed optimizer.
         with dist_autograd.context() as context_id:
             outputs = model(inputs)
             dist_autograd.backward(context_id, [loss_fn(outputs, labels)])
@@ -261,17 +223,17 @@ def run_worker(rank, world_size, num_split):
 
     if rank == 0:
         rpc.init_rpc(
-            "master", 
-            rank=rank, 
-            world_size=world_size, 
+            "master",
+            rank=rank,
+            world_size=world_size,
             rpc_backend_options=options
         )
         run_master(num_split)
     else:
         rpc.init_rpc(
-            f"worker{rank}", 
-            rank=rank, 
-            world_size=world_size, 
+            f"worker{rank}",
+            rank=rank,
+            world_size=world_size,
             rpc_backend_options=options
         )
         pass
