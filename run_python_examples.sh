@@ -148,6 +148,7 @@ function word_language_model() {
 
 function clean() {
   cd $BASE_DIR
+  echo "running clean to remove cruft"
   rm -rf dcgan/_cache_lsun_classroom_train_lmdb \
     dcgan/fake_samples_epoch_000.png dcgan/lsun/ \
     dcgan/_cache_lsunclassroomtrainlmdb \
@@ -194,17 +195,20 @@ if [ "" == "$EXAMPLES" ]; then
 else
   for i in $(echo $EXAMPLES | sed "s/,/ /g")
   do
+    echo "Starting $i"
     $i
+    echo "Finished $i, status $?"
   done
 fi
 
 if [ "" == "$ERRORS" ]; then
-  tput setaf 2
-  echo "Completed successfully"
+  [[ "$TERM" != "" ]] && [[ "$TERM" != "dumb" ]]  && tput setaf 2
+  echo "Completed successfully with status $?"
 else
-  tput setaf 1
+  [[ "$TERM" != "" ]] && [[ "$TERM" != "dumb" ]]  && tput setaf 1
   echo "Some examples failed:"
   printf "$ERRORS"
 fi
 
-tput sgr0
+[[ "$TERM" != "" ]] && [[ "$TERM" != "dumb" ]]  && tput sgr0
+
