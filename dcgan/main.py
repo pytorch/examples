@@ -224,7 +224,8 @@ for epoch in range(opt.niter):
         netD.zero_grad()
         real_cpu = data[0].to(device)
         batch_size = real_cpu.size(0)
-        label = torch.full((batch_size,), real_label, device=device)
+        label = torch.full((batch_size,), real_label,
+                           dtype=real_cpu.dtype, device=device)
 
         output = netD(real_cpu)
         errD_real = criterion(output, label)
