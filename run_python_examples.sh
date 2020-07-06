@@ -202,13 +202,8 @@ else
 fi
 
 if [ "" == "$ERRORS" ]; then
-  [[ "$TERM" != "" ]] && [[ "$TERM" != "dumb" ]]  && tput setaf 2
   echo "Completed successfully with status $?"
 else
-  [[ "$TERM" != "" ]] && [[ "$TERM" != "dumb" ]]  && tput setaf 1
   echo "Some examples failed:"
   printf "$ERRORS"
 fi
-
-[[ "$TERM" != "" ]] && [[ "$TERM" != "dumb" ]]  && tput sgr0
-
