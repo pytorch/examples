@@ -1,8 +1,8 @@
 Distributed DataParallel + Distributed RPC Framework Example
 
 The example shows how to combine Distributed DataParallel with the Distributed 
-RPC Framework. There are two trainer nodes, 1 master node and 1 parameter in 
-the example.
+RPC Framework. There are two trainer nodes, 1 master node and 1 parameter 
+server in the example.
 
 The master node creates an embedding table on the parameter server and drives 
 the training loop on the trainers. The model consists of a dense part 
@@ -16,5 +16,6 @@ the embedding table on the parameter server.
 
 
 ```
+pip install -r requirements.txt
 python main.py
 ```

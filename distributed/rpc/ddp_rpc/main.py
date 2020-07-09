@@ -1,17 +1,17 @@
-import os
 from functools import wraps
-
+import os
 import random
+
 import torch
 import torch.distributed as dist
 import torch.distributed.autograd as dist_autograd
+from torch.distributed.optim import DistributedOptimizer
 import torch.distributed.rpc as rpc
+from torch.distributed.rpc import RRef
 from torch.distributed.rpc import ProcessGroupRpcBackendOptions
 import torch.multiprocessing as mp
-import torch.optim as optim
-from torch.distributed.optim import DistributedOptimizer
-from torch.distributed.rpc import RRef
 from torch.nn.parallel import DistributedDataParallel as DDP
+import torch.optim as optim
 
 NUM_EMBEDDINGS = 100
 EMBEDDING_DIM = 16
@@ -38,10 +38,7 @@ class HybridModel(torch.nn.Module):
         return self.fc(emb_lookup.cuda(self.device))
 
 def _retrieve_embedding_parameters(emb_rref):
-    param_rrefs = []
-    for param in emb_rref.local_value().parameters():
-        param_rrefs.append(RRef(param))
-    return param_rrefs
+    return [RRef(p) for p in emb_rref.local_value().parameters()]
 
 
 def _run_trainer(emb_rref, rank):
@@ -117,10 +114,9 @@ def run_worker(rank, world_size):
     A wrapper function that initializes RPC, calls the function, and shuts down
     RPC.
     """
-    os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '29500'
 
-
+    # We need to use different port numbers in TCP init_method for init_rpc and
+    # init_process_group to avoid port conflicts.
     rpc_backend_options = ProcessGroupRpcBackendOptions()
     rpc_backend_options.init_method='tcp://localhost:29501'
 
@@ -153,7 +149,8 @@ def run_worker(rank, world_size):
     elif rank <= 1:
         # Initialize process group for Distributed DataParallel on trainers.
         dist.init_process_group(
-                backend="gloo", rank=rank, world_size=2)
+                backend="gloo", rank=rank, world_size=2,
+                init_method='tcp://localhost:29500')
 
         # Initialize RPC.
         trainer_name = "trainer{}".format(rank)
