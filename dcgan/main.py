@@ -234,9 +234,12 @@ for epoch in range(opt.niter):
 
         # train with fake
         noise = torch.randn(batch_size, nz, 1, 1, device=device)
-        fake = netG(noise)
+        netG.eval()
+        with torch.no_grad():
+            fake = netG(noise).detach()
+        netG.train()
+        output = netD(fake)
         label.fill_(fake_label)
-        output = netD(fake.detach())
         errD_fake = criterion(output, label)
         errD_fake.backward()
         D_G_z1 = output.mean().item()
@@ -261,8 +264,11 @@ for epoch in range(opt.niter):
             vutils.save_image(real_cpu,
                     '%s/real_samples.png' % opt.outf,
                     normalize=True)
-            fake = netG(fixed_noise)
-            vutils.save_image(fake.detach(),
+            netG.eval()
+            with torch.no_grad():
+                fake = netG(fixed_noise).detach()
+            netG.train()
+            vutils.save_image(fake,
                     '%s/fake_samples_epoch_%03d.png' % (opt.outf, epoch),
                     normalize=True)
 
