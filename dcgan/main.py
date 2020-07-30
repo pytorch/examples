@@ -261,8 +261,11 @@ for epoch in range(opt.niter):
             vutils.save_image(real_cpu,
                     '%s/real_samples.png' % opt.outf,
                     normalize=True)
-            fake = netG(fixed_noise)
-            vutils.save_image(fake.detach(),
+            netG.eval()
+            with torch.no_grad():
+                fake = netG(fixed_noise).detach()
+            netG.train()
+            vutils.save_image(fake,
                     '%s/fake_samples_epoch_%03d.png' % (opt.outf, epoch),
                     normalize=True)
 
