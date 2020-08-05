@@ -1,10 +1,14 @@
 name: Run Examples
 
 on:
- push:
-   branches: [ master ]
- pull_request:
-   branches: [ master ]
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  schedule:
+    # Every day at 3:00am
+    - cron: '0 3 * * *'
+        
 
 jobs:
   test:
@@ -27,5 +31,12 @@ jobs:
     - name: Run Tests
       run: |
         ./run_python_examples.sh "install_deps,run_all,clean"
-
+    - name: Open issue on failure
+      if: ${{ failure() && github.event_name  == 'schedule' }}
+      uses: rishabhgupta/git-action-issue@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        title: Daily CI failed
+        body:  Commit ${{ github.sha }} daily scheduled [CI run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) failed, please check why
+        assignees: ''
 
