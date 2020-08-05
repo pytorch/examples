@@ -1,6 +1,10 @@
 # PyTorch Examples
 ![Run Examples](https://github.com/pytorch/examples/workflows/Run%20Examples/badge.svg)
 
+WARNING: if you fork this repo, github actions will run daily on it. To disable
+this, go to <myuser>/examples/settings/actions and Disable Actions for this
+repository
+
 A repository showcasing examples of using [PyTorch](https://github.com/pytorch/pytorch)
 
 - [Image classification (MNIST) using Convnets](mnist)
