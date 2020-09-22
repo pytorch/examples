@@ -8,7 +8,7 @@ import torch.distributed.autograd as dist_autograd
 from torch.distributed.optim import DistributedOptimizer
 import torch.distributed.rpc as rpc
 from torch.distributed.rpc import RRef
-from torch.distributed.rpc import ProcessGroupRpcBackendOptions
+from torch.distributed.rpc import TensorPipeRpcBackendOptions
 import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.optim as optim
@@ -117,7 +117,7 @@ def run_worker(rank, world_size):
 
     # We need to use different port numbers in TCP init_method for init_rpc and
     # init_process_group to avoid port conflicts.
-    rpc_backend_options = ProcessGroupRpcBackendOptions()
+    rpc_backend_options = TensorPipeRpcBackendOptions()
     rpc_backend_options.init_method='tcp://localhost:29501'
 
     # Rank 2 is master, 3 is ps and 0 and 1 are trainers.

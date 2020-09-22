@@ -219,7 +219,7 @@ def run_master(split_size):
 def run_worker(rank, world_size, num_split):
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '29500'
-    options = rpc.ProcessGroupRpcBackendOptions(num_send_recv_threads=256)
+    options = rpc.TensorPipeRpcBackendOptions(num_worker_threads=256)
 
     if rank == 0:
         rpc.init_rpc(
