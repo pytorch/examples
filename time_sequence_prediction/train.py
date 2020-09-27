@@ -32,7 +32,7 @@ class Sequence(nn.Module):
             h_t2, c_t2 = self.lstm2(h_t, (h_t2, c_t2))
             output = self.linear(h_t2)
             outputs += [output]
-        outputs = torch.stack(outputs, 1).squeeze(2)
+        outputs = torch.cat(outputs, dim=1)
         return outputs
 
 
