@@ -58,9 +58,9 @@ int main(int argc, char* argv[]) {
 
   // TRAINING
   // Read train dataset
-  std::string filename = "/afs/crc.nd.edu/user/s/sghosh2/Public/ML/mnist/data";
+  const char* kDataRoot = "../data";
   auto train_dataset =
-      torch::data::datasets::MNIST(filename)
+      torch::data::datasets::MNIST(kDataRoot)
           .map(torch::data::transforms::Normalize<>(0.1307, 0.3081))
           .map(torch::data::transforms::Stack<>());
 
