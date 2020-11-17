@@ -72,8 +72,8 @@ def run_worker(rank, world_size):
     """
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '29500'
-    if rank == 1:
-        rpc.init_rpc("trainer", rank=rank, world_size=world_size)
+    if rank != 0:
+        rpc.init_rpc(f"trainer{rank}", rank=rank, world_size=world_size)
         _run_trainer()
     else:
         rpc.init_rpc("ps", rank=rank, world_size=world_size)
@@ -85,5 +85,5 @@ def run_worker(rank, world_size):
 
 
 if __name__=="__main__":
-    world_size = 2
+    world_size = 3
     mp.spawn(run_worker, args=(world_size, ), nprocs=world_size, join=True)

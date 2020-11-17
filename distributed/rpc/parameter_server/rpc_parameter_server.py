@@ -19,7 +19,10 @@ from torchvision import datasets, transforms
 class Net(nn.Module):
     def __init__(self, num_gpus=0):
         super(Net, self).__init__()
-        print(f"Using {num_gpus} GPUs to train")
+        if num_gpus > 0:
+            print(f"Using {num_gpus} to train")
+        else:
+            print("CPU-only training")
         self.num_gpus = num_gpus
         device = torch.device(
             "cuda:0" if torch.cuda.is_available() and self.num_gpus > 0 else "cpu")
@@ -36,6 +39,7 @@ class Net(nn.Module):
         self.dropout2 = nn.Dropout2d(0.5).to(device)
         self.fc1 = nn.Linear(9216, 128).to(device)
         self.fc2 = nn.Linear(128, 10).to(device)
+        print("Model created")
 
     def forward(self, x):
         x = self.conv1(x)
@@ -82,6 +86,7 @@ def remote_method(method, rref, *args, **kwargs):
 # --------- Parameter Server --------------------
 class ParameterServer(nn.Module):
     def __init__(self, num_gpus=0):
+        torch.autograd.set_detect_anomaly(True)
         super().__init__()
         model = Net(num_gpus=num_gpus)
         self.model = model
@@ -165,29 +170,43 @@ class TrainerNet(nn.Module):
             ParameterServer.forward, self.param_server_rref, x)
         return model_output
 
+from threading import Condition
+trainer_cv = Condition()
+def set_cv():
+    global trainer_cv
+    with trainer_cv:
+        trainer_cv.notify()
 
 def run_training_loop(rank, num_gpus, train_loader, test_loader):
+    print(f"Rank {rank} running training loop")
     # Runs the typical nueral network forward + backward + optimizer step, but
     # in a distributed fashion.
     net = TrainerNet(num_gpus=num_gpus)
     # Build DistributedOptmizer.
     param_rrefs = net.get_global_param_rrefs()
     opt = DistributedOptimizer(optim.SGD, param_rrefs, lr=0.03)
+
     for i, (data, target) in enumerate(train_loader):
         with dist_autograd.context() as cid:
+            if rank == 1:
+                with trainer_cv:
+                    trainer_cv.wait()
             model_output = net(data)
             target = target.to(model_output.device)
             loss = F.nll_loss(model_output, target)
             if i % 5 == 0:
                 print(f"Rank {rank} training batch {i} loss {loss.item()}")
             dist_autograd.backward(cid, [loss])
-            # Ensure that dist autograd ran successfully and gradients were
-            # returned.
-            assert remote_method(
-                ParameterServer.get_dist_gradients,
-                net.param_server_rref,
-                cid) != {}
             opt.step(cid)
+        # after rank 2 is done with 1 iter, it notifies rank 1
+        if rank == 2:
+            rpc.rpc_sync("trainer_1", set_cv, args=())
+            # rank 0 waits for rank 1 to finish.
+            with trainer_cv:
+                trainer_cv.wait()
+        # rank 1 has finished, let rank 2 stop waiting.
+        if rank == 1:
+            rpc.rpc_sync("trainer_2", set_cv, args=())
 
     print("Training complete!")
     print("Getting accuracy....")
@@ -198,7 +217,7 @@ def get_accuracy(test_loader, model):
     model.eval()
     correct_sum = 0
     # Use GPU to evaluate if possible
-    device = torch.device("cuda:0" if model.num_gpus > 0 
+    device = torch.device("cuda:0" if model.num_gpus > 0
         and torch.cuda.is_available() else "cpu")
     with torch.no_grad():
         for i, (data, target) in enumerate(test_loader):
