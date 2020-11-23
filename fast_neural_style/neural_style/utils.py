@@ -3,7 +3,7 @@ from PIL import Image
 
 
 def load_image(filename, size=None, scale=None):
-    img = Image.open(filename)
+    img = Image.open(filename).convert('RGB')
     if size is not None:
         img = img.resize((size, size), Image.ANTIALIAS)
     elif scale is not None:
