@@ -60,9 +60,6 @@ def spmd_main(local_world_size, local_rank):
         # backend and FileStore on Windows platform. Set init_method parameter
         # in init_process_group to a local file.
         init_method = "file:///c:/tmp/tmp_filestore"
-        if not os.path.exists("c:/tmp"):
-            print("Directory not exist for filestore.")
-            return
         dist.init_process_group(backend="gloo", init_method=init_method, rank=local_rank, world_size=local_world_size)
     else:
         dist.init_process_group(backend="nccl")
