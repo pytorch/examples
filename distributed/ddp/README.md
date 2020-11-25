@@ -143,7 +143,8 @@ def demo_basic(local_world_size, local_rank):
     optimizer.step()
 ```
 
-The application can be launched via `launch.py` as follows on a 8 GPU node with one process per GPU:
+The application can be launched via `launch.py` as follows on a 8 GPU node with one process per GPU: 
+Note: So far, we only support filestore on windows. Please make sure the default directory c:\tmp exists or change the filepath in the code.
 ```sh
 python /path/to/launch.py --nnode=1 --node_rank=0 --nproc_per_node=8 example.py --local_world_size=8
 ```
