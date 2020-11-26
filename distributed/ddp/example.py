@@ -48,12 +48,6 @@ def demo_basic(local_world_size, local_rank):
 
 
 def spmd_main(local_world_size, local_rank):
-    # These are the parameters used to initialize the process group
-    env_dict = {
-        key: os.environ[key]
-        for key in ("MASTER_ADDR", "MASTER_PORT", "RANK", "WORLD_SIZE")
-    }
-    print(f"[{os.getpid()}] Initializing process group with: {env_dict}")
     
     if sys.platform == "win32":
         # Distributed package only covers collective communications with Gloo
@@ -62,11 +56,17 @@ def spmd_main(local_world_size, local_rank):
         init_method = "file:///c:/tmp/tmp_filestore"
         dist.init_process_group(backend="gloo", init_method=init_method, rank=local_rank, world_size=local_world_size)
     else:
+        # These are the parameters used to initialize the process group
+        env_dict = {
+            key: os.environ[key]
+            for key in ("MASTER_ADDR", "MASTER_PORT", "RANK", "WORLD_SIZE")
+        }
+        print(f"[{os.getpid()}] Initializing process group with: {env_dict}")        
         dist.init_process_group(backend="nccl")
 
     print(
         f"[{os.getpid()}]: world_size = {dist.get_world_size()}, "
-        + f"rank = {dist.get_rank()}, backend={dist.get_backend()}"
+        + f"rank = {dist.get_rank()}, backend={dist.get_backend()} \n"
     )
 
     demo_basic(local_world_size, local_rank)
