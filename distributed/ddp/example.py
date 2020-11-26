@@ -1,5 +1,6 @@
 import argparse
 import os
+import tempfile
 import sys
 
 import torch
@@ -53,7 +54,8 @@ def spmd_main(local_world_size, local_rank):
         # Distributed package only covers collective communications with Gloo
         # backend and FileStore on Windows platform. Set init_method parameter
         # in init_process_group to a local file.
-        init_method = "file:///c:/tmp/tmp_filestore"
+        temp_dir = tempfile.gettempdir()
+        init_method = "file:///" + os.path.join(temp_dir, "ddp_example")
         dist.init_process_group(backend="gloo", init_method=init_method, rank=local_rank, world_size=local_world_size)
     else:
         # These are the parameters used to initialize the process group
