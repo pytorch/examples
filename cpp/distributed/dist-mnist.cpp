@@ -115,6 +115,10 @@ int main(int argc, char* argv[]) {
       loss.backward();
 
       // Averaging the gradients of the parameters in all the processors
+      // Note: This may lag behind DistributedDataParallel (DDP) in performance
+      // since this synchronizes parameters after backward pass while DDP
+      // overlaps synchronizing parameters and computing gradients in backward
+      // pass
       for (auto& param : model->named_parameters()) {
         MPI_Allreduce(
             MPI_IN_PLACE,
