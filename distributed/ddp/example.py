@@ -7,6 +7,7 @@ import torch
 import torch.distributed as dist
 import torch.nn as nn
 import torch.optim as optim
+from urllib.parse import urlparse
 
 from torch.nn.parallel import DistributedDataParallel as DDP
 
@@ -54,8 +55,17 @@ def spmd_main(local_world_size, local_rank):
         # Distributed package only covers collective communications with Gloo
         # backend and FileStore on Windows platform. Set init_method parameter
         # in init_process_group to a local file.
-        temp_dir = tempfile.gettempdir()
-        init_method = "file:///" + os.path.join(temp_dir, "ddp_example")
+        if "INIT_METHOD" in os.environ.keys():
+            print(f"init_method is {os.environ['INIT_METHOD']}")
+            url_obj = urlparse(os.environ["INIT_METHOD"])
+            if url_obj.scheme.lower() != "file":
+                raise ValueError("Windows only supports FileStore")
+            else:
+                init_method = os.environ["INIT_METHOD"]
+        else:
+            # It is a example application, For convience, we create a file in temp dir.
+            temp_dir = tempfile.gettempdir()
+            init_method = "file:///" + os.path.join(temp_dir, "ddp_example")
         dist.init_process_group(backend="gloo", init_method=init_method, rank=local_rank, world_size=local_world_size)
     else:
         # These are the parameters used to initialize the process group
