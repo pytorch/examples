@@ -1,16 +1,15 @@
 import argparse
 import os
-import tempfile
 import sys
+import tempfile
+from urllib.parse import urlparse
 
 import torch
 import torch.distributed as dist
 import torch.nn as nn
 import torch.optim as optim
-from urllib.parse import urlparse
 
 from torch.nn.parallel import DistributedDataParallel as DDP
-
 
 class ToyModel(nn.Module):
     def __init__(self):
@@ -50,6 +49,11 @@ def demo_basic(local_world_size, local_rank):
 
 
 def spmd_main(local_world_size, local_rank):
+    # These are the parameters used to initialize the process group
+    env_dict = {
+        key: os.environ[key]
+        for key in ("MASTER_ADDR", "MASTER_PORT", "RANK", "WORLD_SIZE")
+    }
     
     if sys.platform == "win32":
         # Distributed package only covers collective communications with Gloo
@@ -66,14 +70,9 @@ def spmd_main(local_world_size, local_rank):
             # It is a example application, For convience, we create a file in temp dir.
             temp_dir = tempfile.gettempdir()
             init_method = "file:///" + os.path.join(temp_dir, "ddp_example")
-        dist.init_process_group(backend="gloo", init_method=init_method, rank=local_rank, world_size=local_world_size)
+        dist.init_process_group(backend="gloo", init_method=init_method, rank=int(env_dict["RANK"]), world_size=int(env_dict["WORLD_SIZE"]))
     else:
-        # These are the parameters used to initialize the process group
-        env_dict = {
-            key: os.environ[key]
-            for key in ("MASTER_ADDR", "MASTER_PORT", "RANK", "WORLD_SIZE")
-        }
-        print(f"[{os.getpid()}] Initializing process group with: {env_dict}")        
+        print(f"[{os.getpid()}] Initializing process group with: {env_dict}")  
         dist.init_process_group(backend="nccl")
 
     print(
