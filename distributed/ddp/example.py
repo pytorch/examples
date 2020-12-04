@@ -69,7 +69,7 @@ def spmd_main(local_world_size, local_rank):
         else:
             # It is a example application, For convience, we create a file in temp dir.
             temp_dir = tempfile.gettempdir()
-            init_method = "file:///" + os.path.join(temp_dir, "ddp_example")
+            init_method = f"file:///{os.path.join(temp_dir, 'ddp_example')}"
         dist.init_process_group(backend="gloo", init_method=init_method, rank=int(env_dict["RANK"]), world_size=int(env_dict["WORLD_SIZE"]))
     else:
         print(f"[{os.getpid()}] Initializing process group with: {env_dict}")  
