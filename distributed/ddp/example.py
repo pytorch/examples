@@ -32,7 +32,7 @@ def demo_basic(local_world_size, local_rank):
 
     print(
         f"[{os.getpid()}] rank = {dist.get_rank()}, "
-        + f"world_size = {dist.get_world_size()}, n = {n}, device_ids = {device_ids}"
+        + f"world_size = {dist.get_world_size()}, n = {n}, device_ids = {device_ids} \n", end=''
     )
 
     model = ToyModel().cuda(device_ids[0])
@@ -77,7 +77,7 @@ def spmd_main(local_world_size, local_rank):
 
     print(
         f"[{os.getpid()}]: world_size = {dist.get_world_size()}, "
-        + f"rank = {dist.get_rank()}, backend={dist.get_backend()} \n"
+        + f"rank = {dist.get_rank()}, backend={dist.get_backend()} \n", end=''
     )
 
     demo_basic(local_world_size, local_rank)
