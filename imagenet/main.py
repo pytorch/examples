@@ -253,6 +253,7 @@ def main_worker(gpu, ngpus_per_node, args):
         
         scheduler.step()
 
+        
         # remember best acc@1 and save checkpoint
         is_best = acc1 > best_acc1
         best_acc1 = max(acc1, best_acc1)
