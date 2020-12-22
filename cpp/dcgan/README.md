@@ -51,6 +51,6 @@ The training script periodically generates image samples. Use the
 For example:
 
 ```shell
-$ python display_samples.py -i dcgan-sample-10.png
+$ python display_samples.py -i dcgan-sample-10.pt
 Saved out.png
 ```
