@@ -75,7 +75,7 @@ class Observer:
         r"""
         Run one episode of n_steps.
 
-        Arguments:
+        Args:
             agent_rref (RRef): an RRef referencing the agent object.
             n_steps (int): number of steps in this episode
         """
