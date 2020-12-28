@@ -155,7 +155,7 @@ int main(int argc, char* argv[]) {
   if (rank == 0) {
     auto test_dataset =
         torch::data::datasets::MNIST(
-            filename, torch::data::datasets::MNIST::Mode::kTest)
+            kDataRoot, torch::data::datasets::MNIST::Mode::kTest)
             .map(torch::data::transforms::Normalize<>(0.1307, 0.3081))
             .map(torch::data::transforms::Stack<>());
 
