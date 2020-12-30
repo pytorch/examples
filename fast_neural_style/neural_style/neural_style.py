@@ -153,25 +153,6 @@ def stylize(args):
     utils.save_image(args.output_image, output[0])
 
 
-def stylize_onnx_caffe2(content_image, args):
-    """
-    Read ONNX model and run it using Caffe2
-    """
-
-    assert not args.export_onnx
-
-    import onnx
-    import onnx_caffe2.backend
-
-    model = onnx.load(args.model)
-
-    prepared_backend = onnx_caffe2.backend.prepare(model, device='CUDA' if args.cuda else 'CPU')
-    inp = {model.graph.input[0].name: content_image.numpy()}
-    c2_out = prepared_backend.run(inp)[0]
-
-    return torch.from_numpy(c2_out)
-
-
 def stylize_onnx(content_image, args):
     """
     Read ONNX model and run it using onnxruntime
