@@ -142,9 +142,12 @@ def stylize(args):
                     del state_dict[k]
             style_model.load_state_dict(state_dict)
             style_model.to(device)
+            style_model.eval()
             if args.export_onnx:
                 assert args.export_onnx.endswith(".onnx"), "Export model file should end with .onnx"
-                output = torch.onnx._export(style_model, content_image, args.export_onnx).cpu()
+                output = torch.onnx._export(
+                    style_model, content_image, args.export_onnx, opset_version=11,
+                ).cpu()            
             else:
                 output = style_model(content_image).cpu()
     utils.save_image(args.output_image, output[0])
@@ -167,6 +170,31 @@ def stylize_onnx_caffe2(content_image, args):
     c2_out = prepared_backend.run(inp)[0]
 
     return torch.from_numpy(c2_out)
+
+
+def stylize_onnx(content_image, args):
+    """
+    Read ONNX model and run it using onnxruntime
+    """
+
+    assert not args.export_onnx
+
+    import onnxruntime
+
+    ort_session = onnxruntime.InferenceSession(args.model)
+
+    def to_numpy(tensor):
+        return (
+            tensor.detach().cpu().numpy()
+            if tensor.requires_grad
+            else tensor.cpu().numpy()
+        )
+
+    ort_inputs = {ort_session.get_inputs()[0].name: to_numpy(content_image)}
+    ort_outs = ort_session.run(None, ort_inputs)
+    img_out_y = ort_outs[0]
+
+    return torch.from_numpy(img_out_y)
 
 
 def main():
