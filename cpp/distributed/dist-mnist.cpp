@@ -1,19 +1,11 @@
+#include <c10d/ProcessGroupMPI.hpp>
 #include <torch/torch.h>
 #include <iostream>
-#include "mpi.h"
 
-std::map<at::ScalarType, MPI_Datatype> mpiDatatype = {
-    {at::kByte, MPI_UNSIGNED_CHAR},
-    {at::kChar, MPI_CHAR},
-    {at::kDouble, MPI_DOUBLE},
-    {at::kFloat, MPI_FLOAT},
-    {at::kInt, MPI_INT},
-    {at::kLong, MPI_LONG},
-    {at::kShort, MPI_SHORT},
-};
+using namespace ::c10d
 
-// Define a Convolutional Module
-struct Model : torch::nn::Module {
+    // Define a Convolutional Module
+    struct Model : torch::nn::Module {
   Model()
       : conv1(torch::nn::Conv2dOptions(1, 10, 5)),
         conv2(torch::nn::Conv2dOptions(10, 20, 5)),
@@ -45,16 +37,17 @@ struct Model : torch::nn::Module {
 };
 
 int main(int argc, char* argv[]) {
-  // MPI variables
-  int rank, numranks;
-  MPI_Init(&argc, &argv);
-  MPI_Comm_size(MPI_COMM_WORLD, &numranks);
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  // end MPI variables
+  initMPIOnce();
 
+  int rank = atoi(getenv("RANK"));
+  int numranks = atoi(getenv("SIZE"));
+  c10d::ProcessGroupMPI pg(rank, numranks, MPI_COMM_WORLD);
+
+  /*
   // Timer variables
   auto tstart = 0.0;
   auto tend = 0.0;
+  */
 
   // TRAINING
   // Read train dataset
@@ -89,8 +82,10 @@ int main(int argc, char* argv[]) {
   // Number of epochs
   size_t num_epochs = 10;
 
+  /*
   // start timer
   tstart = MPI_Wtime();
+  */
 
   for (size_t epoch = 1; epoch <= num_epochs; ++epoch) {
     size_t num_correct = 0;
@@ -120,14 +115,7 @@ int main(int argc, char* argv[]) {
       // overlaps synchronizing parameters and computing gradients in backward
       // pass
       for (auto& param : model->named_parameters()) {
-        MPI_Allreduce(
-            MPI_IN_PLACE,
-            param.value().grad().data_ptr(),
-            param.value().grad().numel(),
-            mpiDatatype.at(param.value().grad().scalar_type()),
-            MPI_SUM,
-            MPI_COMM_WORLD);
-
+        pg.allreduce(param.value().grad());
         param.value().grad().data() = param.value().grad().data() / numranks;
       }
 
@@ -145,11 +133,13 @@ int main(int argc, char* argv[]) {
 
   } // end epoch
 
+  /*
   // end timer
   tend = MPI_Wtime();
   if (rank == 0) {
     std::cout << "Training time - " << (tend - tstart) << std::endl;
   }
+  */
 
   // TESTING ONLY IN RANK 0
   if (rank == 0) {
@@ -192,5 +182,5 @@ int main(int argc, char* argv[]) {
               << std::endl;
   } // end rank 0
 
-  MPI_Finalize();
+  mpiExit();
 }
