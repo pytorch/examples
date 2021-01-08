@@ -2,10 +2,8 @@
 #include <torch/torch.h>
 #include <iostream>
 
-using namespace ::c10d
-
-    // Define a Convolutional Module
-    struct Model : torch::nn::Module {
+// Define a Convolutional Module
+struct Model : torch::nn::Module {
   Model()
       : conv1(torch::nn::Conv2dOptions(1, 10, 5)),
         conv2(torch::nn::Conv2dOptions(10, 20, 5)),
@@ -36,18 +34,26 @@ using namespace ::c10d
   torch::nn::Linear fc2;
 };
 
+void waitWork(
+    c10::intrusive_ptr<::c10d::ProcessGroupMPI> pg,
+    std::vector<c10::intrusive_ptr<c10d::ProcessGroup::Work>> works) {
+  for (auto& work : works) {
+    try {
+      work->wait();
+    } catch (const std::exception& ex) {
+      std::cerr << "Exception received: " << ex.what() << std::endl;
+      pg->abort();
+    }
+  }
+}
+
 int main(int argc, char* argv[]) {
-  initMPIOnce();
+  // Creating MPI Process Group
+  auto pg = c10d::ProcessGroupMPI::createProcessGroupMPI();
 
-  int rank = atoi(getenv("RANK"));
-  int numranks = atoi(getenv("SIZE"));
-  c10d::ProcessGroupMPI pg(rank, numranks, MPI_COMM_WORLD);
-
-  /*
-  // Timer variables
-  auto tstart = 0.0;
-  auto tend = 0.0;
-  */
+  // Retrieving MPI environment variables
+  auto numranks = pg->getSize();
+  auto rank = pg->getRank();
 
   // TRAINING
   // Read train dataset
@@ -82,11 +88,6 @@ int main(int argc, char* argv[]) {
   // Number of epochs
   size_t num_epochs = 10;
 
-  /*
-  // start timer
-  tstart = MPI_Wtime();
-  */
-
   for (size_t epoch = 1; epoch <= num_epochs; ++epoch) {
     size_t num_correct = 0;
 
@@ -114,10 +115,15 @@ int main(int argc, char* argv[]) {
       // since this synchronizes parameters after backward pass while DDP
       // overlaps synchronizing parameters and computing gradients in backward
       // pass
+      std::vector<c10::intrusive_ptr<::c10d::ProcessGroup::Work>> works;
       for (auto& param : model->named_parameters()) {
-        pg.allreduce(param.value().grad());
+        c10::intrusive_ptr<::c10d::ProcessGroup::Work> work =
+            pg->allreduce(param.value().grad());
+        works.push_back(std::move(work));
         param.value().grad().data() = param.value().grad().data() / numranks;
       }
+
+      waitWork(pg, works);
 
       // Update parameters
       optimizer.step();
@@ -132,14 +138,6 @@ int main(int argc, char* argv[]) {
               << accuracy << std::endl;
 
   } // end epoch
-
-  /*
-  // end timer
-  tend = MPI_Wtime();
-  if (rank == 0) {
-    std::cout << "Training time - " << (tend - tstart) << std::endl;
-  }
-  */
 
   // TESTING ONLY IN RANK 0
   if (rank == 0) {
@@ -181,6 +179,4 @@ int main(int argc, char* argv[]) {
     std::cout << "Test Accuracy - " << 100.0 * num_correct / num_test_samples
               << std::endl;
   } // end rank 0
-
-  mpiExit();
 }
