@@ -35,8 +35,8 @@ struct Model : torch::nn::Module {
 };
 
 void waitWork(
-    c10::intrusive_ptr<::c10d::ProcessGroupMPI> pg,
-    std::vector<c10::intrusive_ptr<c10d::ProcessGroup::Work>> works) {
+    std::shared_ptr<c10d::ProcessGroupMPI> pg,
+    std::vector<std::shared_ptr<c10d::ProcessGroup::Work>> works) {
   for (auto& work : works) {
     try {
       work->wait();
@@ -115,10 +115,10 @@ int main(int argc, char* argv[]) {
       // since this synchronizes parameters after backward pass while DDP
       // overlaps synchronizing parameters and computing gradients in backward
       // pass
-      std::vector<c10::intrusive_ptr<::c10d::ProcessGroup::Work>> works;
+      std::vector<std::shared_ptr<::c10d::ProcessGroup::Work>> works;
       for (auto& param : model->named_parameters()) {
-        c10::intrusive_ptr<::c10d::ProcessGroup::Work> work =
-            pg->allreduce(param.value().grad());
+        std::vector<torch::Tensor> tmp = {param.value().grad()};
+        auto work = pg->allreduce(tmp);
         works.push_back(std::move(work));
         param.value().grad().data() = param.value().grad().data() / numranks;
       }
