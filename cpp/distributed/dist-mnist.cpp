@@ -120,10 +120,13 @@ int main(int argc, char* argv[]) {
         std::vector<torch::Tensor> tmp = {param.value().grad()};
         auto work = pg->allreduce(tmp);
         works.push_back(std::move(work));
-        param.value().grad().data() = param.value().grad().data() / numranks;
       }
 
       waitWork(pg, works);
+
+      for (auto& param : model->named_parameters()) {
+        param.value().grad().data() = param.value().grad().data() / numranks;
+      }
 
       // Update parameters
       optimizer.step();
