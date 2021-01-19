@@ -16,7 +16,7 @@ $ cmake -DCMAKE_PREFIX_PATH=/path/to/libtorch ..
 $ make
 ```
 
-where /path/to/libtorch should be the path to the unzipped LibTorch distribution, which you can get from the [PyTorch homepage] ((https://pytorch.org/get-started/locally/).
+where /path/to/libtorch should be the path to the unzipped LibTorch distribution. Note that the LibTorch from the [PyTorch homepage] ((https://pytorch.org/get-started/locally/) does not include MPI headers and cannot be used for this example. You have to compile LibTorch manually - a set of guidelines is provided [here] (https://gist.github.com/lasagnaphil/3e0099816837318e8e8bcab7edcfd5d9), however this may vary for different systems.
 
 To run the code,
 
