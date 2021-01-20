@@ -1,6 +1,5 @@
 import argparse
 import os
-import time
 from threading import Lock
 
 import torch
@@ -109,7 +108,7 @@ class ParameterServer(nn.Module):
         return cpu_grads
 
     # Wrap local parameters in a RRef. Needed for building the
-    # DistributedOptimizer which optimizes paramters remotely.
+    # DistributedOptimizer which optimizes parameters remotely.
     def get_param_rrefs(self):
         param_rrefs = [rpc.RRef(param) for param in self.model.parameters()]
         return param_rrefs
@@ -167,10 +166,10 @@ class TrainerNet(nn.Module):
 
 
 def run_training_loop(rank, num_gpus, train_loader, test_loader):
-    # Runs the typical nueral network forward + backward + optimizer step, but
+    # Runs the typical neural network forward + backward + optimizer step, but
     # in a distributed fashion.
     net = TrainerNet(num_gpus=num_gpus)
-    # Build DistributedOptmizer.
+    # Build DistributedOptimizer.
     param_rrefs = net.get_global_param_rrefs()
     opt = DistributedOptimizer(optim.SGD, param_rrefs, lr=0.03)
     for i, (data, target) in enumerate(train_loader):
@@ -198,7 +197,7 @@ def get_accuracy(test_loader, model):
     model.eval()
     correct_sum = 0
     # Use GPU to evaluate if possible
-    device = torch.device("cuda:0" if model.num_gpus > 0 
+    device = torch.device("cuda:0" if model.num_gpus > 0
         and torch.cuda.is_available() else "cpu")
     with torch.no_grad():
         for i, (data, target) in enumerate(test_loader):
@@ -245,7 +244,7 @@ if __name__ == '__main__':
         "--num_gpus",
         type=int,
         default=0,
-        help="""Number of GPUs to use for training, Currently supports between 0
+        help="""Number of GPUs to use for training, currently supports between 0
          and 2 GPUs. Note that this argument will be passed to the parameter servers.""")
     parser.add_argument(
         "--master_addr",
@@ -264,7 +263,7 @@ if __name__ == '__main__':
     assert args.rank is not None, "must provide rank argument."
     assert args.num_gpus <= 3, f"Only 0-2 GPUs currently supported (got {args.num_gpus})."
     os.environ['MASTER_ADDR'] = args.master_addr
-    os.environ["MASTER_PORT"] = args.master_port
+    os.environ['MASTER_PORT'] = args.master_port
     processes = []
     world_size = args.world_size
     if args.rank == 0:
@@ -279,22 +278,14 @@ if __name__ == '__main__':
                                transforms.ToTensor(),
                                transforms.Normalize((0.1307,), (0.3081,))
                            ])),
-            batch_size=32, shuffle=True,)
+            batch_size=32, shuffle=True)
         test_loader = torch.utils.data.DataLoader(
-            datasets.MNIST(
-                '../data',
-                train=False,
-                transform=transforms.Compose(
-                    [
-                        transforms.ToTensor(),
-                        transforms.Normalize(
-                            (0.1307,
-                             ),
-                            (0.3081,
-                             ))])),
-            batch_size=32,
-            shuffle=True,
-        )
+            datasets.MNIST('../data', train=False,
+                           transform=transforms.Compose([
+                               transforms.ToTensor(),
+                               transforms.Normalize((0.1307,), (0.3081,))
+                           ])),
+            batch_size=32, shuffle=True)
         # start training worker on this node
         p = mp.Process(
             target=run_worker,
