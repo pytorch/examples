@@ -1,5 +1,4 @@
 import os
-from functools import wraps
 
 import torch
 import torch.distributed.autograd as dist_autograd
@@ -7,16 +6,14 @@ import torch.distributed.rpc as rpc
 import torch.multiprocessing as mp
 import torch.optim as optim
 from torch.distributed.optim import DistributedOptimizer
-from torch.distributed.rpc import RRef
 
 import rnn
-
 
 
 def _run_trainer():
     r"""
     The trainer creates a distributed RNNModel and a DistributedOptimizer. Then,
-    it performs training on using random input data.
+    it performs training using random input data.
     """
     batch = 5
     ntoken = 7
@@ -77,13 +74,13 @@ def run_worker(rank, world_size):
         _run_trainer()
     else:
         rpc.init_rpc("ps", rank=rank, world_size=world_size)
-        # parameter server do nothing
+        # parameter server does nothing
         pass
 
     # block until all rpcs finish
     rpc.shutdown()
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     world_size = 2
     mp.spawn(run_worker, args=(world_size, ), nprocs=world_size, join=True)

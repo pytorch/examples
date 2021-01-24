@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.distributed.rpc as rpc
 from torch.distributed.rpc import RRef
@@ -41,11 +42,15 @@ class EmbeddingTable(nn.Module):
     def __init__(self, ntoken, ninp, dropout):
         super(EmbeddingTable, self).__init__()
         self.drop = nn.Dropout(dropout)
-        self.encoder = nn.Embedding(ntoken, ninp).cuda()
+        self.encoder = nn.Embedding(ntoken, ninp)
+        if torch.cuda.is_available():
+            self.encoder = self.encoder.cuda()
         nn.init.uniform_(self.encoder.weight, -0.1, 0.1)
 
     def forward(self, input):
-        return self.drop(self.encoder(input.cuda())).cpu()
+        if torch.cuda.is_available():
+            input = input.cuda()
+        return self.drop(self.encoder(input)).cpu()
 
 
 class Decoder(nn.Module):
@@ -84,7 +89,7 @@ class RNNModel(nn.Module):
         # pass input to the remote embedding table and fetch emb tensor back
         emb = _remote_method(EmbeddingTable.forward, self.emb_table_rref, input)
         output, hidden = self.rnn(emb, hidden)
-        # pass output to the rremote decoder and get the decoded output back
+        # pass output to the remote decoder and get the decoded output back
         decoded = _remote_method(Decoder.forward, self.decoder_rref, output)
         return decoded, hidden
 
