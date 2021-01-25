@@ -1,7 +1,6 @@
 import os
 import threading
 import time
-from functools import wraps
 
 import torch
 import torch.nn as nn
@@ -32,9 +31,17 @@ def conv1x1(in_planes, out_planes, stride=1):
     """1x1 convolution"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
+
+def get_cuda_if_available(i):
+    assert i >= 0
+    if torch.cuda.is_available():
+        return f"cuda:{min(i, torch.cuda.device_count() - 1)}"
+    else:
+        return "cpu"
+
+
 class ResNetBase(nn.Module):
-    def __init__(self, block, inplanes, num_classes=1000,
-                 groups=1, width_per_group=64, norm_layer=None):
+    def __init__(self, block, inplanes, groups=1, width_per_group=64):
         super(ResNetBase, self).__init__()
 
         self._lock = threading.Lock()
@@ -79,8 +86,7 @@ class ResNetShard1(ResNetBase):
     The first part of ResNet.
     """
     def __init__(self, device, *args, **kwargs):
-        super(ResNetShard1, self).__init__(
-            Bottleneck, 64, num_classes=num_classes, *args, **kwargs)
+        super(ResNetShard1, self).__init__(Bottleneck, 64, *args, **kwargs)
 
         self.device = device
         self.seq = nn.Sequential(
@@ -102,7 +108,7 @@ class ResNetShard1(ResNetBase):
     def forward(self, x_rref):
         x = x_rref.to_here().to(self.device)
         with self._lock:
-            out =  self.seq(x)
+            out = self.seq(x)
         return out.cpu()
 
 
@@ -111,8 +117,7 @@ class ResNetShard2(ResNetBase):
     The second part of ResNet.
     """
     def __init__(self, device, *args, **kwargs):
-        super(ResNetShard2, self).__init__(
-            Bottleneck, 512, num_classes=num_classes, *args, **kwargs)
+        super(ResNetShard2, self).__init__(Bottleneck, 512, *args, **kwargs)
 
         self.device = device
         self.seq = nn.Sequential(
@@ -121,7 +126,7 @@ class ResNetShard2(ResNetBase):
             nn.AdaptiveAvgPool2d((1, 1)),
         ).to(self.device)
 
-        self.fc =  nn.Linear(512 * self._block.expansion, num_classes).to(self.device)
+        self.fc = nn.Linear(512 * self._block.expansion, num_classes).to(self.device)
 
     def forward(self, x_rref):
         x = x_rref.to_here().to(self.device)
@@ -143,16 +148,16 @@ class DistResNet50(nn.Module):
         self.p1_rref = rpc.remote(
             workers[0],
             ResNetShard1,
-            args = ("cuda:0",) + args,
-            kwargs = kwargs
+            args=(get_cuda_if_available(0),) + args,
+            kwargs=kwargs
         )
 
         # Put the second part of the ResNet50 on workers[1]
         self.p2_rref = rpc.remote(
             workers[1],
             ResNetShard2,
-            args = ("cuda:1",) + args,
-            kwargs = kwargs
+            args=(get_cuda_if_available(1),) + args,
+            kwargs=kwargs
         )
 
     def forward(self, xs):
@@ -242,7 +247,7 @@ def run_worker(rank, world_size, num_split):
     rpc.shutdown()
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     world_size = 3
     for num_split in [1, 2, 4, 8]:
         tik = time.time()
