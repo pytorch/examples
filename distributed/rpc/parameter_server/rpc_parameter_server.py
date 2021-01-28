@@ -73,6 +73,8 @@ class ParameterServer(nn.Module):
         super().__init__()
         self.num_gpus = num_gpus
         self.models = {}
+        # This lock is only used during init, and does not
+        # impact training perf.
         self.models_init_lock = Lock()
         self.input_device = torch.device(
             "cuda:0" if torch.cuda.is_available() and num_gpus > 0 else "cpu")
@@ -184,7 +186,8 @@ def run_training_loop(rank, world_size, num_gpus, train_loader, test_loader):
     # Runs the typical neural network forward + backward + optimizer step, but
     # in a distributed fashion.
     net = TrainerNet(rank=rank, num_gpus=num_gpus)
-    # Wait for all nets on PS to be created.
+    # Wait for all nets on PS to be created, otherwise we could run
+    # into race conditions during training.
     num_created = net.param_server_rref.rpc_sync().get_num_models()
     while num_created != world_size - 1:
         time.sleep(0.5)
