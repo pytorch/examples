@@ -19,8 +19,8 @@ from torch.fx.passes.shape_prop import ShapeProp
 #
 # How is this feat accomplished? One observation is that to "batch" a model, it
 # suffices to batch each individual operation. In other words, given an
-# operation that works on the current shape, how do we make it work on another
-# batch dimension? This leads us to batching rules.
+# operation that works on the current shape, how do we make it work with an
+# additional batch dimension? This leads us to batching rules.
 #
 # Batching Rules
 # ---------------
