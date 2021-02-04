@@ -5,11 +5,12 @@ import torch
 import torch.nn as nn
 import torch._C.te as te
 import torch.fx as fx
+from torch.fx import map_arg
 from torch.fx.passes.shape_prop import ShapeProp
 
 import operator
 
-##
+# Decomposition Pass
 
 def binary_mapping(op):
     def f(a, b):
@@ -34,8 +35,9 @@ binary_decompositions = [
 for old, new in binary_decompositions:
     decomposition_rules[old] = binary_mapping(new)
 
-def addmm_decompose(input, mat1, mat2):
-    return torch.add(input , torch.mm(mat1, mat2))
+def addmm_decompose(input, mat1, mat2, beta=1, alpha=1, out=None):
+    assert(out is None)
+    return beta*input + alpha*(torch.mm(mat1, mat2))
 
 decomposition_rules[torch.addmm] = addmm_decompose
 
@@ -46,14 +48,16 @@ def decompose(model: torch.nn.Module, example_inputs) -> torch.nn.Module:
     env = {}
     for node in model.graph.nodes:
         if node.op == 'call_function' and node.target in decomposition_rules:
-            proxy_args = [fx.Proxy(env[x.name]) if isinstance(x, fx.Node) else x for x in node.args]
-            new_node = decomposition_rules[node.target](*proxy_args).node
+            proxy_args = map_arg(node.args, lambda n: fx.Proxy(env[n.name]))
+            proxy_kwargs = map_arg(node.kwargs, lambda n: fx.Proxy(env[n.name]))
+            new_node = decomposition_rules[node.target](*proxy_args, **proxy_kwargs).node
             env[node.name] = new_node
         else:
             new_node = new_graph.node_copy(node, lambda x: env[x.name])
             env[node.name] = new_node
     return fx.GraphModule(model, new_graph)
 
+# NNC Lowering Pass
 
 class kernel_arena_scope(object):
     def __enter__(self):
@@ -175,14 +179,15 @@ for torch_op, nnc_fn in binary_lowerings:
 def clamp_lower(inp_shapes, args):
     def f(*idxs):
         val = args[0].load(idxs)
-        return te.ifThenElse(val < to_expr(args[1]), to_expr(args[1]), te.ifThenElse(val > to_expr(args[2]), to_expr(args[2]), val))
+        return te.ifThenElse(val < to_expr(args[1]), to_expr(args[1]),
+                            te.ifThenElse(val > to_expr(args[2]), to_expr(args[2]), val))
     return f
 
 lowering_functions[torch.clamp] = wrap_compute(clamp_lower)
 
 def transpose_lower(name, out_shape, inp_shapes, args):
     idx_1, idx_2 = args[1], args[2]
-    def transpose(shape):  # awful - mixes up new indexes and old indexes
+    def transpose(shape):
         shape[idx_1], shape[idx_2] = shape[idx_2], shape[idx_1]
         return shape
     def f(*idxs):
@@ -364,7 +369,8 @@ with kernel_arena_scope():
         inps = (ad_emb_packed, user_emb, wide)
         out = torch.empty(batch_size, 1)
 
-        mod = decompose(mod, inps)
+        for _ in range(5):
+            mod = decompose(mod, inps)
         cg = nnc_compile(mod, inps)
 
         iters = 1000
