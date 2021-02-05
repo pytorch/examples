@@ -1,9 +1,54 @@
 # This example is provided only for explanatory and educational purposes. The
 # underlying APIs may change and this tutorial may break.
+
+# Compiling FX models to NNC (Neural Network Compiler)
+######################################################
+# The goal of this file is to demonstrate an end to end example of using FX to
+# lower a PyTorch model to a backend codegen compiler. In this example, we will
+# be using NNC
+# (https://github.com/pytorch/pytorch/blob/master/test/cpp/tensorexpr/tutorial.cpp).
+# If you're unfamiliar with NNC, the general design is strongly inspired by TVM
+# and Halide.
+#
+# To do so, this example contains two FX passes.
+# The first one is a decomposition pass that normalizes and decomposes PyTorch
+# operations (such as addmm). Using a pass like this allows us to reduce the
+# amount of lowerings we need to write. Instead of needing to specifically
+# write a lowering for addmm, we can decompose addmm and lower its constituent
+# operations.
+# The second one is the actual lowering pass itself. In this case, we will need
+# to convert each PyTorch operation we encounter into the corresponding NNC
+# `TensorExpr`.
+#
+# Writing these two passes, `decompose` and `nnc_compile`, are fairly similar.
+# In both cases, we re-interpret each operation in the FX graph to construct an
+# entirely new representation. In the decomposition pass, we either copy the
+# operation as-is into the new graph, or we use `Proxy` objects to decompose
+# the operation. This is an extension of the example presented here:
+# https://pytorch.org/docs/master/fx.html#proxy-retracing
+#
+# In the lowering pass, a similar principle applies. However, instead of using
+# `Proxy` objects to rewrite our op in other PyTorch ops, we do the translation
+# ourselves. In addition, since this is not a source-to-source transformation,
+# we return a somewhat hacky function that passes in the module attributes to
+# the NNC callable.
+#
+# Results
+######################################
+# Using NNC (which compiles directly to LLVM), we can compile a fairly small PyTorch model and compare performnance between NNC, PyTorch Eager, and Static Runtime.
+#
+# NNC time:  0.0066373348236083984
+# PyTorch time 0.025979042053222656
+# Static Runtime time 0.011004209518432617
+#
+# As we can see, NNC is nearly 2x faster than static runtime and more than 4x
+# faster than PyTorch. This is not surprising, as we are dealing with extremely
+# small tensors where framework overhead is a significant factor.
+
 import time
 import torch
 import torch.nn as nn
-import torch._C.te as te
+import torch._C._te as te
 import torch.fx as fx
 from torch.fx import map_arg
 from torch.fx.passes.shape_prop import ShapeProp
@@ -277,9 +322,9 @@ def nnc_compile(model: torch.nn.Module, example_inputs) -> torch.nn.Module:
 
     def get_nnc_type(dtype):
         if dtype == torch.float:
-            return torch._C.te.Dtype.Float
+            return te.Dtype.Float
         elif dtype == torch.long:
-            return torch._C.te.Dtype.Long
+            return te.Dtype.Long
         else:
             raise RuntimeError("nyi")
 
@@ -333,69 +378,71 @@ def nnc_compile(model: torch.nn.Module, example_inputs) -> torch.nn.Module:
 ################################
 # Example usage and Benchmarking
 ################################
-class DeepAndWide(torch.nn.Module):
-    def __init__(self, num_features=50):
-        super(DeepAndWide, self).__init__()
-        self.mu = torch.nn.Parameter(torch.randn(1, num_features))
-        self.sigma = torch.nn.Parameter(torch.randn(1, num_features))
-        self.fc_w = torch.nn.Parameter(torch.randn(1, num_features + 1))
-        self.fc_b = torch.nn.Parameter(torch.randn(1))
 
-    def forward(self, ad_emb_packed, user_emb, wide):
-        wide_offset = wide + self.mu
-        wide_normalized = wide_offset * self.sigma
-        wide_preproc = torch.clamp(wide_normalized, 0., 10.)
-        user_emb_t = torch.transpose(user_emb, 1, 2)
-        dp_unflatten = torch.bmm(ad_emb_packed, user_emb_t)
-        dp = torch.flatten(dp_unflatten, 1, -1)
-        inp = torch.cat([dp, wide_preproc], 1)
-        t1 = torch.transpose(self.fc_w, 1, 0)
-        fc1 = torch.addmm(self.fc_b, inp, t1)
-        return fc1
+if __name__ == '__main__':
+    class DeepAndWide(torch.nn.Module):
+        def __init__(self, num_features=50):
+            super(DeepAndWide, self).__init__()
+            self.mu = torch.nn.Parameter(torch.randn(1, num_features))
+            self.sigma = torch.nn.Parameter(torch.randn(1, num_features))
+            self.fc_w = torch.nn.Parameter(torch.randn(1, num_features + 1))
+            self.fc_b = torch.nn.Parameter(torch.randn(1))
 
+        def forward(self, ad_emb_packed, user_emb, wide):
+            wide_offset = wide + self.mu
+            wide_normalized = wide_offset * self.sigma
+            wide_preproc = torch.clamp(wide_normalized, 0., 10.)
+            user_emb_t = torch.transpose(user_emb, 1, 2)
+            dp_unflatten = torch.bmm(ad_emb_packed, user_emb_t)
+            dp = torch.flatten(dp_unflatten, 1, -1)
+            inp = torch.cat([dp, wide_preproc], 1)
+            t1 = torch.transpose(self.fc_w, 1, 0)
+            fc1 = torch.addmm(self.fc_b, inp, t1)
+            return fc1
 
+    with kernel_arena_scope():
+        with torch.no_grad():
+            num_features = 50
+            mod = DeepAndWide(num_features)
 
-with kernel_arena_scope():
-    with torch.no_grad():
-        num_features = 100
-        mod = DeepAndWide(num_features)
+            # Phabricate sample inputs
+            batch_size = 1
+            embedding_size = 32
+            ad_emb_packed = torch.randn(batch_size, 1, embedding_size)
+            user_emb = torch.randn(batch_size, 1, embedding_size)
+            wide = torch.randn(batch_size, num_features)
+            inps = (ad_emb_packed, user_emb, wide)
+            out = torch.empty(batch_size, 1)
 
-        # Phabricate sample inputs
-        batch_size = 1
-        embedding_size = 100
-        ad_emb_packed = torch.randn(batch_size, 1, embedding_size)
-        user_emb = torch.randn(batch_size, 1, embedding_size)
-        wide = torch.randn(batch_size, num_features)
-        inps = (ad_emb_packed, user_emb, wide)
-        out = torch.empty(batch_size, 1)
+            # Run it multiple times so we converge to a fixed point.
+            for _ in range(5):
+                mod = decompose(mod, inps)
+            cg = nnc_compile(mod, inps)
 
-        for _ in range(5):
-            mod = decompose(mod, inps)
-        cg = nnc_compile(mod, inps)
+            iters = 1000
 
-        iters = 1000
+            for _ in range(10):
+                cg([ad_emb_packed, user_emb,wide, out])
+            begin = time.time()
+            for _ in range(iters):
+                cg([ad_emb_packed, user_emb,wide, out])
 
-        for _ in range(10):
-            cg([ad_emb_packed, user_emb,wide, out])
-        begin = time.time()
-        for _ in range(iters):
-            cg([ad_emb_packed, user_emb,wide, out])
-        print("NNC time: ", time.time()-begin)
+            print("NNC time: ", time.time()-begin)
 
-        mod_jit = torch.jit.script(DeepAndWide(num_features))
-        for _ in range(10):
-            mod_jit(ad_emb_packed, user_emb,wide)
-        begin = time.time()
-        for _ in range(iters):
-            mod_jit(ad_emb_packed, user_emb,wide)
-        print("PyTorch time", time.time()-begin)
+            mod_jit = torch.jit.script(DeepAndWide(num_features))
+            for _ in range(10):
+                mod_jit(ad_emb_packed, user_emb,wide)
+            begin = time.time()
+            for _ in range(iters):
+                mod_jit(ad_emb_packed, user_emb,wide)
+            print("PyTorch time", time.time()-begin)
 
-        static_runtime = torch._C._jit_to_static_runtime(mod_jit._c)
-        for _ in range(10):
-            static_runtime.run([ad_emb_packed, user_emb,wide])
-        begin = time.time()
-        for _ in range(iters):
-            static_runtime.run([ad_emb_packed, user_emb,wide])
-        print("Static Runtime time", time.time()-begin)
+            static_runtime = torch._C._jit_to_static_runtime(mod_jit._c)
+            for _ in range(10):
+                static_runtime.run([ad_emb_packed, user_emb,wide])
+            begin = time.time()
+            for _ in range(iters):
+                static_runtime.run([ad_emb_packed, user_emb,wide])
+            print("Static Runtime time", time.time()-begin)
 
-        print("Sums:", out.sum(), mod(*inps).sum())
+            print("Sums:", out.sum(), mod(*inps).sum())
