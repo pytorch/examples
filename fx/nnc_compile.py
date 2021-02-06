@@ -10,17 +10,17 @@
 # If you're unfamiliar with NNC, the general design is strongly inspired by TVM
 # and Halide.
 #
-# To do so, this example contains two FX passes.
+# To do so, this example contains two FX transformations.
 # The first one is a decomposition pass that normalizes and decomposes PyTorch
 # operations (such as addmm). Using a pass like this allows us to reduce the
-# amount of lowerings we need to write. Instead of needing to specifically
+# number of lowerings we need to write. Instead of needing to specifically
 # write a lowering for addmm, we can decompose addmm and lower its constituent
 # operations.
 # The second one is the actual lowering pass itself. In this case, we will need
 # to convert each PyTorch operation we encounter into the corresponding NNC
 # `TensorExpr`.
 #
-# Writing these two passes, `decompose` and `nnc_compile`, are fairly similar.
+# These two passes, `decompose` and `nnc_compile`, are fairly similar.
 # In both cases, we re-interpret each operation in the FX graph to construct an
 # entirely new representation. In the decomposition pass, we either copy the
 # operation as-is into the new graph, or we use `Proxy` objects to decompose
@@ -35,7 +35,9 @@
 #
 # Results
 ######################################
-# Using NNC (which compiles directly to LLVM), we can compile a fairly small PyTorch model and compare performnance between NNC, PyTorch Eager, and Static Runtime.
+# Using NNC (which compiles directly to LLVM), we can compile a fairly small
+# PyTorch model and compare performnance between NNC, PyTorch Eager, and Static
+# Runtime. These are my resuls on an Intel i7-8750H CPU.
 #
 # NNC time:  0.0066373348236083984
 # PyTorch time 0.025979042053222656
@@ -52,7 +54,6 @@ import torch._C._te as te
 import torch.fx as fx
 from torch.fx import map_arg
 from torch.fx.passes.shape_prop import ShapeProp
-
 import operator
 
 # Decomposition Pass
@@ -87,20 +88,31 @@ def addmm_decompose(input, mat1, mat2, beta=1, alpha=1, out=None):
 decomposition_rules[torch.addmm] = addmm_decompose
 
 def decompose(model: torch.nn.Module, example_inputs) -> torch.nn.Module:
-    model = fx.symbolic_trace(model)
-    ShapeProp(model).propagate(*example_inputs)
-    new_graph = fx.Graph()
-    env = {}
-    for node in model.graph.nodes:
-        if node.op == 'call_function' and node.target in decomposition_rules:
-            proxy_args = map_arg(node.args, lambda n: fx.Proxy(env[n.name]))
-            proxy_kwargs = map_arg(node.kwargs, lambda n: fx.Proxy(env[n.name]))
-            new_node = decomposition_rules[node.target](*proxy_args, **proxy_kwargs).node
-            env[node.name] = new_node
-        else:
-            new_node = new_graph.node_copy(node, lambda x: env[x.name])
-            env[node.name] = new_node
-    return fx.GraphModule(model, new_graph)
+    """
+    decompose(model, example_inputs) takes in a model, decomposes any of the functions in `decomposition_rules` to its constituent operations, and returns a `nn.Module` without any of the operations with decomposition rules.
+    """
+    # Run it multiple times so we converge to a fixed point.
+    for _ in range(5):
+        model = fx.symbolic_trace(model)
+        ShapeProp(model).propagate(*example_inputs)
+        new_graph = fx.Graph()
+        env = {}
+        for node in model.graph.nodes:
+            if node.op == 'call_function' and node.target in decomposition_rules:
+                # If the current function is in `decomposition_rules`, we use
+                # `Proxy` objects to decompose the operations using the
+                # decomposition rule. See
+                # https://pytorch.org/docs/master/fx.html#proxy-retracing for
+                # more details.
+                proxy_args = map_arg(node.args, lambda n: fx.Proxy(env[n.name]))
+                proxy_kwargs = map_arg(node.kwargs, lambda n: fx.Proxy(env[n.name]))
+                new_node = decomposition_rules[node.target](*proxy_args, **proxy_kwargs).node
+                env[node.name] = new_node
+            else:
+                new_node = new_graph.node_copy(node, lambda x: env[x.name])
+                env[node.name] = new_node
+        model = fx.GraphModule(model, new_graph)
+    return model
 
 # NNC Lowering Pass
 
@@ -314,8 +326,18 @@ def lower_function(node, op, nnc_args, args):
     return lowering_functions[op](node.name, node.shape, inp_shapes, nnc_args)
 
 def nnc_compile(model: torch.nn.Module, example_inputs) -> torch.nn.Module:
+    """
+    nnc_compile(model, example_inputs) returns a function with the same args
+    as `model.forward`, with an extra argument corresponding to where the
+    output is stored. This function takes the inputs (which must be PyTorch
+    tensors with the same shapes as example_inputs), and passes them to an
+    NNC executor.
+    """
     fx_model = fx.symbolic_trace(model)
     ShapeProp(fx_model).propagate(*example_inputs)
+
+    # This env maps from nodes to `te.ExprHandle`, which represent the output
+    # of an NNC computation.
     env = {}
     def get_te_shapes(node):
         return [te.ExprHandle.int(i) for i in node.shape]
@@ -351,15 +373,22 @@ def nnc_compile(model: torch.nn.Module, example_inputs) -> torch.nn.Module:
     module_attrs = []
     for node in fx_model.graph.nodes:
         if node.op == 'placeholder':
+            # We simply map the input placeholder to a `te.Placeholder`, which
+            # also represents an input to the NNC computation.
             shapes = get_te_shapes(node)
             env[node.name] = te.Placeholder(node.name, get_te_type(node), shapes)
             inputs.append(env[node.name])
         elif node.op == 'call_function':
+            # This does the bulk of the work - we call `lower_function`, which
+            # returns a `te.ExprHandle` (the output of a NNC computation), and
+            # put it in our environment.
             result = lower_function(node, node.target, lookup_env(node.args), node.args)
             env[node.name] = result
         elif node.op == 'output':
             outs = list(lookup_env(node.args))
         elif node.op == 'get_attr':
+            # As NNC doesn't have any concept of state, we pull out the module
+            # attributes and pass them in as inputs to NNC.
             module_attrs.append(node)
             env[node.name] = te.Placeholder(node.name, get_te_type(node), shapes)
         else:
@@ -414,9 +443,7 @@ if __name__ == '__main__':
             inps = (ad_emb_packed, user_emb, wide)
             out = torch.empty(batch_size, 1)
 
-            # Run it multiple times so we converge to a fixed point.
-            for _ in range(5):
-                mod = decompose(mod, inps)
+            mod = decompose(mod, inps)
             cg = nnc_compile(mod, inps)
 
             iters = 1000
