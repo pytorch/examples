@@ -303,7 +303,7 @@ def bmm_lower(name, out_shape, inp_shapes, args):
     def f(b, n, p, m):
         return M1.load([b, n, m]) * M2.load([b, m, p])
     mm = te.Compute('mm', get_dim_args([B,N,P,M]), f)
-    return te.SumReduce(name, get_dim_args([B, N, P]), mm, get_dim_args([M]))
+    return te.Reduce(name, get_dim_args([B, N, P]), te.Sum(), mm, get_dim_args([M]))
 
 
 def mm_lower(name, out_shape, inp_shapes, args):
@@ -315,7 +315,7 @@ def mm_lower(name, out_shape, inp_shapes, args):
     def f(n, p, m):
         return M1.load([n, m]) * M2.load([m, p])
     mm = te.Compute('mm', get_dim_args([N,P,M]), f)
-    return te.SumReduce(name, get_dim_args([N, P]), mm, get_dim_args([M]))
+    return te.Reduce(name, get_dim_args([N, P]), te.Sum(), mm, get_dim_args([M]))
 
 lowering_functions[torch.bmm] = bmm_lower
 lowering_functions[torch.mm] = mm_lower
