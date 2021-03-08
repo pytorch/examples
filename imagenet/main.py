@@ -222,15 +222,23 @@ def main_worker(gpu, ngpus_per_node, args):
         train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
         num_workers=args.workers, pin_memory=True, sampler=train_sampler)
 
-    val_loader = torch.utils.data.DataLoader(
-        datasets.ImageFolder(valdir, transforms.Compose([
+    val_dataset = datasets.ImageFolder(
+        valdir, 
+        transforms.Compose([
             transforms.Resize(256),
             transforms.CenterCrop(224),
             transforms.ToTensor(),
             normalize,
-        ])),
-        batch_size=args.batch_size, shuffle=False,
-        num_workers=args.workers, pin_memory=True)
+        ]))
+
+    if args.distributed:
+        val_sampler = torch.utils.data.distributed.DistributedSampler(val_dataset)
+    else:
+        val_sampler = None
+
+    val_loader = torch.utils.data.DataLoader(
+        val_dataset, batch_size=args.batch_size, shuffle=False,
+        num_workers=args.workers, pin_memory=True, sampler=val_sampler)
 
     if args.evaluate:
         validate(val_loader, model, criterion, args)
@@ -336,6 +344,9 @@ def validate(val_loader, model, criterion, args):
 
             # measure accuracy and record loss
             acc1, acc5 = accuracy(output, target, topk=(1, 5))
+            # combine the stats across the GPUs
+            if args.distributed:
+                loss, acc1, acc5 = scaled_all_reduce([loss, acc1, acc5])
             losses.update(loss.item(), images.size(0))
             top1.update(acc1[0], images.size(0))
             top5.update(acc5[0], images.size(0))
@@ -399,6 +410,25 @@ class ProgressMeter(object):
         num_digits = len(str(num_batches // 1))
         fmt = '{:' + str(num_digits) + 'd}'
         return '[' + fmt + '/' + fmt.format(num_batches) + ']'
+
+
+def scaled_all_reduce(tensors):
+    # There is no need for reduction in the single-proc case
+    gpus = torch.distributed.get_world_size()
+    if gpus == 1:
+        return tensors
+    # Queue the reductions
+    reductions = []
+    for tensor in tensors:
+        reduction = torch.distributed.all_reduce(tensor, async_op=True)
+        reductions.append(reduction)
+    # Wait for reductions to finish
+    for reduction in reductions:
+        reduction.wait()
+    # Scale the results
+    for tensor in tensors:
+        tensor.mul_(1.0 / gpus)
+    return tensors
 
 
 def adjust_learning_rate(optimizer, epoch, args):
