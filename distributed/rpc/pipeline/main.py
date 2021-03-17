@@ -219,7 +219,9 @@ def run_master(split_size):
 def run_worker(rank, world_size, num_split):
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '29500'
-    options = rpc.TensorPipeRpcBackendOptions(num_worker_threads=256)
+
+    # Higher timeout is added to accommodate for kernel compilation time in case of ROCm.
+    options = rpc.TensorPipeRpcBackendOptions(num_worker_threads=256, rpc_timeout=300)
 
     if rank == 0:
         rpc.init_rpc(
