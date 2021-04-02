@@ -62,13 +62,11 @@ replace_pattern(traced, pattern, replacement)
 # After calling `replace_pattern`, the generated code is:
 '''
 def forward(self, x, w1, w2):
-    stack_1 = torch.stack([w1, w2])
-    sum_1 = stack_1.sum()
-    stack_2 = torch.stack([w1, w2])
-    sum_2 = stack_2.sum()
-    max_1 = torch.max(sum_1)
-    add_1 = x + max_1
-    max_2 = torch.max(sum_2)
-    add_2 = add_1 + max_2
-    return add_2
+    stack = torch.stack([w1, w2])
+    max_1 = torch.max(stack);  stack = None
+    add = x + max_1;  x = max_1 = None
+    stack_1 = torch.stack([w1, w2]);  w1 = w2 = None
+    max_2 = torch.max(stack_1);  stack_1 = None
+    add_1 = add + max_2;  add = max_2 = None
+    return add_1
 '''
