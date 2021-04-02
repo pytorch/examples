@@ -119,7 +119,7 @@ for epoch in range(args.epochs):
                 epoch, iterations, 1+batch_idx, len(train_iter),
                 100. * (1+batch_idx) / len(train_iter), loss.item(), dev_loss.item(), train_acc, dev_acc))
 
-            # update best valiation set accuracy
+            # update best validation set accuracy
             if dev_acc > best_dev_acc:
 
                 # found a model with better validation set accuracy
