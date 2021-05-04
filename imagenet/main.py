@@ -213,24 +213,29 @@ def main_worker(gpu, ngpus_per_node, args):
             normalize,
         ]))
 
+    val_dataset = datasets.ImageFolder(
+        valdir,
+        transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            normalize,
+        ]))
+
     if args.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
+        val_sampler = torch.utils.data.distributed.DistributedSampler(val_dataset)
     else:
         train_sampler = None
+        val_sampler = None
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
         num_workers=args.workers, pin_memory=True, sampler=train_sampler)
 
     val_loader = torch.utils.data.DataLoader(
-        datasets.ImageFolder(valdir, transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            normalize,
-        ])),
-        batch_size=args.batch_size, shuffle=False,
-        num_workers=args.workers, pin_memory=True)
+        val_dataset, batch_size=args.batch_size, shuffle=False,
+        num_workers=args.workers, pin_memory=True, sampler=val_sampler)
 
     if args.evaluate:
         validate(val_loader, model, criterion, args)
@@ -251,8 +256,7 @@ def main_worker(gpu, ngpus_per_node, args):
         is_best = acc1 > best_acc1
         best_acc1 = max(acc1, best_acc1)
 
-        if not args.multiprocessing_distributed or (args.multiprocessing_distributed
-                and args.rank % ngpus_per_node == 0):
+        if not args.multiprocessing_distributed or args.rank % ngpus_per_node == 0:
             save_checkpoint({
                 'epoch': epoch + 1,
                 'arch': args.arch,
@@ -305,7 +309,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         batch_time.update(time.time() - end)
         end = time.time()
 
-        if i % args.print_freq == 0:
+        if (not args.distributed or args.rank == 0) and i % args.print_freq == 0:
             progress.display(i)
 
 
@@ -347,9 +351,14 @@ def validate(val_loader, model, criterion, args):
             if i % args.print_freq == 0:
                 progress.display(i)
 
-        # TODO: this should also be done with the ProgressMeter
-        print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
-              .format(top1=top1, top5=top5))
+        if args.distributed:
+            top1.all_reduce(args.gpu)
+            top5.all_reduce(args.gpu)
+
+        if not args.distributed or args.rank == 0:
+            # TODO: this should also be done with the ProgressMeter
+            print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
+                  .format(top1=top1, top5=top5))
 
     return top1.avg
 
@@ -377,6 +386,12 @@ class AverageMeter(object):
         self.val = val
         self.sum += val * n
         self.count += n
+        self.avg = self.sum / self.count
+
+    def all_reduce(self, gpu):
+        total = torch.FloatTensor([self.sum, self.count]).cuda(gpu, non_blocking=True)
+        dist.all_reduce(total, dist.ReduceOp.SUM, async_op=False)
+        self.sum, self.count = total.tolist()
         self.avg = self.sum / self.count
 
     def __str__(self):
