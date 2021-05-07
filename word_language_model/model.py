@@ -42,7 +42,7 @@ class RNNModel(nn.Module):
     def init_weights(self):
         initrange = 0.1
         nn.init.uniform_(self.encoder.weight, -initrange, initrange)
-        nn.init.zeros_(self.decoder.weight)
+        nn.init.zeros_(self.decoder.bias)
         nn.init.uniform_(self.decoder.weight, -initrange, initrange)
 
     def forward(self, input, hidden):
@@ -133,7 +133,7 @@ class TransformerModel(nn.Module):
     def init_weights(self):
         initrange = 0.1
         nn.init.uniform_(self.encoder.weight, -initrange, initrange)
-        nn.init.zeros_(self.decoder.weight)
+        nn.init.zeros_(self.decoder.bias)
         nn.init.uniform_(self.decoder.weight, -initrange, initrange)
 
     def forward(self, src, has_mask=True):
