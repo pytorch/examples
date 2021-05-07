@@ -1,6 +1,4 @@
-import os
 import random
-from functools import wraps
 
 import torch
 import torch.distributed as dist
@@ -8,6 +6,7 @@ import torch.distributed.autograd as dist_autograd
 import torch.distributed.rpc as rpc
 import torch.multiprocessing as mp
 import torch.optim as optim
+from torch.distributed.nn import RemoteModule
 from torch.distributed.optim import DistributedOptimizer
 from torch.distributed.rpc import RRef
 from torch.distributed.rpc import TensorPipeRpcBackendOptions
@@ -19,30 +18,24 @@ EMBEDDING_DIM = 16
 
 class HybridModel(torch.nn.Module):
     r"""
-    The model consists of a sparse part and a dense part. The dense part is an
-    nn.Linear module that is replicated across all trainers using
-    DistributedDataParallel. The sparse part is an nn.EmbeddingBag that is
-    stored on the parameter server.
-    The model holds a Remote Reference to the embedding table on the parameter
-    server.
+    The model consists of a sparse part and a dense part.
+    1) The dense part is an nn.Linear module that is replicated across all trainers using DistributedDataParallel.
+    2) The sparse part is a Remote Module that holds an nn.EmbeddingBag on the parameter server.
+    This remote model can get a Remote Reference to the embedding table on the parameter server.
     """
 
-    def __init__(self, emb_rref, device):
+    def __init__(self, remote_emb_module, device):
         super(HybridModel, self).__init__()
-        self.emb_rref = emb_rref
+        self.remote_emb_module = remote_emb_module
         self.fc = DDP(torch.nn.Linear(16, 8).cuda(device), device_ids=[device])
         self.device = device
 
     def forward(self, indices, offsets):
-        emb_lookup = self.emb_rref.rpc_sync().forward(indices, offsets)
+        emb_lookup = self.remote_emb_module.forward(indices, offsets)
         return self.fc(emb_lookup.cuda(self.device))
 
 
-def _retrieve_embedding_parameters(emb_rref):
-    return [RRef(p) for p in emb_rref.local_value().parameters()]
-
-
-def _run_trainer(emb_rref, rank):
+def _run_trainer(remote_emb_module, rank):
     r"""
     Each trainer runs a forward pass which involves an embedding lookup on the
     parameter server and running nn.Linear locally. During the backward pass,
@@ -52,17 +45,18 @@ def _run_trainer(emb_rref, rank):
     """
 
     # Setup the model.
-    model = HybridModel(emb_rref, rank)
+    model = HybridModel(remote_emb_module, rank)
 
     # Retrieve all model parameters as rrefs for DistributedOptimizer.
 
     # Retrieve parameters for embedding table.
-    model_parameter_rrefs = rpc.rpc_sync(
-        "ps", _retrieve_embedding_parameters, args=(emb_rref,)
-    )
+    model_parameter_rrefs = model.remote_emb_module.remote_parameters()
 
-    # model.parameters() only includes local parameters.
-    for param in model.parameters():
+    # model.fc.parameters() only includes local parameters.
+    # NOTE: Cannot call model.parameters() here,
+    # because this will call remote_emb_module.parameters(),
+    # which supports remote_parameters() but not parameters().
+    for param in model.fc.parameters():
         model_parameter_rrefs.append(RRef(param))
 
     # Setup distributed optimizer
@@ -131,8 +125,7 @@ def run_worker(rank, world_size):
             rpc_backend_options=rpc_backend_options,
         )
 
-        # Build the embedding table on the ps.
-        emb_rref = rpc.remote(
+        remote_emb_module = RemoteModule(
             "ps",
             torch.nn.EmbeddingBag,
             args=(NUM_EMBEDDINGS, EMBEDDING_DIM),
@@ -143,7 +136,9 @@ def run_worker(rank, world_size):
         futs = []
         for trainer_rank in [0, 1]:
             trainer_name = "trainer{}".format(trainer_rank)
-            fut = rpc.rpc_async(trainer_name, _run_trainer, args=(emb_rref, rank))
+            fut = rpc.rpc_async(
+                trainer_name, _run_trainer, args=(remote_emb_module, rank)
+            )
             futs.append(fut)
 
         # Wait for all training to finish.
