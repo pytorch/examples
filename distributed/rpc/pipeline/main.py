@@ -32,9 +32,17 @@ def conv1x1(in_planes, out_planes, stride=1):
     """1x1 convolution"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
+
 class ResNetBase(nn.Module):
-    def __init__(self, block, inplanes, num_classes=1000,
-                 groups=1, width_per_group=64, norm_layer=None):
+    def __init__(
+        self,
+        block,
+        inplanes,
+        num_classes=1000,
+        groups=1,
+        width_per_group=64,
+        norm_layer=None,
+    ):
         super(ResNetBase, self).__init__()
 
         self._lock = threading.Lock()
@@ -56,13 +64,30 @@ class ResNetBase(nn.Module):
             )
 
         layers = []
-        layers.append(self._block(self.inplanes, planes, stride, downsample, self.groups,
-                                  self.base_width, previous_dilation, norm_layer))
+        layers.append(
+            self._block(
+                self.inplanes,
+                planes,
+                stride,
+                downsample,
+                self.groups,
+                self.base_width,
+                previous_dilation,
+                norm_layer,
+            )
+        )
         self.inplanes = planes * self._block.expansion
         for _ in range(1, blocks):
-            layers.append(self._block(self.inplanes, planes, groups=self.groups,
-                                      base_width=self.base_width, dilation=self.dilation,
-                                      norm_layer=norm_layer))
+            layers.append(
+                self._block(
+                    self.inplanes,
+                    planes,
+                    groups=self.groups,
+                    base_width=self.base_width,
+                    dilation=self.dilation,
+                    norm_layer=norm_layer,
+                )
+            )
 
         return nn.Sequential(*layers)
 
@@ -78,9 +103,11 @@ class ResNetShard1(ResNetBase):
     """
     The first part of ResNet.
     """
+
     def __init__(self, device, *args, **kwargs):
         super(ResNetShard1, self).__init__(
-            Bottleneck, 64, num_classes=num_classes, *args, **kwargs)
+            Bottleneck, 64, num_classes=num_classes, *args, **kwargs
+        )
 
         self.device = device
         self.seq = nn.Sequential(
@@ -89,12 +116,12 @@ class ResNetShard1(ResNetBase):
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
             self._make_layer(64, 3),
-            self._make_layer(128, 4, stride=2)
+            self._make_layer(128, 4, stride=2),
         ).to(self.device)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
             elif isinstance(m, nn.BatchNorm2d):
                 nn.init.ones_(m.weight)
                 nn.init.zeros_(m.bias)
@@ -102,7 +129,7 @@ class ResNetShard1(ResNetBase):
     def forward(self, x_rref):
         x = x_rref.to_here().to(self.device)
         with self._lock:
-            out =  self.seq(x)
+            out = self.seq(x)
         return out.cpu()
 
 
@@ -110,9 +137,11 @@ class ResNetShard2(ResNetBase):
     """
     The second part of ResNet.
     """
+
     def __init__(self, device, *args, **kwargs):
         super(ResNetShard2, self).__init__(
-            Bottleneck, 512, num_classes=num_classes, *args, **kwargs)
+            Bottleneck, 512, num_classes=num_classes, *args, **kwargs
+        )
 
         self.device = device
         self.seq = nn.Sequential(
@@ -121,7 +150,7 @@ class ResNetShard2(ResNetBase):
             nn.AdaptiveAvgPool2d((1, 1)),
         ).to(self.device)
 
-        self.fc =  nn.Linear(512 * self._block.expansion, num_classes).to(self.device)
+        self.fc = nn.Linear(512 * self._block.expansion, num_classes).to(self.device)
 
     def forward(self, x_rref):
         x = x_rref.to_here().to(self.device)
@@ -134,6 +163,7 @@ class DistResNet50(nn.Module):
     """
     Assemble two parts as an nn.Module and define pipelining logic
     """
+
     def __init__(self, split_size, workers, *args, **kwargs):
         super(DistResNet50, self).__init__()
 
@@ -141,18 +171,12 @@ class DistResNet50(nn.Module):
 
         # Put the first part of the ResNet50 on workers[0]
         self.p1_rref = rpc.remote(
-            workers[0],
-            ResNetShard1,
-            args = ("cuda:0",) + args,
-            kwargs = kwargs
+            workers[0], ResNetShard1, args=("cuda:0",) + args, kwargs=kwargs
         )
 
         # Put the second part of the ResNet50 on workers[1]
         self.p2_rref = rpc.remote(
-            workers[1],
-            ResNetShard2,
-            args = ("cuda:1",) + args,
-            kwargs = kwargs
+            workers[1], ResNetShard2, args=("cuda:1",) + args, kwargs=kwargs
         )
 
     def forward(self, xs):
@@ -190,22 +214,17 @@ def run_master(split_size):
     # put the two model parts on worker1 and worker2 respectively
     model = DistResNet50(split_size, ["worker1", "worker2"])
     loss_fn = nn.MSELoss()
-    opt = DistributedOptimizer(
-        optim.SGD,
-        model.parameter_rrefs(),
-        lr=0.05,
-    )
+    opt = DistributedOptimizer(optim.SGD, model.parameter_rrefs(), lr=0.05,)
 
-    one_hot_indices = torch.LongTensor(batch_size) \
-                           .random_(0, num_classes) \
-                           .view(batch_size, 1)
+    one_hot_indices = (
+        torch.LongTensor(batch_size).random_(0, num_classes).view(batch_size, 1)
+    )
 
     for i in range(num_batches):
         print(f"Processing batch {i}")
         # generate random inputs and labels
         inputs = torch.randn(batch_size, 3, image_w, image_h)
-        labels = torch.zeros(batch_size, num_classes) \
-                      .scatter_(1, one_hot_indices, 1)
+        labels = torch.zeros(batch_size, num_classes).scatter_(1, one_hot_indices, 1)
 
         # The distributed autograd context is the dedicated scope for the
         # distributed backward pass to store gradients, which can later be
@@ -217,18 +236,15 @@ def run_master(split_size):
 
 
 def run_worker(rank, world_size, num_split):
-    os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '29500'
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "29500"
 
     # Higher timeout is added to accommodate for kernel compilation time in case of ROCm.
     options = rpc.TensorPipeRpcBackendOptions(num_worker_threads=256, rpc_timeout=300)
 
     if rank == 0:
         rpc.init_rpc(
-            "master",
-            rank=rank,
-            world_size=world_size,
-            rpc_backend_options=options
+            "master", rank=rank, world_size=world_size, rpc_backend_options=options
         )
         run_master(num_split)
     else:
@@ -236,7 +252,7 @@ def run_worker(rank, world_size, num_split):
             f"worker{rank}",
             rank=rank,
             world_size=world_size,
-            rpc_backend_options=options
+            rpc_backend_options=options,
         )
         pass
 
@@ -244,7 +260,7 @@ def run_worker(rank, world_size, num_split):
     rpc.shutdown()
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     world_size = 3
     for num_split in [1, 2, 4, 8]:
         tik = time.time()

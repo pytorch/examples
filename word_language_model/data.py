@@ -2,6 +2,7 @@ import os
 from io import open
 import torch
 
+
 class Dictionary(object):
     def __init__(self):
         self.word2idx = {}
@@ -20,25 +21,25 @@ class Dictionary(object):
 class Corpus(object):
     def __init__(self, path):
         self.dictionary = Dictionary()
-        self.train = self.tokenize(os.path.join(path, 'train.txt'))
-        self.valid = self.tokenize(os.path.join(path, 'valid.txt'))
-        self.test = self.tokenize(os.path.join(path, 'test.txt'))
+        self.train = self.tokenize(os.path.join(path, "train.txt"))
+        self.valid = self.tokenize(os.path.join(path, "valid.txt"))
+        self.test = self.tokenize(os.path.join(path, "test.txt"))
 
     def tokenize(self, path):
         """Tokenizes a text file."""
         assert os.path.exists(path)
         # Add words to the dictionary
-        with open(path, 'r', encoding="utf8") as f:
+        with open(path, "r", encoding="utf8") as f:
             for line in f:
-                words = line.split() + ['<eos>']
+                words = line.split() + ["<eos>"]
                 for word in words:
                     self.dictionary.add_word(word)
 
         # Tokenize file content
-        with open(path, 'r', encoding="utf8") as f:
+        with open(path, "r", encoding="utf8") as f:
             idss = []
             for line in f:
-                words = line.split() + ['<eos>']
+                words = line.split() + ["<eos>"]
                 ids = []
                 for word in words:
                     ids.append(self.dictionary.word2idx[word])

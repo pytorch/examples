@@ -12,6 +12,7 @@ import torch
 import torch.fx
 from typing import Any, Callable, Dict, Optional, Tuple
 
+
 class ModulePathTracer(torch.fx.Tracer):
     """
     ModulePathTracer is an FX tracer that--for each operation--also records
@@ -21,14 +22,19 @@ class ModulePathTracer(torch.fx.Tracer):
     # The current qualified name of the Module being traced. The top-level
     # module is signified by empty string. This is updated when entering
     # call_module and restored when exiting call_module
-    current_module_qualified_name : str = ''
+    current_module_qualified_name: str = ""
     # A map from FX Node to the qualname of the Module from which it
     # originated. This is recorded by `create_proxy` when recording an
     # operation
-    node_to_originating_module : Dict[torch.fx.Node, str] = {}
+    node_to_originating_module: Dict[torch.fx.Node, str] = {}
 
-    def call_module(self, m: torch.nn.Module, forward: Callable[..., Any],
-                    args : Tuple[Any, ...], kwargs : Dict[str, Any]) -> Any:
+    def call_module(
+        self,
+        m: torch.nn.Module,
+        forward: Callable[..., Any],
+        args: Tuple[Any, ...],
+        kwargs: Dict[str, Any],
+    ) -> Any:
         """
         Override of Tracer.call_module (see
         https://pytorch.org/docs/stable/fx.html#torch.fx.Tracer.call_module).
@@ -47,8 +53,15 @@ class ModulePathTracer(torch.fx.Tracer):
         finally:
             self.current_module_qualified_name = old_qualname
 
-    def create_proxy(self, kind: str, target: torch.fx.node.Target, args: Tuple[Any, ...],
-                     kwargs: Dict[str, Any], name: Optional[str] = None, type_expr: Optional[Any] = None):
+    def create_proxy(
+        self,
+        kind: str,
+        target: torch.fx.node.Target,
+        args: Tuple[Any, ...],
+        kwargs: Dict[str, Any],
+        name: Optional[str] = None,
+        type_expr: Optional[Any] = None,
+    ):
         """
         Override of `Tracer.create_proxy`. This override intercepts the recording
         of every operation and stores away the current traced module's qualified
@@ -72,7 +85,7 @@ traced_rn18 = tracer.trace(rn18)
 # Print (node, module qualified name) for every node in the Graph
 for node in traced_rn18.nodes:
     module_qualname = tracer.node_to_originating_module.get(node)
-    print('Node', node, 'is from module', module_qualname)
+    print("Node", node, "is from module", module_qualname)
 """
 Node x is from module 
 Node conv1 is from module conv1

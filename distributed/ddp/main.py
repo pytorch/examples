@@ -10,8 +10,8 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 
 
 def setup(rank, world_size):
-    os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '12355'
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "12355"
 
     # initialize the process group
     dist.init_process_group("gloo", rank=rank, world_size=world_size)
@@ -53,10 +53,7 @@ def demo_basic(rank, world_size):
 
 
 def run_demo(demo_fn, world_size):
-    mp.spawn(demo_fn,
-             args=(world_size,),
-             nprocs=world_size,
-             join=True)
+    mp.spawn(demo_fn, args=(world_size,), nprocs=world_size, join=True)
 
 
 def demo_checkpoint(rank, world_size):
@@ -80,9 +77,8 @@ def demo_checkpoint(rank, world_size):
     # 0 saves it.
     dist.barrier()
     # configure map_location properly
-    map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
-    ddp_model.load_state_dict(
-        torch.load(CHECKPOINT_PATH, map_location=map_location))
+    map_location = {"cuda:%d" % 0: "cuda:%d" % rank}
+    ddp_model.load_state_dict(torch.load(CHECKPOINT_PATH, map_location=map_location))
 
     optimizer.zero_grad()
     outputs = ddp_model(torch.randn(20, 10))

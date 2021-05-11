@@ -46,6 +46,7 @@ from torch.fx.passes.shape_prop import ShapeProp
 # objects that will track the operations performed on them and append them to
 # the graph.
 
+
 def move_bdim_to_front(x, result_ndim=None):
     """
     Returns a tensor with a batch dimension at the front. If a batch
@@ -66,11 +67,15 @@ def move_bdim_to_front(x, result_ndim=None):
         x = torch.unsqueeze(x, 1)
     return x
 
+
 def movedim_batching_rule(x, from_dim, to_dim):
     x = move_bdim_to_front(x)
     return torch.movedim(x, from_dim + 1, to_dim + 1), 0
 
+
 batching_rules = {}
+
+
 def gen_binary_op_batching_rule(op):
     def binary_op_batching_rule(a, b):
         a_ndim = len(a.shape)
@@ -80,7 +85,9 @@ def gen_binary_op_batching_rule(op):
         b = move_bdim_to_front(b, result_ndim)
         res = op(a, b)
         return res, 0
+
     return binary_op_batching_rule
+
 
 def unsqueeze_batching_rule(x, dim):
     x = move_bdim_to_front(x)
@@ -104,13 +111,19 @@ def gen_batching_rule_function(target, *args):
         res.shape = i.shape
         res.bdim = i.bdim
         return res
+
     proxy_args = [lift_shape(i) if isinstance(i, fx.Node) else i for i in args]
     out, bdim = batching_rules[target](*proxy_args)
     out_node = out.node
     out_node.bdim = bdim
     return out_node
 
-def vmap(model: torch.nn.Module, in_axes: Tuple[Optional[int], ...], example_args: Tuple[Any, ...]) -> torch.nn.Module:
+
+def vmap(
+    model: torch.nn.Module,
+    in_axes: Tuple[Optional[int], ...],
+    example_args: Tuple[Any, ...],
+) -> torch.nn.Module:
     """vmap
     Given a model with inputs, vmap will return a function that works on
     batched versions of those inputs. Which inputs will be batched is
@@ -129,19 +142,22 @@ def vmap(model: torch.nn.Module, in_axes: Tuple[Optional[int], ...], example_arg
     # We will create an environment to map the new nodes created to the
     # corresponding old nodes.
     def lookup_env(l):
-        return fx.node.map_aggregate(l, lambda x: env[x.name] if isinstance(x, fx.Node) else x)
+        return fx.node.map_aggregate(
+            l, lambda x: env[x.name] if isinstance(x, fx.Node) else x
+        )
+
     env = {}
     for node in fx_model.graph.nodes:
-        if node.op == 'placeholder':
+        if node.op == "placeholder":
             # If the node is an input placeholder, we simply copy it over and
             # annotate it with the batch dimension from `in_axes`.
             new_node = new_graph.placeholder(node.name)
             new_node.bdim = next(in_axes)
             new_node.shape = node.shape
             env[node.name] = new_node
-        elif node.op == 'output':
+        elif node.op == "output":
             new_graph.output(env[node.args[0].name])
-        elif node.op == 'call_function':
+        elif node.op == "call_function":
             new_args = lookup_env(node.args)
             # If any of the inputs to the function has a new batch dimension,
             # we will need to use our batching rules. Otherwise, we will simply
@@ -156,17 +172,20 @@ def vmap(model: torch.nn.Module, in_axes: Tuple[Optional[int], ...], example_arg
         else:
             raise RuntimeError("Not yet implemented")
 
-
     res = fx.GraphModule(fx_model, new_graph)
     print(res.code)
     res.graph.lint()
     return res
 
+
 x = torch.randn(3, 5)
 y = torch.randn(2)
+
+
 class M(nn.Module):
     def forward(self, a, b):
         return torch.mul(a, b)
+
 
 # Although this function actually takes in many shapes (due to broadcasting
 # rules and such), pretend that M() operates only on scalars.
@@ -177,7 +196,7 @@ model = vmap(M(), in_axes=(None, 0), example_args=(x[0][0], y[0]))
 
 # Now, our shape signature is ((), (M,)) -> (M,). This is computing the
 # outer product of 2 vectors.
-print(model(x[0][0], y) .shape)  # ((), (2,)) -> (2,)
+print(model(x[0][0], y).shape)  # ((), (2,)) -> (2,)
 
 # Now, we want to turn this from a scalar vector multiplication into a vector
 # vector multiplication. That is, we would like to have the shape signature of

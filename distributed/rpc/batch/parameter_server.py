@@ -24,7 +24,6 @@ def timed_log(text):
 
 
 class BatchUpdateParameterServer(object):
-
     def __init__(self, batch_update_size=batch_update_size):
         self.model = torchvision.models.resnet50(num_classes=num_classes)
         self.lock = threading.Lock()
@@ -63,19 +62,19 @@ class BatchUpdateParameterServer(object):
 
 
 class Trainer(object):
-
     def __init__(self, ps_rref):
         self.ps_rref = ps_rref
         self.loss_fn = nn.MSELoss()
-        self.one_hot_indices = torch.LongTensor(batch_size) \
-                                    .random_(0, num_classes) \
-                                    .view(batch_size, 1)
+        self.one_hot_indices = (
+            torch.LongTensor(batch_size).random_(0, num_classes).view(batch_size, 1)
+        )
 
     def get_next_batch(self):
         for _ in range(num_batches):
             inputs = torch.randn(batch_size, 3, image_w, image_h)
-            labels = torch.zeros(batch_size, num_classes) \
-                        .scatter_(1, self.one_hot_indices, 1)
+            labels = torch.zeros(batch_size, num_classes).scatter_(
+                1, self.one_hot_indices, 1
+            )
             yield inputs.cuda(), labels.cuda()
 
     def train(self):
@@ -103,35 +102,29 @@ def run_ps(trainers):
     ps_rref = rpc.RRef(BatchUpdateParameterServer())
     futs = []
     for trainer in trainers:
-        futs.append(
-            rpc.rpc_async(trainer, run_trainer, args=(ps_rref,))
-        )
+        futs.append(rpc.rpc_async(trainer, run_trainer, args=(ps_rref,)))
 
     torch.futures.wait_all(futs)
     timed_log("Finish training")
 
 
 def run(rank, world_size):
-    os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '29500'
-    options=rpc.TensorPipeRpcBackendOptions(
-        num_worker_threads=16,
-        rpc_timeout=0  # infinite timeout
-     )
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "29500"
+    options = rpc.TensorPipeRpcBackendOptions(
+        num_worker_threads=16, rpc_timeout=0  # infinite timeout
+    )
     if rank != 0:
         rpc.init_rpc(
             f"trainer{rank}",
             rank=rank,
             world_size=world_size,
-            rpc_backend_options=options
+            rpc_backend_options=options,
         )
         # trainer passively waiting for ps to kick off training iterations
     else:
         rpc.init_rpc(
-            "ps",
-            rank=rank,
-            world_size=world_size,
-            rpc_backend_options=options
+            "ps", rank=rank, world_size=world_size, rpc_backend_options=options
         )
         run_ps([f"trainer{r}" for r in range(1, world_size)])
 
@@ -139,6 +132,6 @@ def run(rank, world_size):
     rpc.shutdown()
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     world_size = batch_update_size + 1
-    mp.spawn(run, args=(world_size, ), nprocs=world_size, join=True)
+    mp.spawn(run, args=(world_size,), nprocs=world_size, join=True)

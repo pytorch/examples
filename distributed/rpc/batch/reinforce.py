@@ -19,13 +19,24 @@ NUM_STEPS = 500
 AGENT_NAME = "agent"
 OBSERVER_NAME = "observer{}"
 
-parser = argparse.ArgumentParser(description='PyTorch RPC Batch RL example')
-parser.add_argument('--gamma', type=float, default=1.0, metavar='G',
-                    help='discount factor (default: 1.0)')
-parser.add_argument('--seed', type=int, default=543, metavar='N',
-                    help='random seed (default: 543)')
-parser.add_argument('--num-episode', type=int, default=10, metavar='E',
-                    help='number of episodes (default: 10)')
+parser = argparse.ArgumentParser(description="PyTorch RPC Batch RL example")
+parser.add_argument(
+    "--gamma",
+    type=float,
+    default=1.0,
+    metavar="G",
+    help="discount factor (default: 1.0)",
+)
+parser.add_argument(
+    "--seed", type=int, default=543, metavar="N", help="random seed (default: 543)"
+)
+parser.add_argument(
+    "--num-episode",
+    type=int,
+    default=10,
+    metavar="E",
+    help="number of episodes (default: 10)",
+)
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
@@ -37,6 +48,7 @@ class Policy(nn.Module):
     Copying the code to make these two examples independent.
     See https://github.com/pytorch/examples/tree/master/reinforcement_learning
     """
+
     def __init__(self, batch=True):
         super(Policy, self).__init__()
         self.affine1 = nn.Linear(4, 128)
@@ -65,9 +77,10 @@ class Observer:
     an application using the RPC API. Developers can extend the similar idea to
     other applications with much more expensive environment.
     """
+
     def __init__(self, batch=True):
         self.id = rpc.get_worker_info().id - 1
-        self.env = gym.make('CartPole-v1')
+        self.env = gym.make("CartPole-v1")
         self.env.seed(args.seed)
         self.select_action = Agent.select_action_batch if batch else Agent.select_action
 
@@ -88,7 +101,7 @@ class Observer:
             action = rpc.rpc_sync(
                 agent_rref.owner(),
                 self.select_action,
-                args=(agent_rref, self.id, state)
+                args=(agent_rref, self.id, state),
             )
 
             # apply the action to the environment, and get the reward
@@ -96,9 +109,9 @@ class Observer:
             rewards[step] = reward
 
             if done or step + 1 >= n_steps:
-                curr_rewards = rewards[start_step:(step + 1)]
+                curr_rewards = rewards[start_step : (step + 1)]
                 R = 0
-                for i in range(curr_rewards.numel() -1, -1, -1):
+                for i in range(curr_rewards.numel() - 1, -1, -1):
                     R = curr_rewards[i] + args.gamma * R
                     curr_rewards[i] = R
                 state = self.env.reset()
@@ -129,7 +142,9 @@ class Agent:
         # tensor contains probs from all observers in one step.
         # Without batching, saved_log_probs is a dictionary where the key is the
         # observer id and the value is a list of probs for that observer.
-        self.saved_log_probs = [] if self.batch else {k:[] for k in range(len(self.ob_rrefs))}
+        self.saved_log_probs = (
+            [] if self.batch else {k: [] for k in range(len(self.ob_rrefs))}
+        )
         self.future_actions = torch.futures.Future()
         self.lock = threading.Lock()
         self.pending_states = len(self.ob_rrefs)
@@ -202,7 +217,9 @@ class Agent:
         self.optimizer.zero_grad()
 
         # reset variables
-        self.saved_log_probs = [] if self.batch else {k:[] for k in range(len(self.ob_rrefs))}
+        self.saved_log_probs = (
+            [] if self.batch else {k: [] for k in range(len(self.ob_rrefs))}
+        )
         self.states = torch.zeros(len(self.ob_rrefs), 1, 4)
 
         # calculate running rewards
@@ -215,8 +232,8 @@ def run_worker(rank, world_size, n_episode, batch, print_log=True):
     This is the entry point for all processes. The rank 0 is the agent. All
     other ranks are observers.
     """
-    os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '29500'
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "29500"
     if rank == 0:
         # rank0 is the agent
         rpc.init_rpc(AGENT_NAME, rank=rank, world_size=world_size)
@@ -226,8 +243,11 @@ def run_worker(rank, world_size, n_episode, batch, print_log=True):
             last_reward, running_reward = agent.run_episode(n_steps=NUM_STEPS)
 
             if print_log:
-                print('Episode {}\tLast reward: {:.2f}\tAverage reward: {:.2f}'.format(
-                    i_episode, last_reward, running_reward))
+                print(
+                    "Episode {}\tLast reward: {:.2f}\tAverage reward: {:.2f}".format(
+                        i_episode, last_reward, running_reward
+                    )
+                )
     else:
         # other ranks are the observer
         rpc.init_rpc(OBSERVER_NAME.format(rank), rank=rank, world_size=world_size)
@@ -244,7 +264,7 @@ def main():
                 run_worker,
                 args=(world_size, args.num_episode, batch),
                 nprocs=world_size,
-                join=True
+                join=True,
             )
             tok = time.time()
             delays.append(tok - tik)
@@ -252,5 +272,5 @@ def main():
         print(f"{world_size}, {delays[0]}, {delays[1]}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

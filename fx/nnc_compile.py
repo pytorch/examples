@@ -58,10 +58,13 @@ import operator
 
 # Decomposition Pass
 
+
 def binary_mapping(op):
     def f(a, b):
         return op(a, b)
+
     return f
+
 
 decomposition_rules = {}
 binary_decompositions = [
@@ -76,16 +79,19 @@ binary_decompositions = [
     (operator.lt, torch.lt),
     (operator.le, torch.le),
     (operator.ne, torch.ne),
-    (operator.and_, torch.bitwise_and)
+    (operator.and_, torch.bitwise_and),
 ]
 for old, new in binary_decompositions:
     decomposition_rules[old] = binary_mapping(new)
 
+
 def addmm_decompose(input, mat1, mat2, beta=1, alpha=1, out=None):
-    assert(out is None)
-    return beta*input + alpha*(torch.mm(mat1, mat2))
+    assert out is None
+    return beta * input + alpha * (torch.mm(mat1, mat2))
+
 
 decomposition_rules[torch.addmm] = addmm_decompose
+
 
 def decompose(model: torch.nn.Module, example_inputs) -> torch.nn.Module:
     """
@@ -98,7 +104,7 @@ def decompose(model: torch.nn.Module, example_inputs) -> torch.nn.Module:
         new_graph = fx.Graph()
         env = {}
         for node in model.graph.nodes:
-            if node.op == 'call_function' and node.target in decomposition_rules:
+            if node.op == "call_function" and node.target in decomposition_rules:
                 # If the current function is in `decomposition_rules`, we use
                 # `Proxy` objects to decompose the operations using the
                 # decomposition rule. See
@@ -106,7 +112,9 @@ def decompose(model: torch.nn.Module, example_inputs) -> torch.nn.Module:
                 # more details.
                 proxy_args = map_arg(node.args, lambda n: fx.Proxy(env[n.name]))
                 proxy_kwargs = map_arg(node.kwargs, lambda n: fx.Proxy(env[n.name]))
-                new_node = decomposition_rules[node.target](*proxy_args, **proxy_kwargs).node
+                new_node = decomposition_rules[node.target](
+                    *proxy_args, **proxy_kwargs
+                ).node
                 env[node.name] = new_node
             else:
                 new_node = new_graph.node_copy(node, lambda x: env[x.name])
@@ -114,7 +122,9 @@ def decompose(model: torch.nn.Module, example_inputs) -> torch.nn.Module:
         model = fx.GraphModule(model, new_graph)
     return model
 
+
 # NNC Lowering Pass
+
 
 class kernel_arena_scope(object):
     def __enter__(self):
@@ -123,11 +133,13 @@ class kernel_arena_scope(object):
     def __exit__(self, typ, val, traceback):
         self.scope = None
 
+
 def get_dim_args(dims):
     dim_args = []
     for dim in dims:
-        dim_args.append(te.DimArg(te.ExprHandle.int(dim), 'i' + str(len(dim_args))))
+        dim_args.append(te.DimArg(te.ExprHandle.int(dim), "i" + str(len(dim_args))))
     return dim_args
+
 
 def to_expr(x):
     if isinstance(x, int):
@@ -138,18 +150,24 @@ def to_expr(x):
 
 lowering_functions = {}
 
+
 def wrap_compute(f):
     def fn_lower(name, out_shape, inp_shapes, args):
         X = te.Compute(name, get_dim_args(out_shape), f(inp_shapes, args))
         return X
+
     return fn_lower
+
 
 def gen_unary_nnc(op):
     def gen_op_nnc(inp_shapes, args):
         def f(*idxs):
             return op(args[0].load(idxs))
+
         return f
+
     return gen_op_nnc
+
 
 unary_lowerings = [
     (torch.sin, lambda x: x.sin()),
@@ -184,9 +202,11 @@ unary_lowerings = [
 for torch_op, nnc_fn in unary_lowerings:
     lowering_functions[torch_op] = wrap_compute(gen_unary_nnc(nnc_fn))
 
+
 def gen_binary_nnc(op):
     def is_nnc_obj(x):
         return isinstance(x, te.Placeholder) or isinstance(x, te.Tensor)
+
     def gen_op_nnc(inp_shapes, args):
         if is_nnc_obj(args[0]) and is_nnc_obj(args[1]):
             A_shape, A_dtype = inp_shapes[0]
@@ -196,7 +216,8 @@ def gen_binary_nnc(op):
             def index_or_broadcast(shape, *args):
                 out = []
                 for idx, arg in enumerate(args):
-                    if idx >= len(shape): continue
+                    if idx >= len(shape):
+                        continue
                     if shape[idx] == 1:
                         out.append(to_expr(0))
                     else:
@@ -204,63 +225,84 @@ def gen_binary_nnc(op):
                 return out
 
             def f(*idxs):
-                return op(A.load(index_or_broadcast(A_shape, *idxs)), B.load(index_or_broadcast(B_shape, *idxs)))
+                return op(
+                    A.load(index_or_broadcast(A_shape, *idxs)),
+                    B.load(index_or_broadcast(B_shape, *idxs)),
+                )
+
             return f
         else:
             if is_nnc_obj(args[0]):
+
                 def f(*idxs):
                     return op(args[0].load(idxs), to_expr(args[1]))
+
                 return f
             else:
+
                 def f(*idxs):
                     return op(to_expr(args[0]), args[1].load(idxs))
+
                 return f
 
     return gen_op_nnc
 
 
 binary_lowerings = [
-(torch.add,lambda a, b: a+b),
-(torch.mul,lambda a, b: a*b),
-(torch.sub,lambda a, b: a-b),
-(torch.div,lambda a, b: a/b),
-(torch.eq,lambda a, b: a==b),
-(torch.gt,lambda a, b: a>b),
-(torch.lt,lambda a, b: a<b),
-(torch.ge,lambda a, b: a>=b),
-(torch.le,lambda a, b: a<=b),
+    (torch.add, lambda a, b: a + b),
+    (torch.mul, lambda a, b: a * b),
+    (torch.sub, lambda a, b: a - b),
+    (torch.div, lambda a, b: a / b),
+    (torch.eq, lambda a, b: a == b),
+    (torch.gt, lambda a, b: a > b),
+    (torch.lt, lambda a, b: a < b),
+    (torch.ge, lambda a, b: a >= b),
+    (torch.le, lambda a, b: a <= b),
 ]
 for torch_op, nnc_fn in binary_lowerings:
     lowering_functions[torch_op] = wrap_compute(gen_binary_nnc(nnc_fn))
 
+
 def clamp_lower(inp_shapes, args):
     def f(*idxs):
         val = args[0].load(idxs)
-        return te.ifThenElse(val < to_expr(args[1]), to_expr(args[1]),
-                            te.ifThenElse(val > to_expr(args[2]), to_expr(args[2]), val))
+        return te.ifThenElse(
+            val < to_expr(args[1]),
+            to_expr(args[1]),
+            te.ifThenElse(val > to_expr(args[2]), to_expr(args[2]), val),
+        )
+
     return f
+
 
 lowering_functions[torch.clamp] = wrap_compute(clamp_lower)
 
+
 def transpose_lower(name, out_shape, inp_shapes, args):
     idx_1, idx_2 = args[1], args[2]
+
     def transpose(shape):
         shape[idx_1], shape[idx_2] = shape[idx_2], shape[idx_1]
         return shape
+
     def f(*idxs):
         idxs = transpose(list(idxs))
         return args[0].load(idxs)
+
     return te.Compute(name, get_dim_args(out_shape), f)
+
 
 def flatten_lower(name, out_shape, inp_shapes, args):
     A, start_dim, end_dim = args
     shape = list(inp_shapes[0][0])
-    flattened_region = shape[start_dim:end_dim+1]
+    flattened_region = shape[start_dim : end_dim + 1]
+
     def prod(x):
         t = 1
         for i in x:
             t *= i
         return t
+
     def get_orig_idxs(i):
         idxs = []
         total = prod(flattened_region)
@@ -269,16 +311,20 @@ def flatten_lower(name, out_shape, inp_shapes, args):
             idxs.append(i / to_expr(total))
             i = i % to_expr(total)
         return idxs
+
     def f(*idxs):
         idxs = list(idxs)
-        idxs = idxs[:start_dim] + get_orig_idxs(idxs[start_dim]) + idxs[start_dim+1:]
+        idxs = idxs[:start_dim] + get_orig_idxs(idxs[start_dim]) + idxs[start_dim + 1 :]
         return A.load(idxs)
+
     return te.Compute(name, get_dim_args(out_shape), f)
+
 
 def cat_lower(name, out_shape, inp_shapes, args):
     tensors = args[0]
     dim = args[1]
     lengths = [i[0][dim] for i in inp_shapes[0]]
+
     def f(*idxs):
         idxs = list(idxs)
         sm = lengths[0]
@@ -288,11 +334,14 @@ def cat_lower(name, out_shape, inp_shapes, args):
             new_idxs[dim] -= to_expr(sm)
             load = te.ifThenElse(idxs[dim] < to_expr(sm), load, tensor.load(new_idxs))
         return load
+
     return te.Compute(name, get_dim_args(out_shape), f)
+
 
 lowering_functions[torch.transpose] = transpose_lower
 lowering_functions[torch.flatten] = flatten_lower
 lowering_functions[torch.cat] = cat_lower
+
 
 def bmm_lower(name, out_shape, inp_shapes, args):
     M1 = args[0]
@@ -302,7 +351,8 @@ def bmm_lower(name, out_shape, inp_shapes, args):
 
     def f(b, n, p, m):
         return M1.load([b, n, m]) * M2.load([b, m, p])
-    mm = te.Compute('mm', get_dim_args([B,N,P,M]), f)
+
+    mm = te.Compute("mm", get_dim_args([B, N, P, M]), f)
     return te.Reduce(name, get_dim_args([B, N, P]), te.Sum(), mm, get_dim_args([M]))
 
 
@@ -314,16 +364,21 @@ def mm_lower(name, out_shape, inp_shapes, args):
 
     def f(n, p, m):
         return M1.load([n, m]) * M2.load([m, p])
-    mm = te.Compute('mm', get_dim_args([N,P,M]), f)
+
+    mm = te.Compute("mm", get_dim_args([N, P, M]), f)
     return te.Reduce(name, get_dim_args([N, P]), te.Sum(), mm, get_dim_args([M]))
+
 
 lowering_functions[torch.bmm] = bmm_lower
 lowering_functions[torch.mm] = mm_lower
 
 
 def lower_function(node, op, nnc_args, args):
-    inp_shapes = fx.node.map_aggregate(args, lambda arg: (arg.shape, arg.dtype) if isinstance(arg, fx.Node) else None)
+    inp_shapes = fx.node.map_aggregate(
+        args, lambda arg: (arg.shape, arg.dtype) if isinstance(arg, fx.Node) else None
+    )
     return lowering_functions[op](node.name, node.shape, inp_shapes, nnc_args)
+
 
 def nnc_compile(model: torch.nn.Module, example_inputs) -> torch.nn.Module:
     """
@@ -339,6 +394,7 @@ def nnc_compile(model: torch.nn.Module, example_inputs) -> torch.nn.Module:
     # This env maps from nodes to `te.ExprHandle`, which represent the output
     # of an NNC computation.
     env = {}
+
     def get_te_shapes(node):
         return [te.ExprHandle.int(i) for i in node.shape]
 
@@ -357,14 +413,18 @@ def nnc_compile(model: torch.nn.Module, example_inputs) -> torch.nn.Module:
         te_args = [env[arg.name] for arg in args]
 
     def lookup_env(l):
-        return fx.node.map_aggregate(l, lambda x: env[x.name] if isinstance(x, fx.Node) else x)
+        return fx.node.map_aggregate(
+            l, lambda x: env[x.name] if isinstance(x, fx.Node) else x
+        )
 
-    def fetch_attr(target : str):
-        target_atoms = target.split('.')
+    def fetch_attr(target: str):
+        target_atoms = target.split(".")
         attr_itr = fx_model
         for i, atom in enumerate(target_atoms):
             if not hasattr(attr_itr, atom):
-                raise RuntimeError(f"Node referenced nonexistant target {'.'.join(target_atoms[:i])}")
+                raise RuntimeError(
+                    f"Node referenced nonexistant target {'.'.join(target_atoms[:i])}"
+                )
             attr_itr = getattr(attr_itr, atom)
         return attr_itr
 
@@ -372,21 +432,21 @@ def nnc_compile(model: torch.nn.Module, example_inputs) -> torch.nn.Module:
     inputs = []
     module_attrs = []
     for node in fx_model.graph.nodes:
-        if node.op == 'placeholder':
+        if node.op == "placeholder":
             # We simply map the input placeholder to a `te.Placeholder`, which
             # also represents an input to the NNC computation.
             shapes = get_te_shapes(node)
             env[node.name] = te.Placeholder(node.name, get_te_type(node), shapes)
             inputs.append(env[node.name])
-        elif node.op == 'call_function':
+        elif node.op == "call_function":
             # This does the bulk of the work - we call `lower_function`, which
             # returns a `te.ExprHandle` (the output of a NNC computation), and
             # put it in our environment.
             result = lower_function(node, node.target, lookup_env(node.args), node.args)
             env[node.name] = result
-        elif node.op == 'output':
+        elif node.op == "output":
             outs = list(lookup_env(node.args))
-        elif node.op == 'get_attr':
+        elif node.op == "get_attr":
             # As NNC doesn't have any concept of state, we pull out the module
             # attributes and pass them in as inputs to NNC.
             module_attrs.append(node)
@@ -397,10 +457,16 @@ def nnc_compile(model: torch.nn.Module, example_inputs) -> torch.nn.Module:
     loopnest = te.LoopNest(outs)
     loopnest.prepare_for_codegen()
     stmt = te.simplify(loopnest.root_stmt())
-    cg = te.construct_codegen('llvm', stmt, [te.BufferArg(x) for x in [env[i.name] for i in module_attrs] + inputs + outs])
+    cg = te.construct_codegen(
+        "llvm",
+        stmt,
+        [te.BufferArg(x) for x in [env[i.name] for i in module_attrs] + inputs + outs],
+    )
+
     def f(inps):
         module_stuff = [fetch_attr(i.target) for i in module_attrs]
         cg.call(module_stuff + list(inps))
+
     return f
 
 
@@ -408,7 +474,8 @@ def nnc_compile(model: torch.nn.Module, example_inputs) -> torch.nn.Module:
 # Example usage and Benchmarking
 ################################
 
-if __name__ == '__main__':
+if __name__ == "__main__":
+
     class DeepAndWide(torch.nn.Module):
         def __init__(self, num_features=50):
             super(DeepAndWide, self).__init__()
@@ -420,7 +487,7 @@ if __name__ == '__main__':
         def forward(self, ad_emb_packed, user_emb, wide):
             wide_offset = wide + self.mu
             wide_normalized = wide_offset * self.sigma
-            wide_preproc = torch.clamp(wide_normalized, 0., 10.)
+            wide_preproc = torch.clamp(wide_normalized, 0.0, 10.0)
             user_emb_t = torch.transpose(user_emb, 1, 2)
             dp_unflatten = torch.bmm(ad_emb_packed, user_emb_t)
             dp = torch.flatten(dp_unflatten, 1, -1)
@@ -449,27 +516,27 @@ if __name__ == '__main__':
             iters = 1000
 
             for _ in range(10):
-                cg([ad_emb_packed, user_emb,wide, out])
+                cg([ad_emb_packed, user_emb, wide, out])
             begin = time.time()
             for _ in range(iters):
-                cg([ad_emb_packed, user_emb,wide, out])
+                cg([ad_emb_packed, user_emb, wide, out])
 
-            print("NNC time: ", time.time()-begin)
+            print("NNC time: ", time.time() - begin)
 
             mod_jit = torch.jit.script(DeepAndWide(num_features))
             for _ in range(10):
-                mod_jit(ad_emb_packed, user_emb,wide)
+                mod_jit(ad_emb_packed, user_emb, wide)
             begin = time.time()
             for _ in range(iters):
-                mod_jit(ad_emb_packed, user_emb,wide)
-            print("PyTorch time", time.time()-begin)
+                mod_jit(ad_emb_packed, user_emb, wide)
+            print("PyTorch time", time.time() - begin)
 
             static_runtime = torch._C._jit_to_static_runtime(mod_jit._c)
             for _ in range(10):
-                static_runtime.run([ad_emb_packed, user_emb,wide])
+                static_runtime.run([ad_emb_packed, user_emb, wide])
             begin = time.time()
             for _ in range(iters):
-                static_runtime.run([ad_emb_packed, user_emb,wide])
-            print("Static Runtime time", time.time()-begin)
+                static_runtime.run([ad_emb_packed, user_emb, wide])
+            print("Static Runtime time", time.time() - begin)
 
             print("Sums:", out.sum(), mod(*inps).sum())

@@ -9,11 +9,11 @@ model = models.resnet18(pretrained=True)
 
 # Set upgrading the gradients to False
 for param in model.parameters():
-	param.requires_grad = False
+    param.requires_grad = False
 
 # Save the model except the final FC Layer
 resnet18 = torch.nn.Sequential(*list(model.children())[:-1])
 
 example_input = torch.rand(1, 3, 224, 224)
 script_module = torch.jit.trace(resnet18, example_input)
-script_module.save('resnet18_without_last_layer.pt')
+script_module.save("resnet18_without_last_layer.pt")

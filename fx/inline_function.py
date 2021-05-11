@@ -3,7 +3,7 @@ from torch.fx import Proxy, symbolic_trace
 from torch.fx.node import map_arg
 
 
-'''
+"""
 How to Inline a Function Into an Existing Graph
 
 One reason you might want to inline a function is to get around FX's
@@ -24,7 +24,7 @@ Proxies from the Node's args and kwargs. Finally, we'll call the
 function we want to replace with those Proxies--which will, in essence,
 "trace" that function. Finally, we'll insert the result of that call
 into our Graph. (This last step will automatically inline the function.)
-'''
+"""
 
 
 # Sample module
@@ -35,6 +35,7 @@ class M(torch.nn.Module):
 
     def forward(self, x):
         return self.relu(x) + 1.0
+
 
 # Symbolically trace an instance of `M`. After tracing, `self.relu` is
 # represented as a `call_module` Node. The full operation in the

@@ -2,7 +2,7 @@ import torch
 from torch.fx import Proxy, Graph, GraphModule
 
 
-'''
+"""
 How to Create a Graph Using Proxy Objects Instead of Tracing
 
 It's possible to directly create a Proxy object around a raw Node. This
@@ -27,15 +27,15 @@ empty ``nn.Module`` class.
         neg_1 = torch.neg(tanh_1);  tanh_1 = None
         return neg_1
 
-'''
+"""
 
 
 # Create a graph independently of symbolic tracing
 graph = Graph()
 
 # Create raw Nodes
-raw1 = graph.placeholder('x')
-raw2 = graph.placeholder('y')
+raw1 = graph.placeholder("x")
+raw2 = graph.placeholder("y")
 
 # Initialize Proxies using the raw Nodes
 y = Proxy(raw1)

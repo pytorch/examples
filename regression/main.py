@@ -13,7 +13,7 @@ b_target = torch.randn(1) * 5
 def make_features(x):
     """Builds features i.e. a matrix with columns [x, x^2, x^3, x^4]."""
     x = x.unsqueeze(1)
-    return torch.cat([x ** i for i in range(1, POLY_DEGREE+1)], 1)
+    return torch.cat([x ** i for i in range(1, POLY_DEGREE + 1)], 1)
 
 
 def f(x):
@@ -23,10 +23,10 @@ def f(x):
 
 def poly_desc(W, b):
     """Creates a string description of a polynomial."""
-    result = 'y = '
+    result = "y = "
     for i, w in enumerate(W):
-        result += '{:+.2f} x^{} '.format(w, i + 1)
-    result += '{:+.2f}'.format(b[0])
+        result += "{:+.2f} x^{} ".format(w, i + 1)
+    result += "{:+.2f}".format(b[0])
     return result
 
 
@@ -63,6 +63,6 @@ for batch_idx in count(1):
     if loss < 1e-3:
         break
 
-print('Loss: {:.6f} after {} batches'.format(loss, batch_idx))
-print('==> Learned function:\t' + poly_desc(fc.weight.view(-1), fc.bias))
-print('==> Actual function:\t' + poly_desc(W_target.view(-1), b_target))
+print("Loss: {:.6f} after {} batches".format(loss, batch_idx))
+print("==> Learned function:\t" + poly_desc(fc.weight.view(-1), fc.bias))
+print("==> Actual function:\t" + poly_desc(W_target.view(-1), b_target))

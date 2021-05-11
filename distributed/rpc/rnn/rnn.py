@@ -17,10 +17,7 @@ def _remote_method(method, rref, *args, **kwargs):
     result using RPC
     """
     return rpc.rpc_sync(
-        rref.owner(),
-        _call_method,
-        args=[method, rref] + list(args),
-        kwargs=kwargs
+        rref.owner(), _call_method, args=[method, rref] + list(args), kwargs=kwargs
     )
 
 
@@ -39,6 +36,7 @@ class EmbeddingTable(nn.Module):
     r"""
     Encoding layers of the RNNModel
     """
+
     def __init__(self, ntoken, ninp, dropout):
         super(EmbeddingTable, self).__init__()
         self.drop = nn.Dropout(dropout)
@@ -57,6 +55,7 @@ class Decoder(nn.Module):
     r"""
     Decoding layers of the RNNModel
     """
+
     def __init__(self, ntoken, nhid, dropout):
         super(Decoder, self).__init__()
         self.drop = nn.Dropout(dropout)
@@ -75,11 +74,14 @@ class RNNModel(nn.Module):
     The structure of the RNN model is borrowed from the word language model
     example. See https://github.com/pytorch/examples/blob/master/word_language_model/model.py
     """
+
     def __init__(self, ps, ntoken, ninp, nhid, nlayers, dropout=0.5):
         super(RNNModel, self).__init__()
 
         # setup embedding table remotely
-        self.emb_table_rref = rpc.remote(ps, EmbeddingTable, args=(ntoken, ninp, dropout))
+        self.emb_table_rref = rpc.remote(
+            ps, EmbeddingTable, args=(ntoken, ninp, dropout)
+        )
         # setup LSTM locally
         self.rnn = nn.LSTM(ninp, nhid, nlayers, dropout=dropout)
         # setup decoder remotely

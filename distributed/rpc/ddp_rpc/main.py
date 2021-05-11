@@ -60,11 +60,7 @@ def _run_trainer(remote_emb_module, rank):
         model_parameter_rrefs.append(RRef(param))
 
     # Setup distributed optimizer
-    opt = DistributedOptimizer(
-        optim.SGD,
-        model_parameter_rrefs,
-        lr=0.05,
-    )
+    opt = DistributedOptimizer(optim.SGD, model_parameter_rrefs, lr=0.05,)
 
     criterion = torch.nn.CrossEntropyLoss()
 

@@ -6,9 +6,13 @@ import torch.fx as fx
 # inverses.
 
 invert_mapping = {}
+
+
 def add_inverse(a, b):
     invert_mapping[a] = b
     invert_mapping[b] = a
+
+
 inverses = [
     (torch.sin, torch.arcsin),
     (torch.cos, torch.arccos),
@@ -28,17 +32,19 @@ def invert(model: torch.nn.Module) -> torch.nn.Module:
     new_graph = fx.Graph()  # As we're building up a new graph
     env = {}
     for node in reversed(fx_model.graph.nodes):
-        if node.op == 'call_function':
+        if node.op == "call_function":
             # This creates a node in the new graph with the inverse function,
             # and passes `env[node.name]` (i.e. the previous output node) as
             # input.
-            new_node = new_graph.call_function(invert_mapping[node.target], (env[node.name],))
+            new_node = new_graph.call_function(
+                invert_mapping[node.target], (env[node.name],)
+            )
             env[node.args[0].name] = new_node
-        elif node.op == 'output':
+        elif node.op == "output":
             # We turn the output into an input placeholder
             new_node = new_graph.placeholder(node.name)
             env[node.args[0].name] = new_node
-        elif node.op == 'placeholder':
+        elif node.op == "placeholder":
             # We turn the input placeholder into an output
             new_graph.output(env[node.name])
         else:
@@ -50,6 +56,7 @@ def invert(model: torch.nn.Module) -> torch.nn.Module:
 
 def f(x):
     return torch.exp(torch.tan(x))
+
 
 res = invert(f)
 print(res.code)

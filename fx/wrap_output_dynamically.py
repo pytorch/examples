@@ -1,10 +1,9 @@
-
 import torch
 from torch.fx import Proxy, GraphModule, Node, symbolic_trace
 
 from enum import Enum, auto
 
-'''
+"""
 Wrap Graph Output Dynamically
 
 The following code demonstrates how change an existing Graph based on
@@ -14,7 +13,7 @@ trace it. Next, we'll create a Proxy from the last operation in the
 Graph. We'll call our traced activation function with this Proxy and
 insert the ``output`` Node from that call into our Graph. (This final
 step will automatically inline the entire traced function.)
-'''
+"""
 
 
 # Sample module
@@ -26,6 +25,7 @@ class M(torch.nn.Module):
         y = torch.cat([x, y])
         return y
 
+
 # Symbolically trace an instance of `M`
 traced = symbolic_trace(M())
 
@@ -35,12 +35,14 @@ class ActivationFunction(Enum):
     LEAKY_RELU = auto()
     PRELU = auto()
 
+
 # Map activation function names to their implementation
 activation_functions = {
     ActivationFunction.RELU: torch.nn.ReLU(),
     ActivationFunction.LEAKY_RELU: torch.nn.LeakyReLU(),
     ActivationFunction.PRELU: torch.nn.PReLU(),
 }
+
 
 def wrap_in_activation_function(m: GraphModule, fn: ActivationFunction) -> GraphModule:
     # Get output node

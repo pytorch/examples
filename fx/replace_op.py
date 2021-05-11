@@ -33,6 +33,7 @@ class M(torch.nn.Module):
     def forward(self, x, y):
         return x + y, torch.add(x, y), x.add(y)
 
+
 # Symbolically trace an instance of the module
 traced = symbolic_trace(M())
 

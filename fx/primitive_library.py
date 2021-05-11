@@ -1,5 +1,6 @@
 import torch
 import torch.fx
+
 """
 In this example we are going do define a library of
 "composite" operations. Composite operations are those
@@ -19,10 +20,11 @@ fine-grained level.
 """
 
 
-def sigmoid_lowp(x : torch.Tensor):
+def sigmoid_lowp(x: torch.Tensor):
     x = x.float()
     x = x.sigmoid()
     return x.half()
+
 
 # wrap() indicates that the passed-in function should always
 # be recorded as a call_function node rather than being traced
@@ -31,16 +33,19 @@ def sigmoid_lowp(x : torch.Tensor):
 # b. Define a tracer that automatically traces through such a function
 torch.fx.wrap(sigmoid_lowp)
 
-def add_lowp(a : torch.Tensor, b : torch.Tensor):
+
+def add_lowp(a: torch.Tensor, b: torch.Tensor):
     a, b = a.float(), b.float()
     c = a + b
     return c.half()
+
 
 torch.fx.wrap(add_lowp)
 
 
 # Let's see what happens when we symbolically trace through some code
 # that uses these functions
+
 
 class Foo(torch.nn.Module):
     def forward(self, x, y):
@@ -67,9 +72,10 @@ def forward(self, x, y):
 # Now let's define a function that allows for inlining these calls
 # during graph manipulation.
 
-def inline_lowp_func(n : torch.fx.Node):
+
+def inline_lowp_func(n: torch.fx.Node):
     # If we find a call to a function in our "lowp" module, inline it
-    if n.op == 'call_function' and n.target.__module__ == inline_lowp_func.__module__:
+    if n.op == "call_function" and n.target.__module__ == inline_lowp_func.__module__:
         # We want to insert the operations comprising the implementation of the
         # function before the function itself. Then, we can swap the output value
         # of the function call with the output value for its implementation nodes
@@ -90,8 +96,9 @@ def inline_lowp_func(n : torch.fx.Node):
             # Delete the old node
             node.graph.erase_node(node)
 
+
 for node in traced.graph.nodes:
-    if node.op == 'call_function' and node.target is sigmoid_lowp:
+    if node.op == "call_function" and node.target is sigmoid_lowp:
         inline_lowp_func(node)
 
 # Don't forget to recompile after graph manipulation
@@ -120,11 +127,12 @@ def forward(self, x, y):
 # New instance of our module
 f = Foo()
 
+
 class InliningTracer(torch.fx.Tracer):
     FNS_TO_INLINE = [add_lowp]
 
     def create_node(self, kind, target, args, kwargs, name=None, type_expr=None):
-        if kind == 'call_function' and target in self.FNS_TO_INLINE:
+        if kind == "call_function" and target in self.FNS_TO_INLINE:
             # Trace through the implementation of the function rather than
             # create a node
             proxy_args = torch.fx.node.map_arg(args, torch.fx.Proxy)

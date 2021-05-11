@@ -32,9 +32,16 @@ def train_epoch(epoch, args, model, device, data_loader, optimizer):
         loss.backward()
         optimizer.step()
         if batch_idx % args.log_interval == 0:
-            print('{}\tTrain Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                pid, epoch, batch_idx * len(data), len(data_loader.dataset),
-                100. * batch_idx / len(data_loader), loss.item()))
+            print(
+                "{}\tTrain Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
+                    pid,
+                    epoch,
+                    batch_idx * len(data),
+                    len(data_loader.dataset),
+                    100.0 * batch_idx / len(data_loader),
+                    loss.item(),
+                )
+            )
             if args.dry_run:
                 break
 
@@ -46,11 +53,18 @@ def test_epoch(model, device, data_loader):
     with torch.no_grad():
         for data, target in data_loader:
             output = model(data.to(device))
-            test_loss += F.nll_loss(output, target.to(device), reduction='sum').item() # sum up batch loss
-            pred = output.max(1)[1] # get the index of the max log-probability
+            test_loss += F.nll_loss(
+                output, target.to(device), reduction="sum"
+            ).item()  # sum up batch loss
+            pred = output.max(1)[1]  # get the index of the max log-probability
             correct += pred.eq(target.to(device)).sum().item()
 
     test_loss /= len(data_loader.dataset)
-    print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-        test_loss, correct, len(data_loader.dataset),
-        100. * correct / len(data_loader.dataset)))
+    print(
+        "\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n".format(
+            test_loss,
+            correct,
+            len(data_loader.dataset),
+            100.0 * correct / len(data_loader.dataset),
+        )
+    )

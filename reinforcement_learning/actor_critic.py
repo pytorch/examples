@@ -12,30 +12,41 @@ from torch.distributions import Categorical
 
 # Cart Pole
 
-parser = argparse.ArgumentParser(description='PyTorch actor-critic example')
-parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
-                    help='discount factor (default: 0.99)')
-parser.add_argument('--seed', type=int, default=543, metavar='N',
-                    help='random seed (default: 543)')
-parser.add_argument('--render', action='store_true',
-                    help='render the environment')
-parser.add_argument('--log-interval', type=int, default=10, metavar='N',
-                    help='interval between training status logs (default: 10)')
+parser = argparse.ArgumentParser(description="PyTorch actor-critic example")
+parser.add_argument(
+    "--gamma",
+    type=float,
+    default=0.99,
+    metavar="G",
+    help="discount factor (default: 0.99)",
+)
+parser.add_argument(
+    "--seed", type=int, default=543, metavar="N", help="random seed (default: 543)"
+)
+parser.add_argument("--render", action="store_true", help="render the environment")
+parser.add_argument(
+    "--log-interval",
+    type=int,
+    default=10,
+    metavar="N",
+    help="interval between training status logs (default: 10)",
+)
 args = parser.parse_args()
 
 
-env = gym.make('CartPole-v0')
+env = gym.make("CartPole-v0")
 env.seed(args.seed)
 torch.manual_seed(args.seed)
 
 
-SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
+SavedAction = namedtuple("SavedAction", ["log_prob", "value"])
 
 
 class Policy(nn.Module):
     """
     implements both actor and critic in one model
     """
+
     def __init__(self):
         super(Policy, self).__init__()
         self.affine1 = nn.Linear(4, 128)
@@ -56,7 +67,7 @@ class Policy(nn.Module):
         """
         x = F.relu(self.affine1(x))
 
-        # actor: choses action to take from state s_t 
+        # actor: choses action to take from state s_t
         # by returning probability of each action
         action_prob = F.softmax(self.action_head(x), dim=-1)
 
@@ -65,7 +76,7 @@ class Policy(nn.Module):
 
         # return values for both actor and critic as a tuple of 2 values:
         # 1. a list with the probability of each action over the action space
-        # 2. the value from state s_t 
+        # 2. the value from state s_t
         return action_prob, state_values
 
 
@@ -97,9 +108,9 @@ def finish_episode():
     """
     R = 0
     saved_actions = model.saved_actions
-    policy_losses = [] # list to save actor (policy) loss
-    value_losses = [] # list to save critic (value) loss
-    returns = [] # list to save the true values
+    policy_losses = []  # list to save actor (policy) loss
+    value_losses = []  # list to save critic (value) loss
+    returns = []  # list to save the true values
 
     # calculate the true value using rewards returned from the environment
     for r in model.rewards[::-1]:
@@ -113,7 +124,7 @@ def finish_episode():
     for (log_prob, value), R in zip(saved_actions, returns):
         advantage = R - value.item()
 
-        # calculate actor (policy) loss 
+        # calculate actor (policy) loss
         policy_losses.append(-log_prob * advantage)
 
         # calculate critic (value) loss using L1 smooth loss
@@ -144,7 +155,7 @@ def main():
         state = env.reset()
         ep_reward = 0
 
-        # for each episode, only run 9999 steps so that we don't 
+        # for each episode, only run 9999 steps so that we don't
         # infinite loop while learning
         for t in range(1, 10000):
 
@@ -170,15 +181,20 @@ def main():
 
         # log results
         if i_episode % args.log_interval == 0:
-            print('Episode {}\tLast reward: {:.2f}\tAverage reward: {:.2f}'.format(
-                  i_episode, ep_reward, running_reward))
+            print(
+                "Episode {}\tLast reward: {:.2f}\tAverage reward: {:.2f}".format(
+                    i_episode, ep_reward, running_reward
+                )
+            )
 
         # check if we have "solved" the cart pole problem
         if running_reward > env.spec.reward_threshold:
-            print("Solved! Running reward is now {} and "
-                  "the last episode runs to {} time steps!".format(running_reward, t))
+            print(
+                "Solved! Running reward is now {} and "
+                "the last episode runs to {} time steps!".format(running_reward, t)
+            )
             break
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
