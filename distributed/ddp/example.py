@@ -25,8 +25,8 @@ class ToyModel(nn.Module):
 def demo_basic(local_world_size, local_rank):
 
     # setup devices for this process. For local_world_size = 2, num_gpus = 8,
-    # rank 1 uses GPUs [0, 1, 2, 3] and
-    # rank 2 uses GPUs [4, 5, 6, 7].
+    # rank 0 uses GPUs [0, 1, 2, 3] and
+    # rank 1 uses GPUs [4, 5, 6, 7].
     n = torch.cuda.device_count() // local_world_size
     device_ids = list(range(local_rank * n, (local_rank + 1) * n))
 
