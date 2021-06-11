@@ -67,11 +67,19 @@ def wrap_in_activation_function(m: GraphModule, fn: ActivationFunction) -> Graph
     # Call the specified activation function using the Proxy wrapper for
     # `output_op`. The result of this call is another Proxy, which we
     # can hook into our existing Graph.
-    with traced.graph.inserting_before(wrap_node):
+    with traced.graph.inserting_after(wrap_node):
         fn_impl_output_node = fn_impl_traced(wrap_proxy)
         new_args = (fn_impl_output_node.node,)
         output_node.args = new_args
 
+    m.recompile()
+
 
 # Example call
+x, y = torch.randn(5, 3), torch.randn(5, 3)
+orig_output = traced(x, y)
+
 wrap_in_activation_function(traced, ActivationFunction.LEAKY_RELU)
+new_output = traced(x, y)
+
+torch.testing.assert_allclose(new_output, torch.nn.LeakyReLU()(orig_output))
