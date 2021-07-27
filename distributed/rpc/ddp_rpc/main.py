@@ -137,7 +137,7 @@ def run_worker(rank, world_size):
         for trainer_rank in [0, 1]:
             trainer_name = "trainer{}".format(trainer_rank)
             fut = rpc.rpc_async(
-                trainer_name, _run_trainer, args=(remote_emb_module, rank)
+                trainer_name, _run_trainer, args=(remote_emb_module, trainer_rank)
             )
             futs.append(fut)
 
