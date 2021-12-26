@@ -6,8 +6,8 @@ import torch
 import torch.optim as O
 import torch.nn as nn
 
-from torchtext import data
-from torchtext import datasets
+from torchtext.legacy import data
+from torchtext.legacy import datasets
 
 from model import SNLIClassifier
 from util import get_args, makedirs
