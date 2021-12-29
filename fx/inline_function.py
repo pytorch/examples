@@ -40,6 +40,7 @@ class M(torch.nn.Module):
 # represented as a `call_module` Node. The full operation in the
 # generated `forward` function's code will appear as `self.relu(x)`
 m = symbolic_trace(M())
+tracer = torch.fx.proxy.GraphAppendingTracer(m.graph)
 
 # Insert nodes from the ReLU graph in place of the original call to
 # `self.relu`
@@ -51,8 +52,8 @@ for node in m.graph.nodes:
         with m.graph.inserting_before(node):
             # Create a Proxy from each Node in the current Node's
             # args/kwargs
-            proxy_args = map_arg(node.args, Proxy)
-            proxy_kwargs = map_arg(node.kwargs, Proxy)
+            proxy_args = map_arg(node.args, lambda n: Proxy(n, tracer))
+            proxy_kwargs = map_arg(node.kwargs, lambda n: Proxy(n, tracer))
             # Call `m.relu` with the newly-created Proxy arguments.
             # `m.relu` is the generic version of the function; by
             # calling it with Proxies created from Nodes in `m`, we're

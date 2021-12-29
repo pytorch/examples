@@ -73,13 +73,14 @@ def inline_lowp_func(n : torch.fx.Node):
         # We want to insert the operations comprising the implementation of the
         # function before the function itself. Then, we can swap the output value
         # of the function call with the output value for its implementation nodes
+        tracer = torch.fx.proxy.GraphAppendingTracer(n.graph)
         with n.graph.inserting_before(n):
             # We can inline code by using `fx.Proxy` instances.
             # map_arg traverses all aggregate types and applies the given function
             # to Node instances in the data structure. In this case, we are applying
             # the fx.Proxy constructor.
-            proxy_args = torch.fx.node.map_arg(n.args, torch.fx.Proxy)
-            proxy_kwargs = torch.fx.node.map_arg(n.kwargs, torch.fx.Proxy)
+            proxy_args = torch.fx.node.map_arg(n.args, lambda x: torch.fx.Proxy(x, tracer))
+            proxy_kwargs = torch.fx.node.map_arg(n.kwargs, lambda x: torch.fx.Proxy(x, tracer))
             # Call the function itself with proxy arguments. This will emit
             # nodes in the graph corresponding to the operations in the im-
             # plementation of the function
@@ -125,10 +126,11 @@ class InliningTracer(torch.fx.Tracer):
 
     def create_node(self, kind, target, args, kwargs, name=None, type_expr=None):
         if kind == 'call_function' and target in self.FNS_TO_INLINE:
+            tracer = torch.fx.proxy.GraphAppendingTracer(self.graph)
             # Trace through the implementation of the function rather than
             # create a node
-            proxy_args = torch.fx.node.map_arg(args, torch.fx.Proxy)
-            proxy_kwargs = torch.fx.node.map_arg(kwargs, torch.fx.Proxy)
+            proxy_args = torch.fx.node.map_arg(args, lambda x: torch.fx.Proxy(x, tracer))
+            proxy_kwargs = torch.fx.node.map_arg(kwargs, lambda x: torch.fx.Proxy(x, tracer))
             return target(*proxy_args, **proxy_kwargs).node
         else:
             return super().create_node(kind, target, args, kwargs, name, type_expr)
