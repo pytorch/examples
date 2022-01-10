@@ -40,10 +40,11 @@ class M(torch.nn.Module):
 # represented as a `call_module` Node. The full operation in the
 # generated `forward` function's code will appear as `self.relu(x)`
 m = symbolic_trace(M())
-tracer = torch.fx.proxy.GraphAppendingTracer(m.graph)
 
 # Insert nodes from the ReLU graph in place of the original call to
 # `self.relu`
+# create a graph-appending tracer pointing to the original graph
+tracer = torch.fx.proxy.GraphAppendingTracer(m.graph)
 for node in m.graph.nodes:
     # Find `call_module` Node in `m` that corresponds to `self.relu`.
     # This is the Node we want to swap out for an inlined version of the
