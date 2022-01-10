@@ -32,19 +32,28 @@ empty ``nn.Module`` class.
 
 # Create a graph independently of symbolic tracing
 graph = Graph()
+tracer = torch.fx.proxy.GraphAppendingTracer(graph)
 
 # Create raw Nodes
 raw1 = graph.placeholder('x')
 raw2 = graph.placeholder('y')
 
-# Initialize Proxies using the raw Nodes
-y = Proxy(raw1)
-z = Proxy(raw2)
+# Initialize Proxies using the raw Nodes and graph's default tracer
+y = Proxy(raw1, tracer)
+z = Proxy(raw2, tracer)
+# y = Proxy(raw1)
+# z = Proxy(raw2)
 
 # Create other operations using the Proxies `y` and `z`
 a = torch.cat([y, z])
 b = torch.tanh(a)
 c = torch.neg(b)
+# By using the graph's own appending tracer to create Proxies,
+# notice we can now use n-ary operators on operations without
+# multiple tracers being created at run-time (line 52) which leads
+# to errors # To try this out for yourself, replace lines 42, 43
+# with 44, 45
+z = torch.add(b, c)
 
 # Create a new output Node and add it to the Graph. By doing this, the
 # Graph will contain all the Nodes we just created (since they're all
