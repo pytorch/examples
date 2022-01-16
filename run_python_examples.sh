@@ -206,4 +206,7 @@ if [ "" == "$ERRORS" ]; then
 else
   echo "Some examples failed:"
   printf "$ERRORS"
+  #Exit with error (0-255) in case of failure in one of the tests.
+  exit 1
+
 fi
