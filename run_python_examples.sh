@@ -1,15 +1,13 @@
 #!/usr/bin/env bash
 #
 # This script runs through the code in each of the python examples.
-# The purpose is just as an integrtion test, not to actually train
-# models in any meaningful way. For that reason, most of these set
-# epochs = 1 and --dry-run.
+# The purpose is just as an integration test, not to actually train models in any meaningful way.
+# For that reason, most of these set epochs = 1 and --dry-run.
 #
 # Optionally specify a comma separated list of examples to run.
 # can be run as:
 # ./run_python_examples.sh "install_deps,run_all,clean"
-# to pip install dependencies (other than pytorch), run all examples,
-# and remove temporary/changed data files.
+# to pip install dependencies (other than pytorch), run all examples, and remove temporary/changed data files.
 # Expects pytorch, torchvision to be installed.
 
 BASE_DIR=`pwd`"/"`dirname $0`
