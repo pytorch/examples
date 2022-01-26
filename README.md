@@ -8,7 +8,7 @@ A repository showcasing examples of using [PyTorch](https://github.com/pytorch/p
 
 - [Image classification (MNIST) using Convnets](./mnist/README.md)
 - [Word-level Language Modeling using RNN and Transformer](./word_language_model/README.md)
-- [Training Imagenet Classifiers with Residual Networks](./imagenet/README.md)
+- [Training Imagenet Classifiers with Popular Networks](./imagenet/README.md)
 - [Generative Adversarial Networks (DCGAN)](./dcgan/README.md)
 - [Variational Auto-Encoders](./vae/README.md)
 - [Superresolution using an efficient sub-pixel convolutional neural network](./super_resolution/README.md)
