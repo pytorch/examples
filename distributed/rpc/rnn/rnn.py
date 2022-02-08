@@ -73,7 +73,7 @@ class RNNModel(nn.Module):
     A distributed RNN model which puts embedding table and decoder parameters on
     a remote parameter server, and locally holds parameters for the LSTM module.
     The structure of the RNN model is borrowed from the word language model
-    example. See https://github.com/pytorch/examples/blob/master/word_language_model/model.py
+    example. See https://github.com/pytorch/examples/blob/main/word_language_model/model.py
     """
     def __init__(self, ps, ntoken, ninp, nhid, nlayers, dropout=0.5):
         super(RNNModel, self).__init__()
