@@ -51,7 +51,7 @@ class Policy(nn.Module):
     r"""
     Borrowing the ``Policy`` class from the Reinforcement Learning example.
     Copying the code to make these two examples independent.
-    See https://github.com/pytorch/examples/tree/master/reinforcement_learning
+    See https://github.com/pytorch/examples/tree/main/reinforcement_learning
     """
     def __init__(self):
         super(Policy, self).__init__()
@@ -129,7 +129,7 @@ class Agent:
     def select_action(self, ob_id, state):
         r"""
         This function is mostly borrowed from the Reinforcement Learning example.
-        See https://github.com/pytorch/examples/tree/master/reinforcement_learning
+        See https://github.com/pytorch/examples/tree/main/reinforcement_learning
         The main difference is that instead of keeping all probs in one list,
         the agent keeps probs in a dictionary, one key per observer.
 
@@ -171,7 +171,7 @@ class Agent:
     def finish_episode(self):
         r"""
         This function is mostly borrowed from the Reinforcement Learning example.
-        See https://github.com/pytorch/examples/tree/master/reinforcement_learning
+        See https://github.com/pytorch/examples/tree/main/reinforcement_learning
         The main difference is that it joins all probs and rewards from
         different observers into one list, and uses the minimum observer rewards
         as the reward of the current episode.

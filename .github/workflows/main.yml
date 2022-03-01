@@ -2,13 +2,13 @@ name: Run Examples
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
   schedule:
     # Every day at 3:00am
     - cron: '0 3 * * *'
-        
+
 
 jobs:
   test:
@@ -39,4 +39,3 @@ jobs:
         title: Daily CI failed
         body:  Commit ${{ github.sha }} daily scheduled [CI run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) failed, please check why
         assignees: ''
-
