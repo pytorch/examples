@@ -1,3 +1,4 @@
 torch
 numpy
 gym
+pygame
