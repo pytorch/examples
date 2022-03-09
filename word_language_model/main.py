@@ -223,12 +223,7 @@ try:
             with open(args.save, 'wb') as f:
                 torch.save(model, f)
             best_val_loss = val_loss
-        elif not args.lr_decay:
-            # Anneal the learning rate if no improvement has been seen in the validation dataset.
-            lr /= 4.0
-        if args.lr_decay:
-            # Decay the learning rate if lr_decay has been set.
-            lr = args.lr / (1 + epoch * args.lr_decay)
+        lr = args.lr / (1 + epoch * args.lr_decay)
 except KeyboardInterrupt:
     print('-' * 89)
     print('Exiting from training early')
