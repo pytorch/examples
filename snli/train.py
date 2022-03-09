@@ -6,17 +6,21 @@ import torch
 import torch.optim as O
 import torch.nn as nn
 
-from torchtext import data
-from torchtext import datasets
+from torchtext.legacy import data
+from torchtext.legacy import datasets
 
 from model import SNLIClassifier
 from util import get_args, makedirs
 
 
 args = get_args()
-torch.cuda.set_device(args.gpu)
+if torch.cuda.is_available():
+    torch.cuda.set_device(args.gpu)
+    device = torch.device('cuda:{}'.format(args.gpu))
+else:
+    device = torch.device('cpu')
 
-inputs = data.Field(lower=args.lower)
+inputs = data.Field(lower=args.lower, tokenize='spacy')
 answers = data.Field(sequential=False)
 
 train, dev, test = datasets.SNLI.splits(inputs, answers)
@@ -32,7 +36,7 @@ if args.word_vectors:
 answers.build_vocab(train)
 
 train_iter, dev_iter, test_iter = data.BucketIterator.splits(
-            (train, dev, test), batch_size=args.batch_size, device=args.gpu)
+            (train, dev, test), batch_size=args.batch_size, device=device)
 
 config = args
 config.n_embed = len(inputs.vocab)
@@ -44,12 +48,12 @@ if config.birnn:
     config.n_cells *= 2
 
 if args.resume_snapshot:
-    model = torch.load(args.resume_snapshot, map_location=lambda storage, locatoin: storage.cuda(args.gpu))
+    model = torch.load(args.resume_snapshot, map_location=device)
 else:
     model = SNLIClassifier(config)
     if args.word_vectors:
         model.embed.weight.data.copy_(inputs.vocab.vectors)
-        model.cuda(args.gpu)
+        model.to(device)
 
 criterion = nn.CrossEntropyLoss()
 opt = O.Adam(model.parameters(), lr=args.lr)
@@ -57,7 +61,6 @@ opt = O.Adam(model.parameters(), lr=args.lr)
 iterations = 0
 start = time.time()
 best_dev_acc = -1
-train_iter.repeat = False
 header = '  Time Epoch Iteration Progress    (%Epoch)   Loss   Dev/Loss     Accuracy  Dev/Accuracy'
 dev_log_template = ' '.join('{:>6.0f},{:>5.0f},{:>9.0f},{:>5.0f}/{:<5.0f} {:>7.0f}%,{:>8.6f},{:8.6f},{:12.4f},{:12.4f}'.split(','))
 log_template =     ' '.join('{:>6.0f},{:>5.0f},{:>9.0f},{:>5.0f}/{:<5.0f} {:>7.0f}%,{:>8.6f},{},{:12.4f},{}'.split(','))
@@ -116,7 +119,7 @@ for epoch in range(args.epochs):
                 epoch, iterations, 1+batch_idx, len(train_iter),
                 100. * (1+batch_idx) / len(train_iter), loss.item(), dev_loss.item(), train_acc, dev_acc))
 
-            # update best valiation set accuracy
+            # update best validation set accuracy
             if dev_acc > best_dev_acc:
 
                 # found a model with better validation set accuracy
@@ -137,5 +140,5 @@ for epoch in range(args.epochs):
             print(log_template.format(time.time()-start,
                 epoch, iterations, 1+batch_idx, len(train_iter),
                 100. * (1+batch_idx) / len(train_iter), loss.item(), ' '*8, n_correct/n_total*100, ' '*12))
-
-
+        if args.dry_run:
+            break

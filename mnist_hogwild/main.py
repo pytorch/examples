@@ -4,8 +4,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.multiprocessing as mp
+from torch.utils.data.sampler import Sampler
+from torchvision import datasets, transforms
 
-from train import train
+from train import train, test
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
@@ -25,6 +27,10 @@ parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                     help='how many batches to wait before logging training status')
 parser.add_argument('--num-processes', type=int, default=2, metavar='N',
                     help='how many training processes to use (default: 2)')
+parser.add_argument('--cuda', action='store_true', default=False,
+                    help='enables CUDA training')
+parser.add_argument('--dry-run', action='store_true', default=False,
+                    help='quickly check a single pass')
 
 class Net(nn.Module):
     def __init__(self):
@@ -44,18 +50,42 @@ class Net(nn.Module):
         x = self.fc2(x)
         return F.log_softmax(x, dim=1)
 
+
 if __name__ == '__main__':
     args = parser.parse_args()
 
-    torch.manual_seed(args.seed)
+    use_cuda = args.cuda and torch.cuda.is_available()
+    device = torch.device("cuda" if use_cuda else "cpu")
+    transform=transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.1307,), (0.3081,))
+        ])
+    dataset1 = datasets.MNIST('../data', train=True, download=True,
+                       transform=transform)
+    dataset2 = datasets.MNIST('../data', train=False,
+                       transform=transform)
+    kwargs = {'batch_size': args.batch_size,
+              'shuffle': True}
+    if use_cuda:
+        kwargs.update({'num_workers': 1,
+                       'pin_memory': True,
+                      })
 
-    model = Net()
+    torch.manual_seed(args.seed)
+    mp.set_start_method('spawn')
+
+    model = Net().to(device)
     model.share_memory() # gradients are allocated lazily, so they are not shared here
 
     processes = []
     for rank in range(args.num_processes):
-        p = mp.Process(target=train, args=(rank, args, model))
+        p = mp.Process(target=train, args=(rank, args, model, device,
+                                           dataset1, kwargs))
+        # We first train the model across `num_processes` processes
         p.start()
         processes.append(p)
     for p in processes:
         p.join()
+
+    # Once training is complete, we can test the model
+    test(args, model, device, dataset2, kwargs)

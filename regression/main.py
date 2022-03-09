@@ -3,7 +3,6 @@ from __future__ import print_function
 from itertools import count
 
 import torch
-import torch.autograd
 import torch.nn.functional as F
 
 POLY_DEGREE = 4
@@ -26,7 +25,7 @@ def poly_desc(W, b):
     """Creates a string description of a polynomial."""
     result = 'y = '
     for i, w in enumerate(W):
-        result += '{:+.2f} x^{} '.format(w, len(W) - i)
+        result += '{:+.2f} x^{} '.format(w, i + 1)
     result += '{:+.2f}'.format(b[0])
     return result
 
@@ -58,7 +57,7 @@ for batch_idx in count(1):
 
     # Apply gradients
     for param in fc.parameters():
-        param.data.add_(-0.1 * param.grad.data)
+        param.data.add_(-0.1 * param.grad)
 
     # Stop criterion
     if loss < 1e-3:

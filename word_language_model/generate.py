@@ -1,19 +1,15 @@
 ###############################################################################
-# Language Modeling on Penn Tree Bank
+# Language Modeling on Wikitext-2
 #
-# This file generates new sentences sampled from the language model
+# This file generates new sentences sampled from the language model.
 #
 ###############################################################################
-
 import argparse
-
 import torch
-from torch.autograd import Variable
 
 import data
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 Language Model')
-
 # Model parameters.
 parser.add_argument('--data', type=str, default='./data/wikitext-2',
                     help='location of the data corpus')
@@ -37,29 +33,40 @@ args = parser.parse_args()
 torch.manual_seed(args.seed)
 if torch.cuda.is_available():
     if not args.cuda:
-        print("WARNING: You have a CUDA device, so you should probably run with --cuda")
+        print("WARNING: You have a CUDA device, so you should probably run with --cuda.")
 
 device = torch.device("cuda" if args.cuda else "cpu")
 
 if args.temperature < 1e-3:
-    parser.error("--temperature has to be greater or equal 1e-3")
+    parser.error("--temperature has to be greater or equal 1e-3.")
 
 with open(args.checkpoint, 'rb') as f:
-    model = torch.load(f).to(device)
+    model = torch.load(f, map_location=device)
 model.eval()
 
 corpus = data.Corpus(args.data)
 ntokens = len(corpus.dictionary)
-hidden = model.init_hidden(1)
+
+is_transformer_model = hasattr(model, 'model_type') and model.model_type == 'Transformer'
+if not is_transformer_model:
+    hidden = model.init_hidden(1)
 input = torch.randint(ntokens, (1, 1), dtype=torch.long).to(device)
 
 with open(args.outf, 'w') as outf:
     with torch.no_grad():  # no tracking history
         for i in range(args.words):
-            output, hidden = model(input, hidden)
-            word_weights = output.squeeze().div(args.temperature).exp().cpu()
-            word_idx = torch.multinomial(word_weights, 1)[0]
-            input.fill_(word_idx)
+            if is_transformer_model:
+                output = model(input, False)
+                word_weights = output[-1].squeeze().div(args.temperature).exp().cpu()
+                word_idx = torch.multinomial(word_weights, 1)[0]
+                word_tensor = torch.Tensor([[word_idx]]).long().to(device)
+                input = torch.cat([input, word_tensor], 0)
+            else:
+                output, hidden = model(input, hidden)
+                word_weights = output.squeeze().div(args.temperature).exp().cpu()
+                word_idx = torch.multinomial(word_weights, 1)[0]
+                input.fill_(word_idx)
+
             word = corpus.dictionary.idx2word[word_idx]
 
             outf.write(word + ('\n' if i % 20 == 19 else ' '))

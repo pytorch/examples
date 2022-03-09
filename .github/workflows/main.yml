@@ -1,0 +1,41 @@
+name: Run Examples
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Every day at 3:00am
+    - cron: '0 3 * * *'
+
+
+jobs:
+  test:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+    - name: Install PyTorch
+      run: |
+        python -m pip install --upgrade pip
+        # Install CPU-based pytorch
+        pip install --pre torch torchvision -f https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html
+        # Maybe use the CUDA 10.2 version instead?
+        # pip install --pre torch torchvision -f https://download.pytorch.org/whl/nightly/cu102/torch_nightly.html
+    - name: Run Tests
+      run: |
+        ./run_python_examples.sh "install_deps,run_all,clean"
+    - name: Open issue on failure
+      if: ${{ failure() && github.event_name  == 'schedule' }}
+      uses: rishabhgupta/git-action-issue@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        title: Daily CI failed
+        body:  Commit ${{ github.sha }} daily scheduled [CI run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) failed, please check why
+        assignees: ''

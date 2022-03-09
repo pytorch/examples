@@ -1,4 +1,5 @@
 from __future__ import print_function
+import argparse
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -21,7 +22,7 @@ class Sequence(nn.Module):
         h_t2 = torch.zeros(input.size(0), 51, dtype=torch.double)
         c_t2 = torch.zeros(input.size(0), 51, dtype=torch.double)
 
-        for i, input_t in enumerate(input.chunk(input.size(1), dim=1)):
+        for input_t in input.split(1, dim=1):
             h_t, c_t = self.lstm1(input_t, (h_t, c_t))
             h_t2, c_t2 = self.lstm2(h_t, (h_t2, c_t2))
             output = self.linear(h_t2)
@@ -31,11 +32,14 @@ class Sequence(nn.Module):
             h_t2, c_t2 = self.lstm2(h_t, (h_t2, c_t2))
             output = self.linear(h_t2)
             outputs += [output]
-        outputs = torch.stack(outputs, 1).squeeze(2)
+        outputs = torch.cat(outputs, dim=1)
         return outputs
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--steps', type=int, default=15, help='steps to run')
+    opt = parser.parse_args()
     # set random seed to 0
     np.random.seed(0)
     torch.manual_seed(0)
@@ -52,7 +56,7 @@ if __name__ == '__main__':
     # use LBFGS as optimizer since we can load the whole data to train
     optimizer = optim.LBFGS(seq.parameters(), lr=0.8)
     #begin to train
-    for i in range(15):
+    for i in range(opt.steps):
         print('STEP: ', i)
         def closure():
             optimizer.zero_grad()
