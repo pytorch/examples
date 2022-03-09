@@ -31,8 +31,8 @@ optional arguments:
   --batchSize BATCHSIZE input batch size
   --imageSize IMAGESIZE the height / width of the input image to network
   --nz NZ               size of the latent z vector
-  --ngf NGF
-  --ndf NDF
+  --ngf NGF             number of filters in the generator
+  --ndf NDF             number of filters in the discriminator
   --niter NITER         number of epochs to train for
   --lr LR               learning rate, default=0.0002
   --beta1 BETA1         beta1 for adam. default=0.5
