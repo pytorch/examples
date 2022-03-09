@@ -124,6 +124,9 @@ def finish_episode():
 
     # sum up all the values of policy_losses and value_losses
     loss = torch.stack(policy_losses).sum() + torch.stack(value_losses).sum()
+    
+    # normalize loss by number of rewards
+    loss /= rewards.numel()
 
     # perform backprop
     loss.backward()

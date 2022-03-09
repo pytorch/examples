@@ -72,6 +72,7 @@ def finish_episode():
         policy_loss.append(-log_prob * R)
     optimizer.zero_grad()
     policy_loss = torch.cat(policy_loss).sum()
+    policy_loss /= rewards.numel()
     policy_loss.backward()
     optimizer.step()
     del policy.rewards[:]
