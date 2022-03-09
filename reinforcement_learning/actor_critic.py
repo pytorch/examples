@@ -63,7 +63,7 @@ class Policy(nn.Module):
         # critic: evaluates being in the state s_t
         state_values = self.value_head(x)
 
-        # return values for both actor and critic as a tupel of 2 values:
+        # return values for both actor and critic as a tuple of 2 values:
         # 1. a list with the probability of each action over the action space
         # 2. the value from state s_t 
         return action_prob, state_values
@@ -93,7 +93,7 @@ def select_action(state):
 
 def finish_episode():
     """
-    Training code. Calcultes actor and critic loss and performs backprop.
+    Training code. Calculates actor and critic loss and performs backprop.
     """
     R = 0
     saved_actions = model.saved_actions

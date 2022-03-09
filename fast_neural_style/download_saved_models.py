@@ -12,7 +12,10 @@ import zipfile
 try:
     from torch.utils.model_zoo import _download_url_to_file
 except ImportError:
-    from torch.hub import _download_url_to_file
+    try:
+        from torch.hub import download_url_to_file as _download_url_to_file
+    except ImportError:
+        from torch.hub import _download_url_to_file
 
 
 def unzip(source_filename, dest_dir):

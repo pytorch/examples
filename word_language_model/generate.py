@@ -1,18 +1,15 @@
 ###############################################################################
 # Language Modeling on Wikitext-2
 #
-# This file generates new sentences sampled from the language model
+# This file generates new sentences sampled from the language model.
 #
 ###############################################################################
-
 import argparse
-
 import torch
 
 import data
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 Language Model')
-
 # Model parameters.
 parser.add_argument('--data', type=str, default='./data/wikitext-2',
                     help='location of the data corpus')
@@ -36,15 +33,15 @@ args = parser.parse_args()
 torch.manual_seed(args.seed)
 if torch.cuda.is_available():
     if not args.cuda:
-        print("WARNING: You have a CUDA device, so you should probably run with --cuda")
+        print("WARNING: You have a CUDA device, so you should probably run with --cuda.")
 
 device = torch.device("cuda" if args.cuda else "cpu")
 
 if args.temperature < 1e-3:
-    parser.error("--temperature has to be greater or equal 1e-3")
+    parser.error("--temperature has to be greater or equal 1e-3.")
 
 with open(args.checkpoint, 'rb') as f:
-    model = torch.load(f).to(device)
+    model = torch.load(f, map_location=device)
 model.eval()
 
 corpus = data.Corpus(args.data)

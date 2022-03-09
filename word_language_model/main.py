@@ -10,11 +10,11 @@ import torch.onnx
 import data
 import model
 
-parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
+parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM/GRU/Transformer Language Model')
 parser.add_argument('--data', type=str, default='./data/wikitext-2',
                     help='location of the data corpus')
 parser.add_argument('--model', type=str, default='LSTM',
-                    help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU, Transformer)')
+                    help='type of network (RNN_TANH, RNN_RELU, LSTM, GRU, Transformer)')
 parser.add_argument('--emsize', type=int, default=200,
                     help='size of word embeddings')
 parser.add_argument('--nhid', type=int, default=200,
@@ -47,17 +47,17 @@ parser.add_argument('--save', type=str, default='model.pt',
                     help='path to save the final model')
 parser.add_argument('--onnx-export', type=str, default='',
                     help='path to export the final model in onnx format')
-
 parser.add_argument('--nhead', type=int, default=2,
                     help='the number of heads in the encoder/decoder of the transformer model')
-
+parser.add_argument('--dry-run', action='store_true',
+                    help='verify the code and the model')
 args = parser.parse_args()
 
 # Set the random seed manually for reproducibility.
 torch.manual_seed(args.seed)
 if torch.cuda.is_available():
     if not args.cuda:
-        print("WARNING: You have a CUDA device, so you should probably run with --cuda")
+        print("WARNING: You have a CUDA device, so you should probably run with --cuda.")
 
 device = torch.device("cuda" if args.cuda else "cpu")
 
@@ -103,7 +103,7 @@ if args.model == 'Transformer':
 else:
     model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
 
-criterion = nn.CrossEntropyLoss()
+criterion = nn.NLLLoss()
 
 ###############################################################################
 # Training code
@@ -147,11 +147,11 @@ def evaluate(data_source):
             data, targets = get_batch(data_source, i)
             if args.model == 'Transformer':
                 output = model(data)
+                output = output.view(-1, ntokens)
             else:
                 output, hidden = model(data, hidden)
                 hidden = repackage_hidden(hidden)
-            output_flat = output.view(-1, ntokens)
-            total_loss += len(data) * criterion(output_flat, targets).item()
+            total_loss += len(data) * criterion(output, targets).item()
     return total_loss / (len(data_source) - 1)
 
 
@@ -170,16 +170,17 @@ def train():
         model.zero_grad()
         if args.model == 'Transformer':
             output = model(data)
+            output = output.view(-1, ntokens)
         else:
             hidden = repackage_hidden(hidden)
             output, hidden = model(data, hidden)
-        loss = criterion(output.view(-1, ntokens), targets)
+        loss = criterion(output, targets)
         loss.backward()
 
         # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
         torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
         for p in model.parameters():
-            p.data.add_(-lr, p.grad.data)
+            p.data.add_(p.grad, alpha=-lr)
 
         total_loss += loss.item()
 
@@ -192,11 +193,12 @@ def train():
                 elapsed * 1000 / args.log_interval, cur_loss, math.exp(cur_loss)))
             total_loss = 0
             start_time = time.time()
+        if args.dry_run:
+            break
 
 
 def export_onnx(path, batch_size, seq_len):
-    print('The model is also exported in ONNX format at {}'.
-          format(os.path.realpath(args.onnx_export)))
+    print('The model is also exported in ONNX format at {}.'.format(os.path.realpath(args.onnx_export)))
     model.eval()
     dummy_input = torch.LongTensor(seq_len * batch_size).zero_().view(-1, batch_size).to(device)
     hidden = model.init_hidden(batch_size)
