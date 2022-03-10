@@ -11,7 +11,7 @@ import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 import torch.distributed as dist
 import torch.optim
-from torch.optim.lr_scheduler import *
+from torch.optim.lr_scheduler import StepLR
 import torch.multiprocessing as mp
 import torch.utils.data
 import torch.utils.data.distributed
