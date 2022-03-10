@@ -282,9 +282,8 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         # measure data loading time
         data_time.update(time.time() - end)
 
-        if args.gpu is not None:
+        if args.gpu is not None and torch.cuda.is_available():
             images = images.cuda(args.gpu, non_blocking=True)
-        if torch.cuda.is_available():
             target = target.cuda(args.gpu, non_blocking=True)
 
         # compute output
