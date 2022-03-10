@@ -6,11 +6,11 @@ WARNING: if you fork this repo, github actions will run daily on it. To disable 
 
 `pytorch/examples` is a repository showcasing examples of using [PyTorch](https://github.com/pytorch/pytorch). The goal is to have curated, short, few/no dependencies *high quality* examples that are substantially different from each other that can be emulated in your existing work.
 
-For tutorials: https://github.com/pytorch/tutorials
-For changes to pytorch.org: https://github.com/pytorch/pytorch.github.io
-For a general model hub: https://pytorch.org/hub/ or https://huggingface.co/models
-For recipes on how to run PyTorch in production: https://github.com/facebookresearch/recipes
-For general Q&A and support: https://discuss.pytorch.org/
+* For tutorials: https://github.com/pytorch/tutorials
+* For changes to pytorch.org: https://github.com/pytorch/pytorch.github.io
+* For a general model hub: https://pytorch.org/hub/ or https://huggingface.co/models
+* For recipes on how to run PyTorch in production: https://github.com/facebookresearch/recipes
+* For general Q&A and support: https://discuss.pytorch.org/
 ## Available models
 - [Image classification (MNIST) using Convnets](./mnist/README.md)
 - [Word-level Language Modeling using RNN and Transformer](./word_language_model/README.md)
