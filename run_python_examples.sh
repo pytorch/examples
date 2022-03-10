@@ -180,7 +180,6 @@ function run_all() {
   mnist_hogwild
   regression
   reinforcement_learning
-  snli
   super_resolution
   time_sequence_prediction
   vae
