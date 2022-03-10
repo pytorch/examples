@@ -5,6 +5,8 @@ possible.
 ## Pull Requests
 We actively welcome your pull requests.
 
+If you're new we encourage you to take a look at issues tagged with [good first issue](https://github.com/pytorch/examples/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+
 ### For new examples
 0. Create a github issue proposing a new example and make sure it's substantially different from an existing one
 1. Fork the repo and create your branch from `main`.
