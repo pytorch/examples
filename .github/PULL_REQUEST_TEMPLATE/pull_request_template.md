@@ -17,7 +17,7 @@ If this is a bug fix please link the issue you are fixing. Fixes #(issue)
 Please delete options that are not relevant.
 
 - [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
+- [ ] New Example (new example contribution)
 - [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
 - [ ] This change requires a documentation update
 
@@ -36,6 +36,6 @@ If this is a new example please add a corresponding test in `run_python_examples
 
 ## Checklist:
 
-- [ ] Have you added tests that prove your fix is effective or that this feature works?
+- [ ] Have you added tests that prove your fix is effective or that this example works?
 - [ ] Has code been commented, particularly in hard-to-understand areas?
 - [ ] Have you made corresponding changes to the documentation?
