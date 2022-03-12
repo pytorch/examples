@@ -27,6 +27,17 @@ def check_paths(args):
         print(e)
         sys.exit(1)
 
+def try_save(transformer_state_dict, save_model_path):
+    custom_save_path = save_model_path
+
+    while True:
+        try:
+            torch.save(transformer_state_dict, custom_save_path)
+            break
+        except Exception as e:
+            print(str(e))
+            print("Please enter new save path:")
+            custom_save_path = input() 
 
 def train(args):
     device = torch.device("cuda" if args.cuda else "cpu")
@@ -114,7 +125,7 @@ def train(args):
     save_model_filename = "epoch_" + str(args.epochs) + "_" + str(time.ctime()).replace(' ', '_') + "_" + str(
         args.content_weight) + "_" + str(args.style_weight) + ".model"
     save_model_path = os.path.join(args.save_model_dir, save_model_filename)
-    torch.save(transformer.state_dict(), save_model_path)
+    try_save(transformer.state_dict(), save_model_path)
 
     print("\nDone, trained model saved at", save_model_path)
 
