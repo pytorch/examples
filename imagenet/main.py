@@ -350,7 +350,7 @@ def validate(val_loader, model, criterion, args):
     top1 = AverageMeter('Acc@1', ':6.2f', Summary.AVERAGE)
     top5 = AverageMeter('Acc@5', ':6.2f', Summary.AVERAGE)
     progress = ProgressMeter(
-        len(val_loader) + (len(val_loader.sampler) * args.world_size < len(val_loader.dataset)),
+        len(val_loader) + (args.distributed and (len(val_loader.sampler) * args.world_size < len(val_loader.dataset))),
         [batch_time, losses, top1, top5],
         prefix='Test: ')
 
@@ -362,7 +362,7 @@ def validate(val_loader, model, criterion, args):
         top1.all_reduce()
         top5.all_reduce()
 
-    if len(val_loader.sampler) * args.world_size < len(val_loader.dataset):
+    if args.distributed and (len(val_loader.sampler) * args.world_size < len(val_loader.dataset)):
         aux_val_dataset = Subset(val_loader.dataset,
                                  range(len(val_loader.sampler) * args.world_size, len(val_loader.dataset)))
         aux_val_loader = torch.utils.data.DataLoader(
