@@ -18,6 +18,7 @@ import torch.utils.data.distributed
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
+from torch.utils.data import Subset
 
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
@@ -214,27 +215,42 @@ def main_worker(gpu, ngpus_per_node, args):
             normalize,
         ]))
 
+    val_dataset = datasets.ImageFolder(
+        valdir,
+        transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            normalize,
+        ]))
+
+    aux_val_dataset = None
     if args.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
+        val_sampler = torch.utils.data.distributed.DistributedSampler(val_dataset, shuffle=False, drop_last=True)
+        if len(val_sampler) * args.world_size < len(val_dataset):
+            aux_val_dataset = Subset(val_dataset, range(len(val_sampler) * args.world_size, len(val_dataset)))
     else:
         train_sampler = None
+        val_sampler = None
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
         num_workers=args.workers, pin_memory=True, sampler=train_sampler)
 
     val_loader = torch.utils.data.DataLoader(
-        datasets.ImageFolder(valdir, transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            normalize,
-        ])),
-        batch_size=args.batch_size, shuffle=False,
-        num_workers=args.workers, pin_memory=True)
+        val_dataset, batch_size=args.batch_size, shuffle=False,
+        num_workers=args.workers, pin_memory=True, sampler=val_sampler)
+
+    if aux_val_dataset is not None:
+        aux_val_loader = torch.utils.data.DataLoader(
+            aux_val_dataset, batch_size=args.batch_size, shuffle=False,
+            num_workers=args.workers, pin_memory=True)
+    else:
+        aux_val_loader = None
 
     if args.evaluate:
-        validate(val_loader, model, criterion, args)
+        validate(val_loader, model, criterion, args, aux_val_loader=aux_val_loader)
         return
 
     for epoch in range(args.start_epoch, args.epochs):
@@ -246,7 +262,7 @@ def main_worker(gpu, ngpus_per_node, args):
         train(train_loader, model, criterion, optimizer, epoch, args)
 
         # evaluate on validation set
-        acc1 = validate(val_loader, model, criterion, args)
+        acc1 = validate(val_loader, model, criterion, args, aux_val_loader=aux_val_loader)
 
         # remember best acc@1 and save checkpoint
         is_best = acc1 > best_acc1
@@ -307,48 +323,59 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         end = time.time()
 
         if i % args.print_freq == 0:
-            progress.display(i)
+            progress.display(i + 1)
 
 
-def validate(val_loader, model, criterion, args):
+def validate(val_loader, model, criterion, args, aux_val_loader=None):
+
+    def run_validate(loader, base_progress=0):
+        with torch.no_grad():
+            end = time.time()
+            for i, (images, target) in enumerate(loader):
+                i = base_progress + i
+                if args.gpu is not None:
+                    images = images.cuda(args.gpu, non_blocking=True)
+                if torch.cuda.is_available():
+                    target = target.cuda(args.gpu, non_blocking=True)
+
+                # compute output
+                output = model(images)
+                loss = criterion(output, target)
+
+                # measure accuracy and record loss
+                acc1, acc5 = accuracy(output, target, topk=(1, 5))
+                losses.update(loss.item(), images.size(0))
+                top1.update(acc1[0], images.size(0))
+                top5.update(acc5[0], images.size(0))
+
+                # measure elapsed time
+                batch_time.update(time.time() - end)
+                end = time.time()
+
+                if i % args.print_freq == 0:
+                    progress.display(i + 1)
+
     batch_time = AverageMeter('Time', ':6.3f', Summary.NONE)
     losses = AverageMeter('Loss', ':.4e', Summary.NONE)
     top1 = AverageMeter('Acc@1', ':6.2f', Summary.AVERAGE)
     top5 = AverageMeter('Acc@5', ':6.2f', Summary.AVERAGE)
     progress = ProgressMeter(
-        len(val_loader),
+        len(val_loader) + (len(aux_val_loader) if aux_val_loader is not None else 0),
         [batch_time, losses, top1, top5],
         prefix='Test: ')
 
     # switch to evaluate mode
     model.eval()
 
-    with torch.no_grad():
-        end = time.time()
-        for i, (images, target) in enumerate(val_loader):
-            if args.gpu is not None:
-                images = images.cuda(args.gpu, non_blocking=True)
-            if torch.cuda.is_available():
-                target = target.cuda(args.gpu, non_blocking=True)
+    run_validate(val_loader)
+    if args.distributed:
+        top1.all_reduce()
+        top5.all_reduce()
 
-            # compute output
-            output = model(images)
-            loss = criterion(output, target)
+    if aux_val_loader is not None:
+        run_validate(aux_val_loader, len(val_loader))
 
-            # measure accuracy and record loss
-            acc1, acc5 = accuracy(output, target, topk=(1, 5))
-            losses.update(loss.item(), images.size(0))
-            top1.update(acc1[0], images.size(0))
-            top5.update(acc5[0], images.size(0))
-
-            # measure elapsed time
-            batch_time.update(time.time() - end)
-            end = time.time()
-
-            if i % args.print_freq == 0:
-                progress.display(i)
-
-        progress.display_summary()
+    progress.display_summary()
 
     return top1.avg
 
@@ -382,6 +409,12 @@ class AverageMeter(object):
         self.val = val
         self.sum += val * n
         self.count += n
+        self.avg = self.sum / self.count
+
+    def all_reduce(self):
+        total = torch.FloatTensor([self.sum, self.count])
+        dist.all_reduce(total, dist.ReduceOp.SUM, async_op=False)
+        self.sum, self.count = total.tolist()
         self.avg = self.sum / self.count
 
     def __str__(self):
