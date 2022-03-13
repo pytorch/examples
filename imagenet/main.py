@@ -224,12 +224,9 @@ def main_worker(gpu, ngpus_per_node, args):
             normalize,
         ]))
 
-    aux_val_dataset = None
     if args.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
         val_sampler = torch.utils.data.distributed.DistributedSampler(val_dataset, shuffle=False, drop_last=True)
-        if len(val_sampler) * args.world_size < len(val_dataset):
-            aux_val_dataset = Subset(val_dataset, range(len(val_sampler) * args.world_size, len(val_dataset)))
     else:
         train_sampler = None
         val_sampler = None
@@ -242,15 +239,8 @@ def main_worker(gpu, ngpus_per_node, args):
         val_dataset, batch_size=args.batch_size, shuffle=False,
         num_workers=args.workers, pin_memory=True, sampler=val_sampler)
 
-    if aux_val_dataset is not None:
-        aux_val_loader = torch.utils.data.DataLoader(
-            aux_val_dataset, batch_size=args.batch_size, shuffle=False,
-            num_workers=args.workers, pin_memory=True)
-    else:
-        aux_val_loader = None
-
     if args.evaluate:
-        validate(val_loader, model, criterion, args, aux_val_loader=aux_val_loader)
+        validate(val_loader, model, criterion, args)
         return
 
     for epoch in range(args.start_epoch, args.epochs):
@@ -262,7 +252,7 @@ def main_worker(gpu, ngpus_per_node, args):
         train(train_loader, model, criterion, optimizer, epoch, args)
 
         # evaluate on validation set
-        acc1 = validate(val_loader, model, criterion, args, aux_val_loader=aux_val_loader)
+        acc1 = validate(val_loader, model, criterion, args)
 
         # remember best acc@1 and save checkpoint
         is_best = acc1 > best_acc1
@@ -326,7 +316,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
             progress.display(i + 1)
 
 
-def validate(val_loader, model, criterion, args, aux_val_loader=None):
+def validate(val_loader, model, criterion, args):
 
     def run_validate(loader, base_progress=0):
         with torch.no_grad():
@@ -360,7 +350,7 @@ def validate(val_loader, model, criterion, args, aux_val_loader=None):
     top1 = AverageMeter('Acc@1', ':6.2f', Summary.AVERAGE)
     top5 = AverageMeter('Acc@5', ':6.2f', Summary.AVERAGE)
     progress = ProgressMeter(
-        len(val_loader) + (len(aux_val_loader) if aux_val_loader is not None else 0),
+        len(val_loader) + (len(val_loader.sampler) * args.world_size < len(val_loader.dataset)),
         [batch_time, losses, top1, top5],
         prefix='Test: ')
 
@@ -372,7 +362,12 @@ def validate(val_loader, model, criterion, args, aux_val_loader=None):
         top1.all_reduce()
         top5.all_reduce()
 
-    if aux_val_loader is not None:
+    if len(val_loader.sampler) * args.world_size < len(val_loader.dataset):
+        aux_val_dataset = Subset(val_loader.dataset,
+                                 range(len(val_loader.sampler) * args.world_size, len(val_loader.dataset)))
+        aux_val_loader = torch.utils.data.DataLoader(
+            aux_val_dataset, batch_size=args.batch_size, shuffle=False,
+            num_workers=args.workers, pin_memory=True)
         run_validate(aux_val_loader, len(val_loader))
 
     progress.display_summary()
