@@ -6,6 +6,7 @@ from torch.fx import Proxy
 from typing import Tuple, Any, Optional
 
 import torch.fx
+from torch.fx.proxy import GraphAppendingTracer
 from torch.fx.passes.shape_prop import ShapeProp
 
 # Vmap
@@ -98,10 +99,10 @@ batching_rules[torch.movedim] = movedim_batching_rule
 # In order to apply a batching rule, we will simply pass in `Proxy` objects as
 # inputs to the functions. As the batching rules need some extra information
 # such as the batch dimension and shape, we will do some bookkeeping here.
-def gen_batching_rule_function(target, *args):
+def gen_batching_rule_function(tracer, target, *args):
     def lift_shape(i):
-        res = Proxy(i)
-        res.shape = i.shape
+        res = Proxy(i, tracer)
+        res.shape = i.meta['tensor_meta'].shape
         res.bdim = i.bdim
         return res
     proxy_args = [lift_shape(i) if isinstance(i, fx.Node) else i for i in args]
@@ -125,6 +126,7 @@ def vmap(model: torch.nn.Module, in_axes: Tuple[Optional[int], ...], example_arg
     # As vmap rewrites the whole graph, it's easiest to create an entirely new
     # graph and append to that.
     new_graph: fx.Graph = fx.Graph()
+    tracer = GraphAppendingTracer(new_graph)
 
     # We will create an environment to map the new nodes created to the
     # corresponding old nodes.
@@ -137,7 +139,7 @@ def vmap(model: torch.nn.Module, in_axes: Tuple[Optional[int], ...], example_arg
             # annotate it with the batch dimension from `in_axes`.
             new_node = new_graph.placeholder(node.name)
             new_node.bdim = next(in_axes)
-            new_node.shape = node.shape
+            new_node.meta = node.meta
             env[node.name] = new_node
         elif node.op == 'output':
             new_graph.output(env[node.args[0].name])
@@ -147,11 +149,11 @@ def vmap(model: torch.nn.Module, in_axes: Tuple[Optional[int], ...], example_arg
             # we will need to use our batching rules. Otherwise, we will simply
             # copy the node over.
             if any([x.bdim is not None for x in new_args if isinstance(x, fx.Node)]):
-                new_node = gen_batching_rule_function(node.target, *new_args)
+                new_node = gen_batching_rule_function(tracer, node.target, *new_args)
             else:
                 new_node = new_graph.node_copy(node, lambda x: env[x.name])
                 new_node.bdim = None
-            new_node.shape = node.shape
+            new_node.meta = node.meta
             env[node.name] = new_node
         else:
             raise RuntimeError("Not yet implemented")
