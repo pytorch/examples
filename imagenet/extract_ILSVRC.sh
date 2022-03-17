@@ -43,6 +43,7 @@ tar -xvf ILSVRC2012_img_train.tar && rm -f ILSVRC2012_img_train.tar
 find . -name "*.tar" | while read NAME ; do mkdir -p "${NAME%.tar}"; tar -xvf "${NAME}" -C "${NAME%.tar}"; rm -f "${NAME}"; done
 #
 # This results in a training directory like so:
+#
 #  imagenet/train/
 #  ├── n01440764
 #  │   ├── n01440764_10026.JPEG
@@ -60,7 +61,7 @@ mkdir imagenet/val && mv ILSVRC2012_img_val.tar imagenet/val/ && cd imagenet/val
 # get script from soumith and run; this script creates all class directories and moves images into corresponding directories
 wget -qO- https://raw.githubusercontent.com/soumith/imagenetloader.torch/master/valprep.sh | bash
 #
-# This resilts in a validation directory like so:
+# This results in a validation directory like so:
 #
 #  imagenet/val/
 #  ├── n01440764
