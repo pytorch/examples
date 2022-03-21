@@ -21,7 +21,7 @@ run_python_examples.sh @msaroufim
 ./regression/
 ./snli/ 
 ./mnist/
-./imagenett/
+./imagenet/
 ./super_resolution/ 
 ./time_sequence_prediction/
 ./vae/
