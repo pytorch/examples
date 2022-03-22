@@ -112,7 +112,8 @@ function regression() {
 
 function reinforcement_learning() {
   start
-  python reinforce.py || error "reinforcement learning failed"
+  python reinforce.py || error "reinforcement learning reinforce failed"
+  python actor_critic.py || error "reinforcement learning actor_critic failed"
 }
 
 function snli() {
