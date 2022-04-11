@@ -1,0 +1,28 @@
+# This is a comment.
+# Each line is a file pattern followed by one or more owners.
+
+# Github Actions, tests and CI
+./github/ @msaroufim
+run_python_examples.sh @msaroufim
+
+# Distributed examples 
+# Can also add the distributed oncall
+./distributed/ @mrshenli @pritamdamania87 @rohan-varma @H-Huang
+./mnist_hogwild/ @mrshenli @pritamdamania87 @rohan-varma @H-Huang
+
+# FX examples 
+./fx/ @jamesr66a @Chillee
+
+# Domain Examples 
+./reinforcement_learning/ @msaroufim 
+./word_language_model/ @msaroufim
+
+# Need an owner 
+./regression/
+./snli/ 
+./mnist/
+./imagenet/
+./super_resolution/ 
+./time_sequence_prediction/
+./vae/
+./cpp/
