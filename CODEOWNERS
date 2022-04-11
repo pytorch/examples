@@ -7,8 +7,8 @@ run_python_examples.sh @msaroufim
 
 # Distributed examples 
 # Can also add the distributed oncall
-./distributed/ @mrshenli @zhaojuanmao @pritamdamania87 @rohan-varma @mingzhe09088 @H-Huang
-./mnist_hogwild/ @mrshenli @zhaojuanmao @pritamdamania87 @rohan-varma @mingzhe09088 @H-Huang
+./distributed/ @mrshenli @pritamdamania87 @rohan-varma @H-Huang
+./mnist_hogwild/ @mrshenli @pritamdamania87 @rohan-varma @H-Huang
 
 # FX examples 
 ./fx/ @jamesr66a @Chillee
