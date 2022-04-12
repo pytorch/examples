@@ -19,7 +19,7 @@ If you're new we encourage you to take a look at issues tagged with [good first 
 ## For bug fixes
 1. Fork the repo and create your branch from `main`.
 2. Make your fix
-3. Make sure that `run_python_examples.sh` passes locally
+3. Make sure that `run_python_examples.sh` passes locally by first installing dependencies with `./run_python_examples.sh "install_deps"` then running the script end to end. 
 5. If you haven't already, complete the Contributor License Agreement ("CLA").
 6. Address any feedback in code review promptly
 
