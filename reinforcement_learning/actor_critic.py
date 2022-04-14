@@ -24,7 +24,7 @@ parser.add_argument('--log-interval', type=int, default=10, metavar='N',
 args = parser.parse_args()
 
 
-env = gym.make('CartPole-v0')
+env = gym.make('CartPole-v1')
 env.seed(args.seed)
 torch.manual_seed(args.seed)
 
