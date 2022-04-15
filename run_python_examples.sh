@@ -129,12 +129,10 @@ function fx() {
   # python custom_tracer.py || error "fx custom tracer has failed" UnboundLocalError: local variable 'tabulate' referenced before assignment
   python invert.py || error "fx invert has failed"
   python module_tracer.py || error "fx module tracer has failed"
-  # python nnc_compile.py || error "fx nnc compile has failed" AttributeError: module 'torch._C._te' has no attribute 'KernelScope'
   python primitive_library.py || error "fx primitive library has failed"
   python profiling_tracer.py || error "fx profiling tracer has failed"
   python replace_op.py || error "fx replace op has failed"
   python subgraph_rewriter_basic_use.py || error "fx subgraph has failed"
-  # python vmap.py || error "vmap has failed"     new_node.shape = node.shape None Object
   python wrap_output_dynamically.py || error "vmap output dynamically has failed"
 }
 
