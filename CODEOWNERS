@@ -19,10 +19,12 @@ run_python_examples.sh @msaroufim
 
 # Need an owner 
 ./regression/
-./snli/ 
 ./mnist/
 ./imagenet/
 ./super_resolution/ 
 ./time_sequence_prediction/
 ./vae/
+
+# Legacy examples
 ./cpp/
+./legacy/snli/ 

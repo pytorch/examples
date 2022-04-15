@@ -124,6 +124,18 @@ function snli() {
   python train.py --epochs 1 --dev_every 1 --no-bidirectional --dry-run || error "couldn't train snli"
 }
 
+function fx() {
+  start
+  # python custom_tracer.py || error "fx custom tracer has failed" UnboundLocalError: local variable 'tabulate' referenced before assignment
+  python invert.py || error "fx invert has failed"
+  python module_tracer.py || error "fx module tracer has failed"
+  python primitive_library.py || error "fx primitive library has failed"
+  python profiling_tracer.py || error "fx profiling tracer has failed"
+  python replace_op.py || error "fx replace op has failed"
+  python subgraph_rewriter_basic_use.py || error "fx subgraph has failed"
+  python wrap_output_dynamically.py || error "vmap output dynamically has failed"
+}
+
 function super_resolution() {
   start
   python main.py --upscale_factor 3 --batchSize 4 --testBatchSize 100 --nEpochs 1 --lr 0.001  || error "super resolution failed"
@@ -185,6 +197,7 @@ function run_all() {
   time_sequence_prediction
   vae
   word_language_model
+  fx
 }
 
 # by default, run all examples
