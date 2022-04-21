@@ -158,8 +158,6 @@ Available models
    waves <https://github.com/pytorch/examples/blob/main/time_sequence_prediction>`__
 -  `Implement the Neural Style Transfer algorithm on
    images <https://github.com/pytorch/examples/blob/main/fast_neural_style>`__
--  `Reinforcement Learning with Actor Critic and REINFORCE algorithms on
-   OpenAI gym <https://github.com/pytorch/examples/blob/main/reinforcement_learning>`__
 -  `PyTorch Module Transformations using fx <https://github.com/pytorch/examples/blob/main/fx>`__
 -  Distributed PyTorch examples with `Distributed Data
    Parallel <https://github.com/pytorch/examples/blob/main/distributed/ddp>`__ and
