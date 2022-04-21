@@ -42,7 +42,7 @@ experiment with PyTorch.
     Generative Adversarial Networks (DCGAN)
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-    This example implements the method described in the `Unsupervised Representation Learning with Deep Convolutional Generative Adversarial Networks  <https://arxiv.org/abs/1511.06434>`__ paper.
+    This example implements the `Unsupervised Representation Learning with Deep Convolutional Generative Adversarial Networks  <https://arxiv.org/abs/1511.06434>`__ paper.
 
     `GO TO EXAMPLE <https://github.com/pytorch/examples/blob/main/dcgan>`__ :opticon:`link-external`
     ---
