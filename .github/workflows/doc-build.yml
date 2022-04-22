@@ -1,0 +1,38 @@
+name: Doc Build
+
+on:
+  push:
+    branches:
+      - main
+
+
+jobs:
+  build_docs_job:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.6]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Dependencies
+      run: |
+        echo `python3 --version`
+        sudo apt-get install -y python-setuptools
+        sudo apt-get install -y python3-sphinx
+        python3 -m pip install --upgrade pip
+        python3 -m pip install setuptools
+      id: build
+    - name: Build the docset
+      run: | 
+        cd docs
+        pip install -r requirements.txt
+        make html 
+    - name: Get output time
+      run: echo "The time was ${{ steps.build.outputs.time }}"      
+    - name: Deploy
+      uses: JamesIves/github-pages-deploy-action@releases/v3
+      with:
+          ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: gh-pages # The branch the action should deploy to.
+          FOLDER: ./docs/build/html # The folder the action should deploy. 
