@@ -11,10 +11,26 @@ If you're new we encourage you to take a look at issues tagged with [good first 
 0. Create a github issue proposing a new example and make sure it's substantially different from an existing one
 1. Fork the repo and create your branch from `main`.
 2. If you've added code that should be tested, add tests to `run_python_examples.sh`
-3. Create a `README.md`
-4. Ensure your test passes locally
-5. If you haven't already, complete the Contributor License Agreement ("CLA").
-6. Address any feedback in code review promptly
+3. Create a `README.md`.
+4. Add a card with a brief description of your example and link to the repo to
+   the `docs/source/index.rst` file and build the docs by running: 
+
+   ```
+   cd docs
+   virtualenv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   make html
+   ```
+   When done working with `virtualenv`, run `deactivate`.
+
+5. Verify that there are no issues in your doc build. You can check preview locally
+   by installing [sphinx-serve](https://pypi.org/project/sphinx-serve/) and
+   then running `sphinx-serve -d build`.
+      
+5. Ensure your test passes locally
+6. If you haven't already, complete the Contributor License Agreement ("CLA").
+7. Address any feedback in code review promptly
 
 ## For bug fixes
 1. Fork the repo and create your branch from `main`.
