@@ -56,8 +56,8 @@ experiment with PyTorch.
     `GO TO EXAMPLE <https://github.com/pytorch/examples/blob/main/vae>`__ :opticon:`link-external`
     ---
    
-    Superresolution Using an Efficient Sub-Pixel CNN
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    Super-resolution Using an Efficient Sub-Pixel CNN
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     This example demonstrates how to use the sub-pixel convolution layer
     described in `Real-Time Single Image and Video Super-Resolution Using an Efficient Sub-Pixel Convolutional Neural Network <https://arxiv.org/abs/1609.05158>`__ paper. This example trains a super-resolution
@@ -135,31 +135,3 @@ experiment with PyTorch.
     (MNIST), and other examples using PyTorch C++ frontend.
 
     `GO TO EXAMPLES <https://github.com/pytorch/examples/tree/main/cpp>`__ :opticon:`link-external`
-
-Available models
-----------------
-
-- `Image classification (MNIST) using Convnets <https://github.com/pytorch/examples/blob/main/mnist>`__
--  `Word-level Language Modeling using RNN and
-   Transformer <https://github.com/pytorch/examples/blob/main/word_language_model>`__
--  `Training Imagenet Classifiers with Popular
-   Networks <https://github.com/pytorch/examples/blob/main/imagenet>`__
--  `Generative Adversarial Networks (DCGAN) <https://github.com/pytorch/examples/blob/main/dcgan>`__
--  `Variational Auto-Encoders <https://github.com/pytorch/examples/blob/main/vae>`__
--  `Superresolution using an efficient sub-pixel convolutional neural
-   network <https://github.com/pytorch/examples/blob/main/super_resolution>`__
--  `Hogwild training of shared ConvNets across multiple processes on
-   MNIST <https://github.com/pytorch/examples/blob/main/mnist_hogwild>`__
--  `Training a CartPole to balance in OpenAI Gym with
-   actor-critic <https://github.com/pytorch/examples/blob/main/reinforcement_learning>`__
--  `Natural Language Inference (SNLI) with GloVe vectors, LSTMs, and
-   torchtext <https://github.com/pytorch/examples/blob/main/snli>`__
--  `Time sequence prediction - use an LSTM to learn Sine
-   waves <https://github.com/pytorch/examples/blob/main/time_sequence_prediction>`__
--  `Implement the Neural Style Transfer algorithm on
-   images <https://github.com/pytorch/examples/blob/main/fast_neural_style>`__
--  `PyTorch Module Transformations using fx <https://github.com/pytorch/examples/blob/main/fx>`__
--  Distributed PyTorch examples with `Distributed Data
-   Parallel <https://github.com/pytorch/examples/blob/main/distributed/ddp>`__ and
-   `RPC <https://github.com/pytorch/examples/blob/main/distributed/rpc>`__
--  `Several examples illustrating the C++ Frontend <https://github.com/pytorch/examples/blob/main/cpp>`__
