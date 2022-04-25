@@ -68,3 +68,10 @@ html_theme_path = [pytorch_sphinx_theme.get_html_theme_path()]
 html_static_path = ["_static"]
 panels_add_fontawesome_latex = True
 
+html_theme_options = {
+    'pytorch_project': 'examples',
+    'collapse_navigation': False,
+    'display_version': True,
+    'logo_only': False,
+    'analytics_id': 'UA-117752657-2',
+}
