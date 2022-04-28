@@ -2,6 +2,8 @@
 
 ![Run Examples](https://github.com/pytorch/examples/workflows/Run%20Examples/badge.svg)
 
+https://pytorch.org/examples/
+
 WARNING: if you fork this repo, github actions will run daily on it. To disable this, go to <myuser>/examples/settings/actions and Disable Actions for this repository.
 
 `pytorch/examples` is a repository showcasing examples of using [PyTorch](https://github.com/pytorch/pytorch). The goal is to have curated, short, few/no dependencies *high quality* examples that are substantially different from each other that can be emulated in your existing work.
