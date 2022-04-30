@@ -45,6 +45,15 @@ Node 1:
 python main.py -a resnet50 --dist-url 'tcp://IP_OF_NODE0:FREEPORT' --dist-backend 'nccl' --multiprocessing-distributed --world-size 2 --rank 1 [imagenet-folder with train and val folders]
 ```
 
+## Distributed Data Parallel Training
+
+If you wish to disable PyTorch's multiprocessing module and manually manage processes yourself (e.g. with MPI), you must specify the `world-size`, `rank` and `gpu` values yourself. For example:
+
+```bash
+python main.py ... --world-size 2 --rank 0 --gpu 0 [imagenet-folder with train and val folders] &
+python main.py ... --world-size 2 --rank 1 --gpu 1 [imagenet-folder with train and val folders] &
+```
+
 ## Usage
 
 ```
