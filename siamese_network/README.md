@@ -1,4 +1,4 @@
-# Basic MNIST Example
+# Basic Siamese Network Example
 
 ```bash
 pip install -r requirements.txt
