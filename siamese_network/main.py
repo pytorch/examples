@@ -122,12 +122,12 @@ class APP_MATCHER(Dataset):
             images from the same class. For negative examples, we will have two images 
             from different classes.
 
-            Given the index, if the index is even, we will pick the second image from the same class, 
-            but it won't be the same image we chose for the first class. This is used to ensure as it is easy 
-            for the network to notice that two images that are the same are positive examples. However, if 
-            we are given two different images from the same class, the network will need to learn the similarity 
-            between two different images representing the same class. If the index is odd, we will pick the second
-            image from a different class than the first image.
+            Given an index, if the index is even, we will pick the second image from the same class, 
+            but it won't be the same image we chose for the first class. This is used to ensure the positive
+            example isn't trivial as the network would easily distinguish the similarity between same images. However,
+            if the network were given two different images from the same class, the network will need to learn 
+            the similarity between two different images representing the same class. If the index is odd, we will 
+            pick the second image from a different class than the first image.
         """
 
         # pick some random class for the first image
