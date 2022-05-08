@@ -110,6 +110,11 @@ function regression() {
   python main.py --epochs 1 $CUDA_FLAG || error "regression failed"
 }
 
+function siamese_network() {
+  start
+  python main.py --epochs 1 --dry-run || error "siamese network example failed"
+}
+
 function reinforcement_learning() {
   start
   python reinforce.py || error "reinforcement learning reinforce failed"
@@ -193,6 +198,7 @@ function run_all() {
   mnist_hogwild
   regression
   reinforcement_learning
+  siamese_network
   super_resolution
   time_sequence_prediction
   vae

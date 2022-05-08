@@ -1,4 +1,4 @@
-# Basic Siamese Network Example
+# Siamese Network Example
 
 ```bash
 pip install -r requirements.txt
