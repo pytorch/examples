@@ -26,7 +26,7 @@ If you're new we encourage you to take a look at issues tagged with [good first 
 
 5. Verify that there are no issues in your doc build. You can check preview locally
    by installing [sphinx-serve](https://pypi.org/project/sphinx-serve/) and
-   then running `sphinx-serve -d build`.
+   then running `sphinx-serve -b build`.
       
 5. Ensure your test passes locally
 6. If you haven't already, complete the Contributor License Agreement ("CLA").

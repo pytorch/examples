@@ -17,6 +17,17 @@ experiment with PyTorch.
 
     ---
 
+    Measuring Similarity using Siamese Network
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 
+    This example demonstrates how to measure similarity between two images
+    using `Siamese network <https://en.wikipedia.org/wiki/Siamese_neural_network>`__
+    on the `MNIST <https://en.wikipedia.org/wiki/MNIST_database>`__ database.
+
+    `GO TO EXAMPLE <https://github.com/pytorch/examples/blob/main/siamese_network>`__ :opticon:`link-external` 
+
+    ---
+
     Word-level Language Modeling using RNN and Transformer
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

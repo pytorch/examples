@@ -17,3 +17,6 @@ docs/venv
 
 # vi backups
 *~
+
+# development
+.vscode
