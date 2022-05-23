@@ -14,8 +14,8 @@ from torch.distributed._shard.sharding_plan import ShardingPlan
 from torch.distributed._shard.sharding_spec import ChunkShardingSpec
 
 """
-This is script to test Tensor Parallel(TP) on a toy model in a
-Megetron-LM SPMD style. We show a E2E working flow from forward,
+This is the script to test Tensor Parallel(TP) on a toy model in a
+Megetron-LM SPMD style. We show an E2E working flow from forward,
 backward and optimization.
 
 More context about API designs can be found in the design:
@@ -23,17 +23,17 @@ More context about API designs can be found in the design:
 https://github.com/pytorch/pytorch/issues/72138.
 
 We use the example of two nn layers with an element-wise RELU in between
-to show an example of Megatron-LM which was proposed in paper:
+to show an example of Megatron-LM, which was proposed in paper:
 
 https://arxiv.org/abs/1909.08053.
 
-The basic idea behind it is that we shard the first nn by column and then
-shard the second nn by row so that we don't need the all gather of the
-result of first nn and all scatter of input of the second nn. By avoiding
-communications in between two layers, we can speed up the model training.
+The basic idea is that we shard the first nn by column and also shard
+the second nn by row so that we don't need the all gather of the result
+of first nn and all scatter of input of the second nn. We can speed up
+the model training by avoiding communications between two layers.
 
-To shard a nn module, we need to first create a sharding spec and plan,
-and then we shard the module based on it. We have built PTD native APIs
+To shard a nn module, we need to create a sharding spec and plan first,
+and then we shard the module based on it. We will use PyTorch native APIs
 for all of them and this example shows how to use them.
 
 Additionally, we have built an optimizer for sharded module. We show how
@@ -69,8 +69,9 @@ def _generate_chunk_sharding_spec(world_size):
     We first need to create a sharding spec for our sharding work.
 
     For now, we only support sharding on one dimension. So we use
-    ``ChunkShardingSpec`` which chunk the size of the given sharding
-    dim to equally split length. The behavior is similar to torch.chunk.
+    ``ChunkShardingSpec`` to chunk the size of the given sharding
+    dim to equally split length. The behavior is similar to
+    `torch.chunk`.
 
     We also need to create the output sharding spec for the second nn
     because we need to aggregate(reduce) the partial result after the
@@ -111,9 +112,9 @@ def _get_toy_module_optim(module, lr):
 def _get_toy_module_sharding_plan(world_size):
     """
     The idea behind Megatron-LM is that:
-    1. We shard the weight of first nn by dim 0 (col-wise)
-    2. We shard the weight of second nn by dim 1 (row-wise)
-    3. We aggregate the partial result of second nn layer and
+    1. We shard the weight of the first nn by dim 0 (col-wise)
+    2. We shard the weight of the second nn by dim 1 (row-wise)
+    3. We aggregate the partial result of the second nn layer and
        store it as a sharded tensor by dim 0.
     4. Return the final result on the local shard.
 
@@ -140,8 +141,8 @@ def _get_toy_module_sharding_plan(world_size):
 
 def demo_tp(rank, args):
     """
-    Main body of the demo of a basic version of tensor parallel by using PTD
-    native sharded tensor APIs.
+    Main body of the demo of a basic version of tensor parallel by using
+    PyTorch native sharded tensor APIs.
     """
     print(f"Running basic Megatron style TP example on rank {rank}.")
     setup(rank, args.world_size)

@@ -1,11 +1,11 @@
-PyTorch Sharder for distributed training, Tensor Parellel Example
+# PyTorch Sharder for distributed training, Tensor Parallel Example
 
 This example demonstrates SPMD Megatron-LM style tensor parallel by using
-PyTorch native sharding APIs, which includes:
+PyTorch native sharding APIs, which include:
 
 1. Sharding spec/plan and high-level APIs for module-level sharding.
 2. Model agnostic ops for `ShardedTensor`, such as `Linear` and `RELU`.
-3. A E2E demo of tensor parallel for a given example (Forward/backward + optimization).
+3. A E2E demo of tensor parallel for a given toy model (Forward/backward + optimization).
 4. API to optimize parameters when they are `ShardedTensor`s.
 
 
