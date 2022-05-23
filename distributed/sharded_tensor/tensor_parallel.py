@@ -64,7 +64,7 @@ class ToyModel(nn.Module):
         return self.net2(self.relu(self.net1(x)))
 
 
-def _generate_chunk_sharding_spec(world_size):
+def _generate_sharding_spec(world_size):
     """
     We first need to create a sharding spec for our sharding work.
 
@@ -90,7 +90,7 @@ def _generate_chunk_sharding_spec(world_size):
         dim=1,
         placements=placements,
     )
-    # The result from rowwise sharding needs aggregation by dim 0.
+    # The result from the second nn.linear layer needs aggregation by dim 0.
     output_spec = ChunkShardingSpec(
         dim=0,
         placements=placements,
@@ -121,20 +121,20 @@ def _get_toy_module_sharding_plan(world_size):
     We then need to create a sharding spec based on it and
     compose a sharding plan on the basis of the spec.
     """
-    specs = _generate_chunk_sharding_spec(world_size)
+    colwise_spec, rowwise_spec, output_spec = _generate_sharding_spec(world_size)
     return ShardingPlan(
-        # Specify how one wants to shard the module's component.
+        # Specify the sharding plan for the component of each module.
         plan={
-            "net1.weight": specs[0],  # colwise_spec
-            "net2.weight": specs[1],  # rowwise_spec
+            "net1.weight": colwise_spec,
+            "net2.weight": rowwise_spec,
         },
-        # Specify how one wants to the output of one module to be sharded.
+        # Specify the sharding plan for the output of one particular module.
         # e.g., the output of the second nn layer in the example of Megatron-LM.
         output_plan={
-            "net2": specs[2],  # output_spec
+            "net2": output_spec,
         },
-        # Specify if the output is a sharded tensor and you
-        # want to get the tensor stored on the local shard.
+        # Specify to get the tensor stored on the local shard if the output
+        # is a sharded tensor.
         return_local_tensor=["net2"],
     )
 
