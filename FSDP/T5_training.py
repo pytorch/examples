@@ -14,7 +14,6 @@ import torch.distributed as dist
 import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data.distributed import DistributedSampler
-# from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from torch.distributed.fsdp.fully_sharded_data_parallel import (
     FullyShardedDataParallel as FSDP,
     CPUOffload,
@@ -25,7 +24,6 @@ from torch.distributed.fsdp.wrap import (
     enable_wrap,
     wrap,
 )
-# from datasets import load_dataset, load_metric
 from torch.utils.data import DataLoader
 from pathlib import Path
 from nlp import load_metric
@@ -46,7 +44,7 @@ def cleanup():
 def train(args, model, rank, world_size, train_loader, optimizer, epoch, sampler=None):
     model.train()
     local_rank = int(os.environ['LOCAL_RANK'])
-    ddp_loss = torch.zeros(2).to(local_rank)
+    fsdp_loss = torch.zeros(2).to(local_rank)
   
     if sampler:
         sampler.set_epoch(epoch)
@@ -58,38 +56,37 @@ def train(args, model, rank, world_size, train_loader, optimizer, epoch, sampler
         loss = output["loss"]
         loss.backward()
         optimizer.step()
-        ddp_loss[0] += loss.item()
-        ddp_loss[1] += len(batch)
+        fsdp_loss[0] += loss.item()
+        fsdp_loss[1] += len(batch)
 
-    dist.reduce(ddp_loss, 0, op=dist.ReduceOp.SUM)
+    dist.reduce(fsdp_loss, 0, op=dist.ReduceOp.SUM)
     if rank == 0:
-        print('Train Epoch: {} \tLoss: {:.6f}'.format(epoch, ddp_loss[0] / ddp_loss[1]))
+        print('Train Epoch: {} \tLoss: {:.6f}'.format(epoch, fsdp_loss[0] / fsdp_loss[1]))
 
 
 def test(model, rank, world_size, test_loader):
     model.eval()
     correct = 0
     local_rank = int(os.environ['LOCAL_RANK'])
-    ddp_loss = torch.zeros(3).to(local_rank)
+    fsdp_loss = torch.zeros(3).to(local_rank)
     with torch.no_grad():
         for batch in test_loader:
             for key in batch.keys():
                 batch[key] = batch[key].to(local_rank)
             output = model(input_ids=batch["source_ids"],attention_mask=batch["source_mask"],labels=batch["target_ids"])
-            ddp_loss[0] += output["loss"].item()  # sum up batch loss
+            fsdp_loss[0] += output["loss"].item()  # sum up batch loss
             pred = output["logits"].argmax(dim=1, keepdim=True)  # get the index of the max log-probability
-            print("&&&&&&&&&&&&", batch["target_ids"].size(), pred.size(), output["logits"].size())
 
-            ddp_loss[1] += pred.eq(batch["target_ids"].view_as(pred)).sum().item()
-            ddp_loss[2] += len(batch)
+            fsdp_loss[1] += pred.eq(batch["target_ids"].view_as(pred)).sum().item()
+            fsdp_loss[2] += len(batch)
 
-    dist.reduce(ddp_loss, 0, op=dist.ReduceOp.SUM)
+    dist.reduce(fsdp_loss, 0, op=dist.ReduceOp.SUM)
 
     if rank == 0:
-        test_loss = ddp_loss[0] / ddp_loss[2]
+        test_loss = fsdp_loss[0] / fsdp_loss[2]
         print('Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%)\n'.format(
-            test_loss, int(ddp_loss[1]), int(ddp_loss[2]),
-            100. * ddp_loss[1] / ddp_loss[2]))
+            test_loss, int(fsdp_loss[1]), int(fsdp_loss[2]),
+            100. * fsdp_loss[1] / fsdp_loss[2]))
 
 def auto_wrap_policy_transformer(module: nn.Module, recurse: bool, unwrapped_params: int, transformer_layer_cls: Type[nn.Module], min_num_params: int = int(1e8),) -> bool:
     is_large = unwrapped_params >= min_num_params
@@ -99,12 +96,15 @@ def auto_wrap_policy_transformer(module: nn.Module, recurse: bool, unwrapped_par
     else:
        # if not recursing, decide whether we should wrap for the leaf node or reminder
        return is_large and isinstance(module, transformer_layer_cls)
-       
+
+def setup_model(model_name):
+        model = T5ForConditionalGeneration.from_pretrained(model_name)
+        tokenizer =  T5Tokenizer.from_pretrained(model_name)
+        return model, tokenizer
+
 def fsdp_main(args):
 
-    model_name = "t5-small"
-    model = T5ForConditionalGeneration.from_pretrained(model_name)
-    tokenizer =  T5Tokenizer.from_pretrained(model_name)
+    model, tokenizer = setup_model("t5-large")
 
     local_rank = int(os.environ['LOCAL_RANK'])
     rank = int(os.environ['RANK'])
