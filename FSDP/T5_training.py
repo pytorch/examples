@@ -14,10 +14,21 @@ import torch.distributed as dist
 import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data.distributed import DistributedSampler
-from torch.distributed.fsdp.fully_sharded_data_parallel import (
+# from torch.distributed.fsdp.fully_sharded_data_parallel import (
+#     FullyShardedDataParallel as FSDP,
+#     CPUOffload,
+#     BackwardPrefetch,
+# )
+
+
+from torch.distributed.fsdp import (
     FullyShardedDataParallel as FSDP,
     CPUOffload,
+    MixedPrecision,
     BackwardPrefetch,
+    ShardingStrategy,
+    FullStateDictConfig,
+    StateDictType,
 )
 from torch.distributed.fsdp.wrap import (
     default_auto_wrap_policy,
@@ -32,6 +43,11 @@ from summerization_dataset import *
 from sklearn.model_selection import train_test_split
 from transformers.models.t5.modeling_t5 import T5Block
 from typing import Type
+import time
+from datetime import datetime
+
+g_gigabyte = 1024**3
+
 def setup():
     # initialize the process group
     dist.init_process_group("nccl")
@@ -40,6 +56,48 @@ def setup():
 def cleanup():
     dist.destroy_process_group()
 
+def get_date_of_run():
+    """create date and time for file save uniqueness
+    example: 2022-05-07-08:31:12_PM'
+    """
+    date_of_run = datetime.now().strftime("%Y-%m-%d-%I:%M:%S_%p")
+    print(f"--> current date and time of run = {date_of_run}")
+    return date_of_run
+
+fpSixteen = MixedPrecision(
+    param_dtype=torch.float16,
+    # Gradient communication precision.
+    reduce_dtype=torch.float16,
+    # Buffer precision.
+    buffer_dtype=torch.float16,
+)
+
+bfSixteen = MixedPrecision(
+    param_dtype=torch.bfloat16,
+    # Gradient communication precision.
+    reduce_dtype=torch.bfloat16,
+    # Buffer precision.
+    buffer_dtype=torch.bfloat16,
+)
+
+bfSixteen_working = MixedPrecision(
+    param_dtype=torch.float32,
+    reduce_dtype=torch.bfloat16,
+    buffer_dtype=torch.bfloat16,
+)
+
+fp32_policy = MixedPrecision(
+    param_dtype=torch.float32,
+    reduce_dtype=torch.float32,
+    buffer_dtype=torch.float32,
+)
+
+
+def format_metrics_to_gb(item):
+    """quick function to format numbers to gigabyte and round to 4 digit precision"""
+    metric_num = item / g_gigabyte
+    metric_num = round(metric_num, ndigits=4)
+    return metric_num
 
 def train(args, model, rank, world_size, train_loader, optimizer, epoch, sampler=None):
     model.train()
@@ -59,18 +117,22 @@ def train(args, model, rank, world_size, train_loader, optimizer, epoch, sampler
         fsdp_loss[0] += loss.item()
         fsdp_loss[1] += len(batch)
 
-    dist.reduce(fsdp_loss, 0, op=dist.ReduceOp.SUM)
+    dist.all_reduce(fsdp_loss, op=dist.ReduceOp.SUM)
+    train_accuracy = fsdp_loss[0] / fsdp_loss[1]
     if rank == 0:
-        print('Train Epoch: {} \tLoss: {:.6f}'.format(epoch, fsdp_loss[0] / fsdp_loss[1]))
+       print(
+            f"Train Epoch: \t{epoch}, Loss: \t{train_accuracy:.4f}"
+        )
+    return train_accuracy
 
 
-def test(model, rank, world_size, test_loader):
+def validation(model, rank, world_size, val_loader):
     model.eval()
     correct = 0
     local_rank = int(os.environ['LOCAL_RANK'])
     fsdp_loss = torch.zeros(3).to(local_rank)
     with torch.no_grad():
-        for batch in test_loader:
+        for batch in val_loader:
             for key in batch.keys():
                 batch[key] = batch[key].to(local_rank)
             output = model(input_ids=batch["source_ids"],attention_mask=batch["source_mask"],labels=batch["target_ids"])
@@ -80,13 +142,12 @@ def test(model, rank, world_size, test_loader):
             fsdp_loss[1] += pred.eq(batch["target_ids"].view_as(pred)).sum().item()
             fsdp_loss[2] += len(batch)
 
-    dist.reduce(fsdp_loss, 0, op=dist.ReduceOp.SUM)
+    dist.all_reduce(fsdp_loss, op=dist.ReduceOp.SUM)
 
     if rank == 0:
-        test_loss = fsdp_loss[0] / fsdp_loss[2]
-        print('Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%)\n'.format(
-            test_loss, int(fsdp_loss[1]), int(fsdp_loss[2]),
-            100. * fsdp_loss[1] / fsdp_loss[2]))
+        val_loss = fsdp_loss[0] / fsdp_loss[2]
+        print(f"Validation Loss: {val_loss:.4f}")
+    return val_loss
 
 def auto_wrap_policy_transformer(module: nn.Module, recurse: bool, unwrapped_params: int, transformer_layer_cls: Type[nn.Module], min_num_params: int = int(1e8),) -> bool:
     is_large = unwrapped_params >= min_num_params
@@ -109,6 +170,7 @@ def fsdp_main(args):
     local_rank = int(os.environ['LOCAL_RANK'])
     rank = int(os.environ['RANK'])
     world_size = int(os.environ['WORLD_SIZE'])
+
 
     dataset = load_dataset('wikihow', 'all', data_dir='data/')
     print(dataset.keys())
@@ -134,10 +196,11 @@ def fsdp_main(args):
     test_kwargs.update(cuda_kwargs)
 
     train_loader = torch.utils.data.DataLoader(train_dataset,**train_kwargs)
-    test_loader = torch.utils.data.DataLoader(val_dataset, **test_kwargs)
-    my_auto_wrap_policy = functools.partial(
+    val_loader = torch.utils.data.DataLoader(val_dataset, **test_kwargs)
+    wrapping_policy = functools.partial(
             auto_wrap_policy_transformer, min_num_params=20000, transformer_layer_cls=T5Block
         )
+    sharding_strategy: ShardingStrategy = ShardingStrategy.FULL_SHARD
     torch.cuda.set_device(local_rank)
    
    
@@ -147,17 +210,60 @@ def fsdp_main(args):
     init_start_event.record()
 
    
-    model = FSDP(model, fsdp_auto_wrap_policy=my_auto_wrap_policy).to(local_rank)
+    model = FSDP(model,
+        auto_wrap_policy=wrapping_policy,
+        mixed_precision=bfSixteen,
+        sharding_strategy=sharding_strategy,
+        device_id=torch.cuda.current_device())
 
     print(model)
     optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
 
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
+    best_val_loss = float("inf")
+    curr_val_loss = float("inf")
+    file_save_name = "800M-whole-model-"
+
+    if rank == 0:
+        time_of_run = get_date_of_run()
+        dur = []
+        train_acc_tracking = []
+        val_acc_tracking = []
+        training_start_time = time.time()
+
+    if rank == 0 and args.track_memory:
+        fn = "memory_tracking.txt"
+        mem_alloc_tracker = []
+        mem_reserved_tracker = []
 
     for epoch in range(1, args.epochs + 1):
-        train(args, model, rank, world_size, train_loader, optimizer, epoch, sampler=sampler1)
-        test(model, rank, world_size, test_loader)
+        t0 = time.time()
+        train_accuracy = train(args, model, rank, world_size, train_loader, optimizer, epoch, sampler=sampler1)
+        if args.run_validation:
+            curr_val_loss = validation(model, rank, world_size, val_loader)
         scheduler.step()
+        
+        if rank == 0:
+
+            print(f"--> epoch {epoch} completed...entering save and stats zone")
+
+            dur.append(time.time() - t0)
+            train_acc_tracking.append(train_accuracy.item())
+
+            if args.run_validation:
+                val_acc_tracking.append(curr_val_loss.item())
+
+            if args.track_memory:
+                mem_alloc_tracker.append(
+                    format_metrics_to_gb(torch.cuda.memory_allocated())
+                )
+                mem_reserved_tracker.append(
+                    format_metrics_to_gb(torch.cuda.memory_reserved())
+                )
+        if rank == 0 and curr_val_loss < best_val_loss:
+
+            best_val_loss = curr_val_loss
+            print(f"-->>>> New Val Loss Record: {best_val_loss}")
 
     init_end_event.record()
 
@@ -165,9 +271,26 @@ def fsdp_main(args):
         print(f"Cuda event elapsed time: {init_start_event.elapsed_time(init_end_event) / 1000}sec")
         print(f"{model}")
 
-    if args.save_model:
-        states = model.state_dict()
-        dist.barrier()
+    if args.save_model and curr_val_loss < best_val_loss:
+
+        # save
+        if rank == 0:
+            print(f"--> entering save model state...")
+        save_policy = FullStateDictConfig(offload_to_cpu=True, rank0_only=True)
+        with FSDP.state_dict_type(
+            model, StateDictType.FULL_STATE_DICT, save_policy
+        ):
+            cpu_state = model.state_dict()
+        print(f"saving process: rank {rank}  done w state_dict")
+
+        if rank == 0:
+            print(f"--> saving model ...")
+            currEpoch = (
+                "-" + str(epoch) + "-" + str(round(curr_val_loss.item(), 4)) + ".pt"
+            )
+            save_name = file_save_name + "-" + time_of_run + "-" + currEpoch
+
+            torch.save(cpu_state, save_name)
     if rank == 0:
         torch.save(states, "T5_checkpoint.pt")
     
@@ -191,6 +314,10 @@ if __name__ == '__main__':
                         help='disables CUDA training')
     parser.add_argument('--seed', type=int, default=1, metavar='S',
                         help='random seed (default: 1)')
+    parser.add_argument('--track_memory', action='store_true', default=False,
+                        help='track the gpy memory')
+    parser.add_argument('--run_validation', action='store_true', default=False,
+                        help='running the validation')
     parser.add_argument('--save-model', action='store_true', default=False,
                         help='For Saving the current Model')
     args = parser.parse_args()
@@ -198,3 +325,4 @@ if __name__ == '__main__':
     torch.manual_seed(args.seed)
     
     fsdp_main(args)
+track_memory
