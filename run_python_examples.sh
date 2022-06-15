@@ -71,6 +71,12 @@ function dcgan() {
   python main.py --dataset lsun --dataroot lsun --classes $DATACLASS --niter 1 $CUDA_FLAG --dry-run || error "dcgan failed"
 }
 
+function distributed() {
+    start
+    python sharded_tensor/tensor_parallel.py || error "tensor parallel example failed"
+    python ddp/main.py || error "ddp example failed" 
+}
+
 function fast_neural_style() {
   start
   if [ ! -d "saved_models" ]; then
@@ -193,6 +199,7 @@ function run_all() {
   dcgan
   # distributed
   fast_neural_style
+  distributed
   imagenet
   mnist
   mnist_hogwild
