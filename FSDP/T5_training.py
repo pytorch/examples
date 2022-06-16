@@ -194,9 +194,13 @@ def fsdp_main(args):
 
     train_loader = torch.utils.data.DataLoader(train_dataset,**train_kwargs)
     val_loader = torch.utils.data.DataLoader(val_dataset, **test_kwargs)
-    wrapping_policy = functools.partial(
-            auto_wrap_policy_transformer, min_num_params=20000, transformer_layer_cls=T5Block
-        )
+    
+    t5_auto_wrap_policy = functools.partial(
+        transformer_auto_wrap_policy,
+        transformer_layer_cls={
+            T5Block,
+        },
+    )
     sharding_strategy: ShardingStrategy = ShardingStrategy.FULL_SHARD
     torch.cuda.set_device(local_rank)
    
@@ -208,7 +212,7 @@ def fsdp_main(args):
 
    
     model = FSDP(model,
-        auto_wrap_policy=wrapping_policy,
+        auto_wrap_policy=t5_auto_wrap_policy,
         mixed_precision=bfSixteen,
         sharding_strategy=sharding_strategy,
         device_id=torch.cuda.current_device())
