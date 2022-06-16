@@ -31,16 +31,13 @@ from torch.distributed.fsdp import (
     StateDictType,
 )
 from torch.distributed.fsdp.wrap import (
-    default_auto_wrap_policy,
+    transformer_auto_wrap_policy,
     enable_wrap,
     wrap,
 )
 from torch.utils.data import DataLoader
 from pathlib import Path
-from nlp import load_metric
-from nlp import load_dataset
-from summerization_dataset import *
-from sklearn.model_selection import train_test_split
+from summarization_dataset import *
 from transformers.models.t5.modeling_t5 import T5Block
 from typing import Type
 import time
@@ -325,4 +322,3 @@ if __name__ == '__main__':
     torch.manual_seed(args.seed)
     
     fsdp_main(args)
-track_memory
