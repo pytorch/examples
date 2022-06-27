@@ -201,7 +201,7 @@ def fsdp_main(args):
             T5Block,
         },
     )
-    sharding_strategy: ShardingStrategy = ShardingStrategy.FULL_SHARD
+    sharding_strategy: ShardingStrategy = ShardingStrategy.SHARD_GRAD_OP #for Zero2 and FULL_SHARD for Zero3
     torch.cuda.set_device(local_rank)
    
    
@@ -214,7 +214,7 @@ def fsdp_main(args):
     model = FSDP(model,
         auto_wrap_policy=t5_auto_wrap_policy,
         mixed_precision=bfSixteen,
-        sharding_strategy=sharding_strategy,
+        #sharding_strategy=sharding_strategy,
         device_id=torch.cuda.current_device())
 
     print(model)
