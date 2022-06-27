@@ -162,7 +162,7 @@ def setup_model(model_name):
 
 def fsdp_main(args):
 
-    model, tokenizer = setup_model("t5-large")
+    model, tokenizer = setup_model("t5-base")
 
     local_rank = int(os.environ['LOCAL_RANK'])
     rank = int(os.environ['RANK'])
@@ -213,17 +213,17 @@ def fsdp_main(args):
    
     model = FSDP(model,
         auto_wrap_policy=t5_auto_wrap_policy,
-        mixed_precision=bfSixteen,
+        mixed_precision=fp32_policy,
         #sharding_strategy=sharding_strategy,
         device_id=torch.cuda.current_device())
 
     print(model)
-    optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
+    optimizer = optim.AdamW(model.parameters(), lr=args.lr)
 
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
     best_val_loss = float("inf")
     curr_val_loss = float("inf")
-    file_save_name = "800M-whole-model-"
+    file_save_name = "ModelCheckPoint-"
 
     if rank == 0:
         time_of_run = get_date_of_run()
