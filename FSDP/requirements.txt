@@ -2,3 +2,4 @@ transformers
 datasets
 tqdm
 protobuf
+SentencePiece
