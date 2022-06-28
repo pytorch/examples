@@ -22,11 +22,6 @@ pip install -r requirements.txt
 ## ensure you are running a recent version of PyTorch:
 see https://pytorch.org to install at least 1.12 and ideally a current nightly build. 
 
-* Run the script
-```
-python FSDP_T5.py
-
-```
 For running T5 with Torchrun
 
 ```
