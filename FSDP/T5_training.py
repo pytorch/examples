@@ -112,9 +112,13 @@ def train(args, model, rank, world_size, train_loader, optimizer, epoch, sampler
         optimizer.step()
         fsdp_loss[0] += loss.item()
         fsdp_loss[1] += len(batch)
+        if rank==0:
+            inner_pbar.update(1)
 
     dist.all_reduce(fsdp_loss, op=dist.ReduceOp.SUM)
     train_accuracy = fsdp_loss[0] / fsdp_loss[1]
+
+
     if rank == 0:
         inner_pbar.close()
         print(
@@ -140,6 +144,9 @@ def validation(model, rank, world_size, val_loader):
             fsdp_loss[0] += output["loss"].item()  # sum up batch loss
             fsdp_loss[1] += len(batch)
 
+            if rank==0:
+                inner_pbar.update(1)
+
     dist.all_reduce(fsdp_loss, op=dist.ReduceOp.SUM)
     val_loss = fsdp_loss[0] / fsdp_loss[1]
     if rank == 0:
@@ -147,14 +154,6 @@ def validation(model, rank, world_size, val_loader):
         print(f"Validation Loss: {val_loss:.4f}")
     return val_loss
 
-def auto_wrap_policy_transformer(module: nn.Module, recurse: bool, unwrapped_params: int, transformer_layer_cls: Type[nn.Module], min_num_params: int = int(1e8),) -> bool:
-    is_large = unwrapped_params >= min_num_params
-    if recurse:
- # always recurse
-        return True
-    else:
-       # if not recursing, decide whether we should wrap for the leaf node or reminder
-       return is_large and isinstance(module, transformer_layer_cls)
 
 def setup_model(model_name):
         model = T5ForConditionalGeneration.from_pretrained(model_name)
@@ -207,10 +206,10 @@ def fsdp_main(args):
     torch.cuda.set_device(local_rank)
    
    
-    init_start_event = torch.cuda.Event(enable_timing=True)
-    init_end_event = torch.cuda.Event(enable_timing=True)
+    #init_start_event = torch.cuda.Event(enable_timing=True)
+    #init_end_event = torch.cuda.Event(enable_timing=True)
 
-    init_start_event.record()
+    #init_start_event.record()
     
     bf16_ready = (
     torch.version.cuda
@@ -223,7 +222,7 @@ def fsdp_main(args):
     if bf16_ready:
         mp_policy = bfSixteen
     else:
-        mp_policy = fpSixteen
+        mp_policy = None # defaults to fp32
         
     model = FSDP(model,
         auto_wrap_policy=t5_auto_wrap_policy,
@@ -231,7 +230,7 @@ def fsdp_main(args):
         #sharding_strategy=sharding_strategy,
         device_id=torch.cuda.current_device())
 
-    optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
+    optimizer = optim.AdamW(model.parameters(), lr=args.lr)
 
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
     best_val_loss = float("inf")
@@ -273,51 +272,56 @@ def fsdp_main(args):
                 mem_reserved_tracker.append(
                     format_metrics_to_gb(torch.cuda.memory_reserved())
                 )
+            print(f"completed save and stats zone...")
         if rank == 0 and curr_val_loss < best_val_loss:
 
             best_val_loss = curr_val_loss
             print(f"-->>>> New Val Loss Record: {best_val_loss}")
 
-    init_end_event.record()
+    #init_end_event.record()
 
-    if rank == 0:
-        print(f"Cuda event elapsed time: {init_start_event.elapsed_time(init_end_event) / 1000}sec")
+    #if rank == 0:
+        #print(f"Cuda event elapsed time: {init_start_event.elapsed_time(init_end_event) / 1000}sec")
         # print(f"{model}")
 
-    if args.save_model and curr_val_loss < best_val_loss:
+        if args.save_model and curr_val_loss < best_val_loss:
+            
+            # save
+            if rank == 0:
+                print(f"--> entering save model state...")
+            save_policy = FullStateDictConfig(offload_to_cpu=True, rank0_only=True)
+            with FSDP.state_dict_type(
+                model, StateDictType.FULL_STATE_DICT, save_policy
+            ):
+                cpu_state = model.state_dict()
+            print(f"saving process: rank {rank}  done w state_dict")
 
-        # save
-        if rank == 0:
-            print(f"--> entering save model state...")
-        save_policy = FullStateDictConfig(offload_to_cpu=True, rank0_only=True)
-        with FSDP.state_dict_type(
-            model, StateDictType.FULL_STATE_DICT, save_policy
-        ):
-            cpu_state = model.state_dict()
-        print(f"saving process: rank {rank}  done w state_dict")
+            if rank == 0:
+                print(f"--> saving model ...")
+                currEpoch = (
+                    "-" + str(epoch) + "-" + str(round(curr_val_loss.item(), 4)) + ".pt"
+                )
+                print(f"--> attempting to save model prefix {currEpoch}")
+                save_name = file_save_name + "-" + time_of_run + "-" + currEpoch
+                print(f"--> saving as model name {save_name}")
 
-        if rank == 0:
-            print(f"--> saving model ...")
-            currEpoch = (
-                "-" + str(epoch) + "-" + str(round(curr_val_loss.item(), 4)) + ".pt"
-            )
-            save_name = file_save_name + "-" + time_of_run + "-" + currEpoch
-
-            torch.save(cpu_state, save_name)
+                torch.save(cpu_state, save_name)
+                
+    dist.barrier()
     cleanup()
 
 
 if __name__ == '__main__':
     # Training settings
-    parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
+    parser = argparse.ArgumentParser(description='PyTorch T5 FSDP Example')
     parser.add_argument('--batch-size', type=int, default=4, metavar='N',
                         help='input batch size for training (default: 64)')
     parser.add_argument('--test-batch-size', type=int, default=4, metavar='N',
                         help='input batch size for testing (default: 1000)')
     parser.add_argument('--epochs', type=int, default=1, metavar='N',
-                        help='number of epochs to train (default: 14)')
-    parser.add_argument('--lr', type=float, default=1.0, metavar='LR',
-                        help='learning rate (default: 1.0)')
+                        help='number of epochs to train (default: 3)')
+    parser.add_argument('--lr', type=float, default=.002, metavar='LR',
+                        help='learning rate (default: .002)')
     parser.add_argument('--gamma', type=float, default=0.7, metavar='M',
                         help='Learning rate step gamma (default: 0.7)')
     parser.add_argument('--no-cuda', action='store_true', default=False,

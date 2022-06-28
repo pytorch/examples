@@ -1,12 +1,12 @@
 ## FSDP T5
 
-To run T5 example with FSDP for text_summarization:
+To run the T5 example with FSDP for text summarization:
 
 ## Get the wikihow dataset
 1 - Create a folder called 'data' and cd to it
 2 -  Download the two CSV files in [WikiHow](https://github.com/mahnazkoupaee/WikiHow-Dataset) dataset as linked below:
 ~~~
-wget https://ucsb.app.box.com/s/ap23l8gafpezf4tq3wapr6u8241zz358
+wget https://ucsb.app.box.com/s/ap23l8gafpezf4tq3wapr6u8241zz358 
 ~~~
 ~~~
 wget https://ucsb.app.box.com/s/7yq601ijl1lzvlfu4rjdbbxforzd2oag
@@ -22,7 +22,7 @@ pip install -r requirements.txt
 ## ensure you are running a recent version of PyTorch:
 see https://pytorch.org to install at least 1.12 and ideally a current nightly build. 
 
-For running T5 with Torchrun
+Start the training with Torchrun (adjust nproc_per_node to your GPU count):
 
 ```
 torchrun --nnodes 1 --nproc_per_node 4  T5_training.py
