@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from transformers import DataCollatorForSeq2Seq, Seq2SeqTrainingArguments, Seq2SeqTrainer
 from transformers import AutoTokenizer, GPT2TokenizerFast
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 import functools
@@ -14,12 +13,12 @@ import torch.distributed as dist
 import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data.distributed import DistributedSampler
-# from torch.distributed.fsdp.fully_sharded_data_parallel import (
-#     FullyShardedDataParallel as FSDP,
-#     CPUOffload,
-#     BackwardPrefetch,
-# )
+from transformers.models.t5.modeling_t5 import T5Block
 
+from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import (
+ checkpoint_wrapper,
+ CheckpointImpl,
+ apply_activation_checkpointing_wrapper)
 
 from torch.distributed.fsdp import (
     FullyShardedDataParallel as FSDP,
@@ -35,12 +34,14 @@ from torch.distributed.fsdp.wrap import (
     enable_wrap,
     wrap,
 )
+from functools import partial
 from torch.utils.data import DataLoader
 from pathlib import Path
 from summarization_dataset import *
 from transformers.models.t5.modeling_t5 import T5Block
 from typing import Type
 import time
+import tqdm
 from datetime import datetime
 
 g_gigabyte = 1024**3
@@ -77,12 +78,6 @@ bfSixteen = MixedPrecision(
     buffer_dtype=torch.bfloat16,
 )
 
-bfSixteen_working = MixedPrecision(
-    param_dtype=torch.float32,
-    reduce_dtype=torch.bfloat16,
-    buffer_dtype=torch.bfloat16,
-)
-
 fp32_policy = MixedPrecision(
     param_dtype=torch.float32,
     reduce_dtype=torch.float32,
@@ -103,6 +98,10 @@ def train(args, model, rank, world_size, train_loader, optimizer, epoch, sampler
   
     if sampler:
         sampler.set_epoch(epoch)
+    if rank==0:
+        inner_pbar = tqdm.tqdm(
+            range(len(train_loader)), colour="blue", desc="r0 Training Epoch"
+        )
     for batch in train_loader:
         for key in batch.keys():
             batch[key] = batch[key].to(local_rank)
@@ -117,9 +116,10 @@ def train(args, model, rank, world_size, train_loader, optimizer, epoch, sampler
     dist.all_reduce(fsdp_loss, op=dist.ReduceOp.SUM)
     train_accuracy = fsdp_loss[0] / fsdp_loss[1]
     if rank == 0:
-       print(
-            f"Train Epoch: \t{epoch}, Loss: \t{train_accuracy:.4f}"
-        )
+        inner_pbar.close()
+        print(
+                f"Train Epoch: \t{epoch}, Loss: \t{train_accuracy:.4f}"
+            )
     return train_accuracy
 
 
@@ -128,21 +128,22 @@ def validation(model, rank, world_size, val_loader):
     correct = 0
     local_rank = int(os.environ['LOCAL_RANK'])
     fsdp_loss = torch.zeros(3).to(local_rank)
+    if rank == 0:
+        inner_pbar = tqdm.tqdm(
+            range(len(val_loader)), colour="green", desc="Validation Epoch"
+        )
     with torch.no_grad():
         for batch in val_loader:
             for key in batch.keys():
                 batch[key] = batch[key].to(local_rank)
             output = model(input_ids=batch["source_ids"],attention_mask=batch["source_mask"],labels=batch["target_ids"])
             fsdp_loss[0] += output["loss"].item()  # sum up batch loss
-            pred = output["logits"].argmax(dim=1, keepdim=True)  # get the index of the max log-probability
-
-            fsdp_loss[1] += pred.eq(batch["target_ids"].view_as(pred)).sum().item()
-            fsdp_loss[2] += len(batch)
+            fsdp_loss[1] += len(batch)
 
     dist.all_reduce(fsdp_loss, op=dist.ReduceOp.SUM)
-
+    val_loss = fsdp_loss[0] / fsdp_loss[1]
     if rank == 0:
-        val_loss = fsdp_loss[0] / fsdp_loss[2]
+        inner_pbar.close()
         print(f"Validation Loss: {val_loss:.4f}")
     return val_loss
 
@@ -174,9 +175,10 @@ def fsdp_main(args):
     print("Size of train dataset: ", dataset['train'].shape)
     print("Size of Validation dataset: ", dataset['validation'].shape)
 
-    # tokenizer = T5Tokenizer.from_pretrained('t5-small')
-    train_dataset = wikihow(tokenizer, 'train', None, 512, 150, True)
-    val_dataset = wikihow(tokenizer, 'validation', None, 512, 150, True)
+   
+    #wikihow(tokenizer, type_path, num_samples, input_length, output_length, print_text=False)
+    train_dataset = wikihow(tokenizer, 'train', 1500, 512, 150, False) 
+    val_dataset = wikihow(tokenizer, 'validation', 300, 512, 150, False)
  
     sampler1 = DistributedSampler(train_dataset, rank=rank, num_replicas=world_size, shuffle=True)
     sampler2 = DistributedSampler(val_dataset, rank=rank, num_replicas=world_size)
@@ -209,21 +211,32 @@ def fsdp_main(args):
     init_end_event = torch.cuda.Event(enable_timing=True)
 
     init_start_event.record()
-
-   
+    
+    bf16_ready = (
+    torch.version.cuda
+    and torch.cuda.is_bf16_supported()
+    and LooseVersion(torch.version.cuda) >= "11.0"
+    and dist.is_nccl_available()
+    and nccl.version() >= (2, 10)
+    )
+    
+    if bf16_ready:
+        mp_policy = bfSixteen
+    else:
+        mp_policy = fpSixteen
+        
     model = FSDP(model,
         auto_wrap_policy=t5_auto_wrap_policy,
-        mixed_precision=fp32_policy,
+        mixed_precision=mp_policy,
         #sharding_strategy=sharding_strategy,
         device_id=torch.cuda.current_device())
 
-    print(model)
-    optimizer = optim.AdamW(model.parameters(), lr=args.lr)
+    optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
 
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
     best_val_loss = float("inf")
     curr_val_loss = float("inf")
-    file_save_name = "ModelCheckPoint-"
+    file_save_name = "T5-model-"
 
     if rank == 0:
         time_of_run = get_date_of_run()
@@ -233,7 +246,6 @@ def fsdp_main(args):
         training_start_time = time.time()
 
     if rank == 0 and args.track_memory:
-        fn = "memory_tracking.txt"
         mem_alloc_tracker = []
         mem_reserved_tracker = []
 
@@ -270,7 +282,7 @@ def fsdp_main(args):
 
     if rank == 0:
         print(f"Cuda event elapsed time: {init_start_event.elapsed_time(init_end_event) / 1000}sec")
-        print(f"{model}")
+        # print(f"{model}")
 
     if args.save_model and curr_val_loss < best_val_loss:
 
@@ -292,9 +304,6 @@ def fsdp_main(args):
             save_name = file_save_name + "-" + time_of_run + "-" + currEpoch
 
             torch.save(cpu_state, save_name)
-    if rank == 0:
-        torch.save(states, "T5_checkpoint.pt")
-    
     cleanup()
 
 
@@ -315,11 +324,11 @@ if __name__ == '__main__':
                         help='disables CUDA training')
     parser.add_argument('--seed', type=int, default=1, metavar='S',
                         help='random seed (default: 1)')
-    parser.add_argument('--track_memory', action='store_true', default=False,
+    parser.add_argument('--track_memory', action='store_false', default=True,
                         help='track the gpy memory')
-    parser.add_argument('--run_validation', action='store_true', default=False,
+    parser.add_argument('--run_validation', action='store_false', default=True,
                         help='running the validation')
-    parser.add_argument('--save-model', action='store_true', default=False,
+    parser.add_argument('--save-model', action='store_false', default=True,
                         help='For Saving the current Model')
     args = parser.parse_args()
 
