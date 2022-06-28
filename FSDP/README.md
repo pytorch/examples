@@ -6,14 +6,8 @@ To run the T5 example with FSDP for text summarization:
 1 - Create a folder called 'data' and cd to it
 2 -  Download the two CSV files in [WikiHow](https://github.com/mahnazkoupaee/WikiHow-Dataset) dataset as linked below:
 ~~~
-wget https://ucsb.app.box.com/s/ap23l8gafpezf4tq3wapr6u8241zz358 
+wget https://public-nlp-datasets.s3.us-west-2.amazonaws.com/wikihowAll.csv
 ~~~
-~~~
-wget https://ucsb.app.box.com/s/7yq601ijl1lzvlfu4rjdbbxforzd2oag
-~~~
-direct links:
-[wikihowAll.csv](https://ucsb.app.box.com/s/ap23l8gafpezf4tq3wapr6u8241zz358) and 
-[wikihowSep.csv](https://ucsb.app.box.com/s/7yq601ijl1lzvlfu4rjdbbxforzd2oag)
 
 ## install the requirements:
 ~~~
