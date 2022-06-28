@@ -273,13 +273,10 @@ def fsdp_main(args):
                     format_metrics_to_gb(torch.cuda.memory_reserved())
                 )
             print(f"completed save and stats zone...")
-        if rank == 0 and curr_val_loss < best_val_loss:
-
-            best_val_loss = curr_val_loss
-            print(f"-->>>> New Val Loss Record: {best_val_loss}")
+        
 
     #init_end_event.record()
-
+        
     #if rank == 0:
         #print(f"Cuda event elapsed time: {init_start_event.elapsed_time(init_end_event) / 1000}sec")
         # print(f"{model}")
@@ -288,13 +285,15 @@ def fsdp_main(args):
             
             # save
             if rank == 0:
-                print(f"--> entering save model state...")
+                print(f"--> entering save model state")
+            
             save_policy = FullStateDictConfig(offload_to_cpu=True, rank0_only=True)
             with FSDP.state_dict_type(
                 model, StateDictType.FULL_STATE_DICT, save_policy
             ):
                 cpu_state = model.state_dict()
-            print(f"saving process: rank {rank}  done w state_dict")
+            #print(f"saving process: rank {rank}  done w state_dict")
+           
 
             if rank == 0:
                 print(f"--> saving model ...")
@@ -306,7 +305,13 @@ def fsdp_main(args):
                 print(f"--> saving as model name {save_name}")
 
                 torch.save(cpu_state, save_name)
-                
+            
+        if curr_val_loss < best_val_loss:
+
+            best_val_loss = curr_val_loss
+            if rank==0:
+                print(f"-->>>> New Val Loss Record: {best_val_loss}")
+
     dist.barrier()
     cleanup()
 
@@ -318,7 +323,7 @@ if __name__ == '__main__':
                         help='input batch size for training (default: 64)')
     parser.add_argument('--test-batch-size', type=int, default=4, metavar='N',
                         help='input batch size for testing (default: 1000)')
-    parser.add_argument('--epochs', type=int, default=1, metavar='N',
+    parser.add_argument('--epochs', type=int, default=2, metavar='N',
                         help='number of epochs to train (default: 3)')
     parser.add_argument('--lr', type=float, default=.002, metavar='LR',
                         help='learning rate (default: .002)')
@@ -329,7 +334,7 @@ if __name__ == '__main__':
     parser.add_argument('--seed', type=int, default=1, metavar='S',
                         help='random seed (default: 1)')
     parser.add_argument('--track_memory', action='store_false', default=True,
-                        help='track the gpy memory')
+                        help='track the gpu memory')
     parser.add_argument('--run_validation', action='store_false', default=True,
                         help='running the validation')
     parser.add_argument('--save-model', action='store_false', default=True,
