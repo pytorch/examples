@@ -23,7 +23,7 @@ args = parser.parse_args()
 
 
 env = gym.make('CartPole-v1')
-env.seed(args.seed)
+env.reset(seed=args.seed)
 torch.manual_seed(args.seed)
 
 
