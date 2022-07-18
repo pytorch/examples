@@ -266,6 +266,11 @@ if __name__ == '__main__':
     os.environ['MASTER_PORT'] = args.master_port
     processes = []
     world_size = args.world_size
+
+    # Note that Linux uses "fork" by default, which may cause deadlock.
+    # Besides, cuda doesn't support "fork" and Windows only supports "spawn"
+    mp.set_start_method("spawn")
+
     if args.rank == 0:
         p = mp.Process(target=run_parameter_server, args=(0, world_size))
         p.start()
