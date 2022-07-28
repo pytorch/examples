@@ -10,12 +10,15 @@ with the samples from the generative model.
 After every epoch, models are saved to: `netG_epoch_%d.pth` and `netD_epoch_%d.pth`
 
 ## Downloading the dataset
+
 You can download the LSUN dataset by cloning [this repo](https://github.com/fyu/lsun) and running
+
 ```
 python download.py -c bedroom
 ```
 
 ## Usage
+
 ```
 usage: main.py [-h] --dataset DATASET --dataroot DATAROOT [--workers WORKERS]
                [--batchSize BATCHSIZE] [--imageSize IMAGESIZE] [--nz NZ]

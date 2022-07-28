@@ -23,4 +23,3 @@ To run the code,
 ```shell
 mpirun -np {NUM-PROCS} ./dist-mnist
 ```
-

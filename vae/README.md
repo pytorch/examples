@@ -7,6 +7,7 @@ It uses ReLUs and the adam optimizer, instead of sigmoids and adagrad. These cha
 pip install -r requirements.txt
 python main.py
 ```
+
 The main.py script accepts the following arguments:
 
 ```bash
