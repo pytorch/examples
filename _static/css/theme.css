@@ -10715,6 +10715,32 @@ article.pytorch-article table {
   table-layout: fixed;
 }
 
+div.deprecated p {
+  display: inline;
+}
+div.deprecated,
+div.versionchanged {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  border: none;
+}
+div.versionadded {
+  margin: 1rem 0;
+}
+div.deprecated p:last-child,
+div.versionchanged p:last-child,
+div.versionadded p:last-child {
+  margin-bottom: 0
+}
+div.deprecated {
+  color: #b94a48;
+  background-color: #fdede9;
+}
+div.versionchanged {
+  background-color: #fffbe8;
+}
+
 article.pytorch-article .note,
 article.pytorch-article .warning,
 article.pytorch-article .tip,
