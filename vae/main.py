@@ -38,7 +38,7 @@ test_loader = torch.utils.data.DataLoader(
 
 class VAE(nn.Module):
     def __init__(self):
-        super(VAE, self).__init__()
+        super().__init__()
 
         self.fc1 = nn.Linear(784, 400)
         self.fc21 = nn.Linear(400, 20)

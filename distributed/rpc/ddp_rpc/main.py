@@ -25,7 +25,7 @@ class HybridModel(torch.nn.Module):
     """
 
     def __init__(self, remote_emb_module, device):
-        super(HybridModel, self).__init__()
+        super().__init__()
         self.remote_emb_module = remote_emb_module
         self.fc = DDP(torch.nn.Linear(16, 8).cuda(device), device_ids=[device])
         self.device = device

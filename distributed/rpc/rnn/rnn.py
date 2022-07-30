@@ -40,7 +40,7 @@ class EmbeddingTable(nn.Module):
     Encoding layers of the RNNModel
     """
     def __init__(self, ntoken, ninp, dropout):
-        super(EmbeddingTable, self).__init__()
+        super().__init__()
         self.drop = nn.Dropout(dropout)
         self.encoder = nn.Embedding(ntoken, ninp)
         if torch.cuda.is_available():
@@ -58,7 +58,7 @@ class Decoder(nn.Module):
     Decoding layers of the RNNModel
     """
     def __init__(self, ntoken, nhid, dropout):
-        super(Decoder, self).__init__()
+        super().__init__()
         self.drop = nn.Dropout(dropout)
         self.decoder = nn.Linear(nhid, ntoken)
         nn.init.zeros_(self.decoder.bias)
@@ -76,7 +76,7 @@ class RNNModel(nn.Module):
     example. See https://github.com/pytorch/examples/blob/main/word_language_model/model.py
     """
     def __init__(self, ps, ntoken, ninp, nhid, nlayers, dropout=0.5):
-        super(RNNModel, self).__init__()
+        super().__init__()
 
         # setup embedding table remotely
         self.emb_table_rref = rpc.remote(ps, EmbeddingTable, args=(ntoken, ninp, dropout))

@@ -6,7 +6,7 @@ from torchvision import models
 
 class Vgg16(torch.nn.Module):
     def __init__(self, requires_grad=False):
-        super(Vgg16, self).__init__()
+        super().__init__()
         vgg_pretrained_features = models.vgg16(pretrained=True).features
         self.slice1 = torch.nn.Sequential()
         self.slice2 = torch.nn.Sequential()

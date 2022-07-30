@@ -13,7 +13,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 
 class ToyModel(nn.Module):
     def __init__(self):
-        super(ToyModel, self).__init__()
+        super().__init__()
         self.net1 = nn.Linear(10, 10)
         self.relu = nn.ReLU()
         self.net2 = nn.Linear(10, 5)

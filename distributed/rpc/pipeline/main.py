@@ -35,7 +35,7 @@ def conv1x1(in_planes, out_planes, stride=1):
 class ResNetBase(nn.Module):
     def __init__(self, block, inplanes, num_classes=1000,
                  groups=1, width_per_group=64, norm_layer=None):
-        super(ResNetBase, self).__init__()
+        super().__init__()
 
         self._lock = threading.Lock()
         self._block = block
@@ -79,7 +79,7 @@ class ResNetShard1(ResNetBase):
     The first part of ResNet.
     """
     def __init__(self, device, *args, **kwargs):
-        super(ResNetShard1, self).__init__(
+        super().__init__(
             Bottleneck, 64, num_classes=num_classes, *args, **kwargs)
 
         self.device = device
@@ -111,7 +111,7 @@ class ResNetShard2(ResNetBase):
     The second part of ResNet.
     """
     def __init__(self, device, *args, **kwargs):
-        super(ResNetShard2, self).__init__(
+        super().__init__(
             Bottleneck, 512, num_classes=num_classes, *args, **kwargs)
 
         self.device = device
@@ -135,7 +135,7 @@ class DistResNet50(nn.Module):
     Assemble two parts as an nn.Module and define pipelining logic
     """
     def __init__(self, split_size, workers, *args, **kwargs):
-        super(DistResNet50, self).__init__()
+        super().__init__()
 
         self.split_size = split_size
 

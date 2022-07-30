@@ -5,7 +5,7 @@ import torch.nn.init as init
 
 class Net(nn.Module):
     def __init__(self, upscale_factor):
-        super(Net, self).__init__()
+        super().__init__()
 
         self.relu = nn.ReLU()
         self.conv1 = nn.Conv2d(1, 64, (5, 5), (1, 1), (2, 2))

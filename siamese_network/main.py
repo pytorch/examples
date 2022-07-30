@@ -25,7 +25,7 @@ class SiameseNetwork(nn.Module):
         In addition, we aren't using `TripletLoss` as the MNIST dataset is simple, so `BCELoss` can do the trick.
     """
     def __init__(self):
-        super(SiameseNetwork, self).__init__()
+        super().__init__()
         # get resnet model
         self.resnet = torchvision.models.resnet18(pretrained=False)
 
@@ -79,7 +79,7 @@ class SiameseNetwork(nn.Module):
 
 class APP_MATCHER(Dataset):
     def __init__(self, root, train, download=False):
-        super(APP_MATCHER, self).__init__()
+        super().__init__()
 
         # get MNIST dataset
         self.dataset = datasets.MNIST(root, train=train, download=download)

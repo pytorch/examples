@@ -3,7 +3,7 @@ import torch
 
 class TransformerNet(torch.nn.Module):
     def __init__(self):
-        super(TransformerNet, self).__init__()
+        super().__init__()
         # Initial convolution layers
         self.conv1 = ConvLayer(3, 32, kernel_size=9, stride=1)
         self.in1 = torch.nn.InstanceNorm2d(32, affine=True)
@@ -43,7 +43,7 @@ class TransformerNet(torch.nn.Module):
 
 class ConvLayer(torch.nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride):
-        super(ConvLayer, self).__init__()
+        super().__init__()
         reflection_padding = kernel_size // 2
         self.reflection_pad = torch.nn.ReflectionPad2d(reflection_padding)
         self.conv2d = torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride)
@@ -61,7 +61,7 @@ class ResidualBlock(torch.nn.Module):
     """
 
     def __init__(self, channels):
-        super(ResidualBlock, self).__init__()
+        super().__init__()
         self.conv1 = ConvLayer(channels, channels, kernel_size=3, stride=1)
         self.in1 = torch.nn.InstanceNorm2d(channels, affine=True)
         self.conv2 = ConvLayer(channels, channels, kernel_size=3, stride=1)
@@ -84,7 +84,7 @@ class UpsampleConvLayer(torch.nn.Module):
     """
 
     def __init__(self, in_channels, out_channels, kernel_size, stride, upsample=None):
-        super(UpsampleConvLayer, self).__init__()
+        super().__init__()
         self.upsample = upsample
         reflection_padding = kernel_size // 2
         self.reflection_pad = torch.nn.ReflectionPad2d(reflection_padding)

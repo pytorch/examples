@@ -6,9 +6,9 @@ class Bottle(nn.Module):
 
     def forward(self, input):
         if len(input.size()) <= 2:
-            return super(Bottle, self).forward(input)
+            return super().forward(input)
         size = input.size()[:2]
-        out = super(Bottle, self).forward(input.view(size[0]*size[1], -1))
+        out = super().forward(input.view(size[0]*size[1], -1))
         return out.view(size[0], size[1], -1)
 
 
@@ -19,7 +19,7 @@ class Linear(Bottle, nn.Linear):
 class Encoder(nn.Module):
 
     def __init__(self, config):
-        super(Encoder, self).__init__()
+        super().__init__()
         self.config = config
         input_size = config.d_proj if config.projection else config.d_embed
         dropout = 0 if config.n_layers == 1 else config.dp_ratio
@@ -38,7 +38,7 @@ class Encoder(nn.Module):
 class SNLIClassifier(nn.Module):
 
     def __init__(self, config):
-        super(SNLIClassifier, self).__init__()
+        super().__init__()
         self.config = config
         self.embed = nn.Embedding(config.n_embed, config.d_embed)
         self.projection = Linear(config.d_embed, config.d_proj)

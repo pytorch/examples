@@ -7,7 +7,7 @@ class RNNModel(nn.Module):
     """Container module with an encoder, a recurrent module, and a decoder."""
 
     def __init__(self, rnn_type, ntoken, ninp, nhid, nlayers, dropout=0.5, tie_weights=False):
-        super(RNNModel, self).__init__()
+        super().__init__()
         self.ntoken = ntoken
         self.drop = nn.Dropout(dropout)
         self.encoder = nn.Embedding(ntoken, ninp)
@@ -79,7 +79,7 @@ class PositionalEncoding(nn.Module):
     """
 
     def __init__(self, d_model, dropout=0.1, max_len=5000):
-        super(PositionalEncoding, self).__init__()
+        super().__init__()
         self.dropout = nn.Dropout(p=dropout)
 
         pe = torch.zeros(max_len, d_model)
@@ -108,7 +108,7 @@ class TransformerModel(nn.Module):
     """Container module with an encoder, a recurrent or transformer module, and a decoder."""
 
     def __init__(self, ntoken, ninp, nhead, nhid, nlayers, dropout=0.5):
-        super(TransformerModel, self).__init__()
+        super().__init__()
         try:
             from torch.nn import TransformerEncoder, TransformerEncoderLayer
         except:

@@ -38,7 +38,7 @@ class Policy(nn.Module):
     See https://github.com/pytorch/examples/tree/main/reinforcement_learning
     """
     def __init__(self, batch=True):
-        super(Policy, self).__init__()
+        super().__init__()
         self.affine1 = nn.Linear(4, 128)
         self.dropout = nn.Dropout(p=0.6)
         self.affine2 = nn.Linear(128, 2)

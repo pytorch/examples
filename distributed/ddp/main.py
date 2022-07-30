@@ -23,7 +23,7 @@ def cleanup():
 
 class ToyModel(nn.Module):
     def __init__(self):
-        super(ToyModel, self).__init__()
+        super().__init__()
         self.net1 = nn.Linear(10, 10)
         self.relu = nn.ReLU()
         self.net2 = nn.Linear(10, 5)
@@ -103,7 +103,7 @@ def demo_checkpoint(rank, world_size):
 
 class ToyMpModel(nn.Module):
     def __init__(self, dev0, dev1):
-        super(ToyMpModel, self).__init__()
+        super().__init__()
         self.dev0 = dev0
         self.dev1 = dev1
         self.net1 = torch.nn.Linear(10, 10).to(dev0)
