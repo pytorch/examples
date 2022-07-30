@@ -1,4 +1,4 @@
-from __future__ import print_function
+
 import argparse
 import torch
 from PIL import Image
