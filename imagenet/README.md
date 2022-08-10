@@ -23,9 +23,9 @@ The default learning rate schedule starts at 0.1 and decays by a factor of 10 ev
 python main.py -a alexnet --lr 0.01 [imagenet-folder with train and val folders]
 ```
 
-## Dummy  Data for Performance Benchmark Only
+## Use Dummy Data
 
-Due to the data is dummy only for Performance Benchmark, the loss/accuracy is not reliable.
+ImageNet dataset is large and time-consuming to download. To get started quickly, run `main.py` using dummy data by "--dummy". It's also useful for training speed benchmark. Note that the loss or accuracy is useless in this case.
 
 ```bash
 python main.py -a resnet18 --dummy
