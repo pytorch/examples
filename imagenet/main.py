@@ -208,7 +208,7 @@ def main_worker(gpu, ngpus_per_node, args):
 
     # Data loading code
     if args.dummy:
-        print("=> Dummy data is using!")
+        print("=> Dummy data is used!")
         train_dataset = datasets.FakeData(1281167, (3, 224, 224), 1000, transforms.ToTensor())
         val_dataset = datasets.FakeData(50000, (3, 224, 224), 1000, transforms.ToTensor())
     else:
