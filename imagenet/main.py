@@ -421,7 +421,10 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
     def all_reduce(self):
-        total = torch.FloatTensor([self.sum, self.count])
+        if (torch.cuda.is_available()):
+            total = torch.cuda.FloatTensor([self.sum, self.count])
+        else:
+            total = torch.FloatTensor([self.sum, self.count])
         dist.all_reduce(total, dist.ReduceOp.SUM, async_op=False)
         self.sum, self.count = total.tolist()
         self.avg = self.sum / self.count
