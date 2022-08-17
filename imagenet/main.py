@@ -415,7 +415,7 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
     def all_reduce(self):
-        total = torch.Tensor([self.sum, self.count], device=self.sum.device, dtype=torch.float32)
+        total = torch.tensor([self.sum, self.count], dtype=torch.float32, device=self.sum.device)
         dist.all_reduce(total, dist.ReduceOp.SUM, async_op=False)
         self.sum, self.count = total.tolist()
         self.avg = self.sum / self.count
