@@ -72,7 +72,7 @@ if __name__ == '__main__':
                       })
 
     torch.manual_seed(args.seed)
-    mp.set_start_method('spawn')
+    mp.set_start_method('spawn', force=True)
 
     model = Net().to(device)
     model.share_memory() # gradients are allocated lazily, so they are not shared here
