@@ -4,8 +4,7 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 import tabulate
 import torch
-import torch.utils._pytree as pytree
-from gpu_profiler_utils import (MEM_LIMIT, DEVICE, BiDict, GraphProfiler, GraphType,
+from graph_profiler_utils import (MEM_LIMIT, DEVICE, BiDict, GraphProfiler, GraphType,
                                 IntNodeInfo, NodeInfo, ProfileMode,
                                 TensorStatus, get_tensor_stat,
                                 profile_mode_dict)
@@ -14,6 +13,10 @@ from torch.fx.node import map_arg
 
 
 class GraphProfiler(Interpreter):
+    r"""
+    The main GraphProfiler class that extends the fx.Interpreter and runs the input graph module node by node,
+    collecting profiling information for each of them. 
+    """
     def __init__(
         self,
         graphmod: GraphModule,
@@ -48,10 +51,10 @@ class GraphProfiler(Interpreter):
 
         self.total_runtime_sec: List[float] = []
         self.attr_map: Dict[Node, Any] = {}
-        self.node_runtime_events: Dict[Node, List[Any]] = {}
-        self.node_swaptime_events: Dict[Node, List[Any]] = {}
-        self.node_active_mem: Dict[Node, List[Any]] = {}
-        self.node_peak_mem: Dict[Node, List[Any]] = {}
+        self.node_runtime_events: Dict[Node, List[Tuple[torch.cuda.Event, torch.cuda.Event ]]] = {}
+        self.node_swaptime_events: Dict[Node, List[Tuple[torch.cuda.Event, torch.cuda.Event ]]] = {}
+        self.node_active_mem: Dict[Node, List[int]] = {}
+        self.node_peak_mem: Dict[Node, List[int]] = {}
         self.runtimes_sec: Dict[Node, List[float]] = {}
         self.swaptimes_sec: Dict[Node, List[float]] = {}
         self.intermediate_nodes: List[Node] = []
@@ -253,9 +256,9 @@ class GraphProfiler(Interpreter):
 
         if self.profile_mode in [ProfileMode.swap, ProfileMode.mem_saver_swap]:
             if self.gtype == GraphType.backward:
-                nodes_to_prefetch = self.user_to_first_backward_uses.get(n, None)
-                if nodes_to_prefetch is not None:
-                    for p_node in nodes_to_prefetch:
+                nodes_to_fetch = self.user_to_first_backward_uses.get(n, None)
+                if nodes_to_fetch is not None:
+                    for p_node in nodes_to_fetch:
                         if self.profile_mode == ProfileMode.swap:
                             t = self.env[p_node]
                             self.env[p_node] = None
@@ -475,7 +478,6 @@ class GraphProfiler(Interpreter):
     def print_summary(self) -> str:
 
         node_summaries: List[List[Any]] = []
-        # mean_total_runtime = statistics.mean(self.total_runtime_sec)
         mean_total_runtime = self.total_runtime
         logging.info(f"Execution Time (ms): {self.total_runtime}")
         logging.info(f"Max Peak Mem Usage (B): {self.max_peak_mem}")

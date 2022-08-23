@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torchdynamo
 from functorch.compile import aot_module
-from gpu_profiler import GraphProfiler, GraphType
+from graph_profiler import GraphProfiler, GraphType
 from torch import fx
 
 from torchbenchmark.util.benchmark_utils import get_benchmark_model
