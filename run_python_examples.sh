@@ -56,19 +56,7 @@ function start() {
 
 function dcgan() {
   start
-  if [ ! -d "lsun" ]; then
-    echo "cloning repo to get lsun dataset"
-    git clone https://github.com/fyu/lsun || { error "couldn't clone lsun repo needed for dcgan";  return; }
-  fi
-  # 'classroom' much smaller than the default 'bedroom' dataset.
-  DATACLASS="classroom"
-  if [ ! -d "lsun/${DATACLASS}_train_lmdb" ]; then
-    pushd lsun
-    python download.py -c $DATACLASS || { error "couldn't download $DATACLASS for dcgan";  return; }
-    unzip ${DATACLASS}_train_lmdb.zip || { error "couldn't unzip $DATACLASS"; return; }
-    popd
-  fi
-  python main.py --dataset lsun --dataroot lsun --classes $DATACLASS --niter 1 $CUDA_FLAG --dry-run || error "dcgan failed"
+  python main.py --dataset fake $CUDA_FLAG --dry-run || error "dcgan failed"
 }
 
 function distributed() {
@@ -171,10 +159,9 @@ function word_language_model() {
 function clean() {
   cd $BASE_DIR
   echo "running clean to remove cruft"
-  rm -rf dcgan/_cache_lsun_classroom_train_lmdb \
-    dcgan/fake_samples_epoch_000.png dcgan/lsun/ \
-    dcgan/_cache_lsunclassroomtrainlmdb \
-    dcgan/netD_epoch_0.pth dcgan/netG_epoch_0.pth \
+  rm -rf dcgan/fake_samples_epoch_000.png \
+    dcgan/netD_epoch_0.pth \
+    dcgan/netG_epoch_0.pth \
     dcgan/real_samples.png \
     fast_neural_style/saved_models.zip \
     fast_neural_style/saved_models/ \
