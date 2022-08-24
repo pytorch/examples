@@ -13,10 +13,35 @@ from torch.fx.node import map_arg
 
 
 class GraphProfiler(Interpreter):
-    r"""
-    The main GraphProfiler class that extends the fx.Interpreter and runs the input graph module node by node,
-    collecting profiling information for each of them. 
-    """
+    r""" The main GraphProfiler class that extends the fx.Interpreter and runs
+    the input graph module node by node, collecting profiling information for
+    each one of them.  
+    Args: 
+    graphmod (fx.GraphModule): The fx graphmodule to initialize the GraphProfiler.  
+    gtype (GraphType): The type of fx graph module (forward/backward) 
+    fwd_profiler (GraphProfiler): To intialize the backward profiler, an instnace 
+                                    of forward profiler is required. It is used
+    to create a mapping from nodes of forward graph to the backward graph,
+    merge the profiling information from forward and backward graphs into a
+    single dictionary and use the attributes of the fwd_profiler.  
+    fw_num_outs (int): The number of outputs in the original dynamo graph used 
+                        to generate the aot_graphs.  
+    sync (bool): Flag to indicate whether the cuda stream should be synchronized
+                 for each node operation.  
+    profile_mode (str): The Graph Profiler provides three profiling modes,``default``,
+                         ``swap`` and ``mem_saver_swap``.
+
+    Dictionaries: 
+    node_info (Dict[fx.Node, NodeInfo]): Dictionary to store the mapping of the node 
+                                        to its NodeInfo object (Profiling Information)
+    fwd_bwd_map (BiDict[fx.Node, fx.Node]): Bidirectional Dictionary to store
+                                            the mapping of the forward and backward 
+                                            pass intermediate nodes.
+    intermediate_nodes (List[fx.Node]): Activations retained from the forward
+                                        pass for gradient calculation in the backward 
+                                        pass that are not a part of the forward graph 
+                                        output in the original dynamo graph.  
+    """ 
     def __init__(
         self,
         graphmod: GraphModule,

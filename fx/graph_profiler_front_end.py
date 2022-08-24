@@ -16,31 +16,43 @@ BACKWARD = GraphType.backward
 
 
 class ProfileEngine:
-    r"""
-    Obtain the forward pass and backward pass of the provided nn.Module and profile them. It provides the run function which takes
-    an optional argument for running warm-up iterations before doing the actual profiling. Provides a print summary meothod to display
-    node-wise profiling information in a tabulated manner. Provides acccess to the GraphProfiler object to use any node-wise profiling
-    information for perfroming any transformations, rewriting or optimizations on the graph.
+    r""" Obtain the forward pass and backward pass of the provided nn.Module
+    and profile them. It provides the run function which takes an optional
+    argument for running warm-up iterations before doing the actual profiling.
+    Provides a print summary meothod to display node-wise profiling information
+    in a tabulated manner. Provides acccess to the GraphProfiler object to use
+    any node-wise profiling information for perfroming any transformations,
+    rewriting or optimizations on the graph.
 
-    Args:
-        model (nn.Module): a local model instance of nn.Module.
-        forward_loss (Callable): a function that takes and nn.module and input. It calls the model with the provided inputs and
-                                calculates and returns the loss.
-        optimizer (optim.Optimizer) : an instance of model's registered optimizer. The Optimizer is needed for accounting for
-                                    the memory occupied by the optimizer states and parameter grads. Currently optimizer is not
-                                     traceable and hence it won't be a part of the graph profiling mechanism.
-        example_inputs (Any): The example inputs will be passed to the forward_loss function to obtain the forward pass and
-                                loss of the model.
-        profile_mode (str): The Graph Profiler provides three profiling modes,``default``, ``swap`` and ``mem_saver_swap``.
-                            default: Measure the per node run-time, active memory usage, peak memory usage, marks the intermediate
-                                    nodes (activations saved from forward pass and needed in backward pass), registers their last
-                                    use in the forward pass and first use in the backward pass, measures this idle time, measures
-                                    their memory size and, marks the first use of the model parameter nodes in the forward pass.
-                            swap:   All the of the above plus measures the time to swap each of the intermediate tensors (activations)
-                                     to CPU memory, back and forth.
-                            mem_saver_swap: All of the above and profiles in a low memory mode, pushing all of the activations to
-                                            the CPU memory during the forward pass and fetches them back when they are needed in
-                                            the backward pass. Allows profiling graphs way larger than GPU memory.
+    Args: model (nn.Module): a local model instance of nn.Module.  
+    forward_loss(Callable): a function that takes and nn.module and input. 
+                            It calls the model with the provided inputs and 
+                            calculates and returns the loss.
+    optimizer (optim.Optimizer) : an instance of model's registered optimizer.
+                                The Optimizer is needed for accounting for the
+                                memory occupied by the optimizer states and 
+                                parameter grads. Currently optimizer is not 
+                                traceable and hence it won't be a part of the
+                                graph profiling mechanism.
+    example_inputs (Any): The example inputs will be passed to the forward_loss
+                        function to obtain the forward pass and 
+                        loss of the model.  
+    profile_mode (str): The Graph Profiler provides three profiling modes,
+                        ``default``,``swap`` and ``mem_saver_swap``.  
+    default: Measure the per node run-time,
+            active memory usage, peak memory usage, marks the intermediate nodes
+            (activations saved from forward pass and needed in backward pass),
+            registers their last use in the forward pass and first use in the 
+            backward pass, measures this idle time, measures their memory size 
+            and, marks the first use of the model parameter nodes in the 
+            forward pass.  
+    swap:   All the of the above plus measures the time to swap each of 
+            the intermediate tensors (activations) to CPU memory, back and forth.  
+    mem_saver_swap: All of the above and profiles in a low memory mode, pushing 
+                    all of the activations to the CPU memory during the forward 
+                    pass and fetches them back when they are needed in the 
+                    backward pass. Allows profiling graphs way larger than GPU 
+                    memory.
     """
 
     def __init__(
@@ -199,13 +211,16 @@ if __name__ == "__main__":
 
     logging.getLogger().setLevel(logging.DEBUG)
 
-    model_name = "torchbenchmark.models.hf_Bert.Model"
-    batch_size = 16
+    model_name = "torchbenchmark.models.resnet50.Model"
+    batch_size = 128
     device = torch.device("cuda")
     model, forward_loss, optimizer, example_inputs = get_benchmark_model(
         model_name, batch_size=batch_size, device=device
     )
 
-    engine = ProfileEngine(model, forward_loss, optimizer, example_inputs, "default")
-    engine.run(warm_up_iters=2)
+    engine = ProfileEngine(model, forward_loss, optimizer, example_inputs,
+                             "mem_saver_swap")
+
+    engine.run(warm_up_iters=2, profile_iters=5)
+    
     engine.print_summary()
