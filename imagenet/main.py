@@ -140,7 +140,7 @@ def main_worker(gpu, ngpus_per_node, args):
         print("=> creating model '{}'".format(args.arch))
         model = models.__dict__[args.arch]()
 
-    if not torch.cuda.is_available():
+    if not torch.cuda.is_available() or not torch.backends.mps.is_available():
         print('using CPU, this will be slow')
     elif args.distributed:
         # For multiprocessing distributed, DistributedDataParallel constructor
