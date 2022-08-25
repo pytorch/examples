@@ -82,7 +82,7 @@ function imagenet() {
   if [[ ! -d "sample/val" || ! -d "sample/train" ]]; then
     mkdir -p sample/val/n
     mkdir -p sample/train/n
-    wget "https://upload.wikimedia.org/wikipedia/commons/5/5a/Socks-clinton.jpg" || { error "couldn't download sample image for imagenet"; return; }
+    curl -O "https://upload.wikimedia.org/wikipedia/commons/5/5a/Socks-clinton.jpg" || { error "couldn't download sample image for imagenet"; return; }
     mv Socks-clinton.jpg sample/train/n
     cp sample/train/n/* sample/val/n/
   fi
@@ -91,7 +91,7 @@ function imagenet() {
 
 function mnist() {
   start
-  python main.py --epochs 1 --dry-run --mps || error "mnist example failed"
+  python main.py --epochs 1 --dry-run || error "mnist example failed"
 }
 
 function mnist_hogwild() {
