@@ -137,7 +137,7 @@ def finish_episode():
 def main():
     running_reward = 10
 
-    # run inifinitely many episodes
+    # run infinitely many episodes
     for i_episode in count(1):
 
         # reset environment and episode reward
