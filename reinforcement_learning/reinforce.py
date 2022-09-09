@@ -81,10 +81,11 @@ def finish_episode():
 def main():
     running_reward = 10
     for i_episode in count(1):
-        state, ep_reward = env.reset(), 0
+        state, _ = env.reset()
+        ep_reward = 0
         for t in range(1, 10000):  # Don't infinite loop while learning
             action = select_action(state)
-            state, reward, done, _ = env.step(action)
+            state, reward, done, _, _ = env.step(action)
             if args.render:
                 env.render()
             policy.rewards.append(reward)
