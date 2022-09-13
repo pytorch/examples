@@ -143,6 +143,6 @@ experiment with PyTorch.
 
     The PyTorch C++ frontend is a C++14 library for CPU and GPU tensor computation.
     This set of examples includes a linear regression, autograd, image recognition
-    (MNIST), and other examples using PyTorch C++ frontend.
+    (MNIST), and other useful examples using PyTorch C++ frontend.
 
     `GO TO EXAMPLES <https://github.com/pytorch/examples/tree/main/cpp>`__ :opticon:`link-external`

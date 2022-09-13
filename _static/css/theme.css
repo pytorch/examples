@@ -9947,6 +9947,7 @@ pre {
     padding: 5rem 0;
   }
 }
+
 .site-footer p {
   color: #ffffff;
 }
@@ -9955,6 +9956,7 @@ pre {
   padding-left: 0;
   margin-bottom: 0;
 }
+
 .site-footer ul li {
   font-size: 1.125rem;
   line-height: 2rem;
@@ -9973,6 +9975,44 @@ pre {
   .site-footer a:hover {
     color: #e44c2c;
   }
+}
+
+.site-footer .privacy-policy {
+    background: #000000;
+    display: flex;
+    border-bottom: 1px solid white;
+    padding-bottom: 10px;
+}
+
+.site-footer .privacy-policy-links {
+    background: #000000;
+    display: flex; 
+    padding-top: 1rem;
+    padding-right: 1rem;
+    display: inline-flex;
+    color: white;
+}
+
+.site-footer .footer-links-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    border-bottom: 1px solid white;
+    padding-bottom: 1rem;
+}
+
+.site-footer .copyright {
+    padding-top: 1rem;
+    padding-right: 1rem;
+    display: inline-flex;
+    color: white;
+}
+
+.site-footer .copyright p {
+    color: white;
+}
+
+.site-footer .copyright a {
+    color: red;
 }
 
 .docs-tutorials-resources {
