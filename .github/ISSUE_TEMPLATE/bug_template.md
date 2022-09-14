@@ -5,7 +5,7 @@ about: Create a report to help us improve
 ---
 
 Your issue may already be reported!
-Please search on the [issue tracker](https://github.com/pytorch/serve/examples) before creating one.
+Please search on the [issue tracker](https://github.com/pytorch/examples/issues) before creating one.
 
 ## Context
 <!--- How has this issue affected you? What are you trying to accomplish? -->
