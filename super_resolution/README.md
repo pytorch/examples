@@ -17,6 +17,7 @@ optional arguments:
   --nEpochs             number of epochs to train for
   --lr                  Learning Rate. Default=0.01
   --cuda                use cuda
+  --mps                 enable GPU on macOS
   --threads             number of threads for data loader to use Default=4
   --seed                random seed to use. Default=123
 ```
