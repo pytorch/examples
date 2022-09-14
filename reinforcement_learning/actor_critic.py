@@ -25,7 +25,7 @@ args = parser.parse_args()
 
 
 env = gym.make('CartPole-v1')
-env.seed(args.seed)
+env.reset(seed=args.seed)
 torch.manual_seed(args.seed)
 
 
@@ -56,7 +56,7 @@ class Policy(nn.Module):
         """
         x = F.relu(self.affine1(x))
 
-        # actor: choses action to take from state s_t 
+        # actor: choses action to take from state s_t
         # by returning probability of each action
         action_prob = F.softmax(self.action_head(x), dim=-1)
 
@@ -65,7 +65,7 @@ class Policy(nn.Module):
 
         # return values for both actor and critic as a tuple of 2 values:
         # 1. a list with the probability of each action over the action space
-        # 2. the value from state s_t 
+        # 2. the value from state s_t
         return action_prob, state_values
 
 
@@ -113,7 +113,7 @@ def finish_episode():
     for (log_prob, value), R in zip(saved_actions, returns):
         advantage = R - value.item()
 
-        # calculate actor (policy) loss 
+        # calculate actor (policy) loss
         policy_losses.append(-log_prob * advantage)
 
         # calculate critic (value) loss using L1 smooth loss
@@ -141,10 +141,10 @@ def main():
     for i_episode in count(1):
 
         # reset environment and episode reward
-        state = env.reset()
+        state, _ = env.reset()
         ep_reward = 0
 
-        # for each episode, only run 9999 steps so that we don't 
+        # for each episode, only run 9999 steps so that we don't
         # infinite loop while learning
         for t in range(1, 10000):
 
@@ -152,7 +152,7 @@ def main():
             action = select_action(state)
 
             # take the action
-            state, reward, done, _ = env.step(action)
+            state, reward, done, _, _ = env.step(action)
 
             if args.render:
                 env.render()
