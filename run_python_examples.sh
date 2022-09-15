@@ -56,7 +56,7 @@ function start() {
 
 function dcgan() {
   start
-  python main.py --dataset fake $CUDA_FLAG --mps --dry-run || error "dcgan failed"
+  python main.py --dataset fake $CUDA_FLAG --dry-run || error "dcgan failed"
 }
 
 function distributed() {
@@ -74,7 +74,7 @@ function fast_neural_style() {
   test -d "saved_models" || { error "saved models not found"; return; }
 
   echo "running fast neural style model"
-  python neural_style/neural_style.py eval --content-image images/content-images/amber.jpg --model saved_models/candy.pth --output-image images/output-images/amber-candy.jpg --cuda $CUDA --mps || error "neural_style.py failed"
+  python neural_style/neural_style.py eval --content-image images/content-images/amber.jpg --model saved_models/candy.pth --output-image images/output-images/amber-candy.jpg --cuda $CUDA || error "neural_style.py failed"
 }
 
 function imagenet() {
@@ -82,7 +82,7 @@ function imagenet() {
   if [[ ! -d "sample/val" || ! -d "sample/train" ]]; then
     mkdir -p sample/val/n
     mkdir -p sample/train/n
-    curl -O "https://upload.wikimedia.org/wikipedia/commons/5/5a/Socks-clinton.jpg" || { error "couldn't download sample image for imagenet"; return; }
+    wget "https://upload.wikimedia.org/wikipedia/commons/5/5a/Socks-clinton.jpg" || { error "couldn't download sample image for imagenet"; return; }
     mv Socks-clinton.jpg sample/train/n
     cp sample/train/n/* sample/val/n/
   fi
@@ -137,7 +137,7 @@ function fx() {
 
 function super_resolution() {
   start
-  python main.py --upscale_factor 3 --batchSize 4 --testBatchSize 100 --nEpochs 1 --lr 0.001 --mps || error "super resolution failed"
+  python main.py --upscale_factor 3 --batchSize 4 --testBatchSize 100 --nEpochs 1 --lr 0.001  || error "super resolution failed"
 }
 
 function time_sequence_prediction() {
@@ -153,7 +153,7 @@ function vae() {
 
 function word_language_model() {
   start
-  python main.py --epochs 1 --dry-run $CUDA_FLAG --mps || error "word_language_model failed"
+  python main.py --epochs 1 --dry-run $CUDA_FLAG || error "word_language_model failed"
 }
 
 function clean() {

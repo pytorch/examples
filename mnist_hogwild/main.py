@@ -29,8 +29,6 @@ parser.add_argument('--num-processes', type=int, default=2, metavar='N',
                     help='how many training processes to use (default: 2)')
 parser.add_argument('--cuda', action='store_true', default=False,
                     help='enables CUDA training')
-parser.add_argument('--mps', action='store_true', default=False,
-                        help='enables macOS GPU training')
 parser.add_argument('--dry-run', action='store_true', default=False,
                     help='quickly check a single pass')
 
@@ -57,14 +55,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     use_cuda = args.cuda and torch.cuda.is_available()
-    use_mps = args.mps and torch.backends.mps.is_available()
-    if use_cuda:
-        device = torch.device("cuda")
-    elif use_mps:
-        device = torch.device("mps")
-    else:
-        device = torch.device("cpu")
-
+    device = torch.device("cuda" if use_cuda else "cpu")
     transform=transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
