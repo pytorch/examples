@@ -88,6 +88,7 @@ def main():
         random.seed(args.seed)
         torch.manual_seed(args.seed)
         cudnn.deterministic = True
+        cudnn.benchmark = False
         warnings.warn('You have chosen to seed training. '
                       'This will turn on the CUDNN deterministic setting, '
                       'which can slow down your training considerably! '
@@ -204,7 +205,6 @@ def main_worker(gpu, ngpus_per_node, args):
         else:
             print("=> no checkpoint found at '{}'".format(args.resume))
 
-    cudnn.benchmark = True
 
     # Data loading code
     if args.dummy:
