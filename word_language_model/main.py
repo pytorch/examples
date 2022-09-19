@@ -62,9 +62,10 @@ if torch.backends.mps.is_available():
     if not args.mps:
         print("WARNING: You have mps device, to enable macOS GPU run with --mps.")
 
+use_mps = args.mps and torch.backends.mps.is_available()
 if args.cuda:
     device = torch.device("cuda")
-elif args.mps:
+elif use_mps:
     device = torch.device("mps")
 else:
     device = torch.device("cpu")

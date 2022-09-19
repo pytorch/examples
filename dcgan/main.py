@@ -106,10 +106,10 @@ elif opt.dataset == 'fake':
 assert dataset
 dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize,
                                          shuffle=True, num_workers=int(opt.workers))
-
+use_mps = opt.mps and torch.backends.mps.is_available()
 if opt.cuda:
     device = torch.device("cuda:0")
-elif opt.mps:
+elif use_mps:
     device = torch.device("mps")
 else:
     device = torch.device("cpu")
