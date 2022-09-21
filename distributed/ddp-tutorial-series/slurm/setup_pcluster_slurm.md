@@ -43,9 +43,9 @@ echo 'source /shared/venv/bin/activate' >> ~/.bashrc
 ## 7. Download training code and install requirements
 ```
 cd /shared
-git clone https://github.com/suraj813/distributed-pytorch.git
-
-cd /shared/distributed-pytorch
+git clone --depth 1 https://github.com/pytorch/examples;
+cd /shared/examples
+git filter-branch --prune-empty --subdirectory-filter distributed/ddp-tutorial-series
 python3 -m pip install setuptools==59.5.0
 pip install -r requirements.txt
 ```
