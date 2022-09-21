@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from datautils import MyTrainDataset
 
@@ -38,7 +39,7 @@ class Trainer:
     def _run_batch(self, source, targets):
         self.optimizer.zero_grad()
         output = self.model(source)
-        loss = torch.nn.CrossEntropyLoss()(output, targets)
+        loss = F.cross_entropy(output, targets)
         loss.backward()
         self.optimizer.step()
 
@@ -52,8 +53,9 @@ class Trainer:
 
     def _save_checkpoint(self, epoch):
         ckp = self.model.module.state_dict()
-        torch.save(ckp, "checkpoint.pt")
-        print(f"Epoch {epoch} | Training checkpoint saved at checkpoint.pt")
+        PATH = "checkpoint.pt"
+        torch.save(ckp, PATH)
+        print(f"Epoch {epoch} | Training checkpoint saved at {PATH}")
 
     def train(self, max_epochs: int):
         for epoch in range(max_epochs):

@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from datautils import MyTrainDataset
 
@@ -27,6 +28,7 @@ class Trainer:
         self.optimizer = optimizer
         self.save_every = save_every
         self.epochs_run = 0
+        self.snapshot_path = snapshot_path
         if os.path.exists(snapshot_path):
             print("Loading snapshot")
             self._load_snapshot(snapshot_path)
@@ -42,7 +44,7 @@ class Trainer:
     def _run_batch(self, source, targets):
         self.optimizer.zero_grad()
         output = self.model(source)
-        loss = torch.nn.CrossEntropyLoss()(output, targets)
+        loss = F.cross_entropy(output, targets)
         loss.backward()
         self.optimizer.step()
 
@@ -55,11 +57,12 @@ class Trainer:
             self._run_batch(source, targets)
 
     def _save_snapshot(self, epoch):
-        snapshot = {}
-        snapshot["MODEL_STATE"] = self.model.module.state_dict()
-        snapshot["EPOCHS_RUN"] = epoch
-        torch.save(snapshot, "snapshot.pt")
-        print(f"Epoch {epoch} | Training snapshot saved at snapshot.pt")
+        snapshot = {
+            "MODEL_STATE": self.model.module.state_dict(),
+            "EPOCHS_RUN": epoch,
+        }
+        torch.save(snapshot, self.snapshot_path)
+        print(f"Epoch {epoch} | Training snapshot saved at {self.snapshot_path}")
 
     def train(self, max_epochs: int):
         for epoch in range(self.epochs_run, max_epochs):
