@@ -17,6 +17,8 @@ args = get_args()
 if torch.cuda.is_available():
     torch.cuda.set_device(args.gpu)
     device = torch.device('cuda:{}'.format(args.gpu))
+elif torch.backends.mps.is_available():
+    device = torch.device('mps')
 else:
     device = torch.device('cpu')
 

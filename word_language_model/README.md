@@ -38,6 +38,7 @@ optional arguments:
   --tied                tie the word embedding and softmax weights
   --seed SEED           random seed
   --cuda                use CUDA
+  --mps                 enable GPU on macOS
   --log-interval N      report interval
   --save SAVE           path to save the final model
   --onnx-export ONNX_EXPORT

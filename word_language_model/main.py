@@ -37,8 +37,10 @@ parser.add_argument('--tied', action='store_true',
                     help='tie the word embedding and softmax weights')
 parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
-parser.add_argument('--cuda', action='store_true',
+parser.add_argument('--cuda', action='store_true', default=False,
                     help='use CUDA')
+parser.add_argument('--mps', action='store_true', default=False,
+                        help='enables macOS GPU training')
 parser.add_argument('--log-interval', type=int, default=200, metavar='N',
                     help='report interval')
 parser.add_argument('--save', type=str, default='model.pt',
@@ -56,8 +58,17 @@ torch.manual_seed(args.seed)
 if torch.cuda.is_available():
     if not args.cuda:
         print("WARNING: You have a CUDA device, so you should probably run with --cuda.")
+if torch.backends.mps.is_available():
+    if not args.mps:
+        print("WARNING: You have mps device, to enable macOS GPU run with --mps.")
 
-device = torch.device("cuda" if args.cuda else "cpu")
+use_mps = args.mps and torch.backends.mps.is_available()
+if args.cuda:
+    device = torch.device("cuda")
+elif use_mps:
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
 
 ###############################################################################
 # Load data
