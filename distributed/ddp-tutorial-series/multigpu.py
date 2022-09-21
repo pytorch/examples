@@ -79,10 +79,10 @@ def prepare_dataloader(dataset: Dataset, batch_size: int):
     )
 
 
-def main(rank: int, world_size: int, save_every: int, total_epochs: int):
+def main(rank: int, world_size: int, save_every: int, total_epochs: int, batch_size: int):
     ddp_setup(rank, world_size)
     dataset, model, optimizer = load_train_objs()
-    train_data = prepare_dataloader(dataset, batch_size=32)
+    train_data = prepare_dataloader(dataset, batch_size)
     trainer = Trainer(model, train_data, optimizer, rank, save_every)
     trainer.train(total_epochs)
     destroy_process_group()
@@ -93,8 +93,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='simple distributed training job')
     parser.add_argument('total_epochs', type=int, help='Total epochs to train the model')
     parser.add_argument('save_every', type=int, help='How often to save a snapshot')
+    parser.add_argument('--batch_size', default=32, help='Input batch size on each device (default: 32)')
     args = parser.parse_args()
     
-    main(args.save_every, args.total_epochs)
     world_size = torch.cuda.device_count()
-    mp.spawn(main, args=(world_size, args.total_epochs, args.save_every,), nprocs=world_size)
+    mp.spawn(main, args=(world_size, args.total_epochs, args.save_every, args.batch_size), nprocs=world_size)

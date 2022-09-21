@@ -61,9 +61,9 @@ def prepare_dataloader(dataset: Dataset, batch_size: int):
     )
 
 
-def main(device, total_epochs, save_every):
+def main(device, total_epochs, save_every, batch_size):
     dataset, model, optimizer = load_train_objs()
-    train_data = prepare_dataloader(dataset, batch_size=32)
+    train_data = prepare_dataloader(dataset, batch_size)
     trainer = Trainer(model, train_data, optimizer, device, save_every)
     trainer.train(total_epochs)
 
@@ -73,7 +73,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='simple distributed training job')
     parser.add_argument('total_epochs', type=int, help='Total epochs to train the model')
     parser.add_argument('save_every', type=int, help='How often to save a snapshot')
+    parser.add_argument('--batch_size', default=32, help='Input batch size on each device (default: 32)')
     args = parser.parse_args()
     
     device = 0  # shorthand for cuda:0
-    main(device, args.total_epochs, args.save_every)
+    main(device, args.total_epochs, args.save_every, args.batch_size)
