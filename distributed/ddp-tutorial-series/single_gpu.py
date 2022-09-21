@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import Dataset, DataLoader
-from utils import MyTrainDataset
+from datautils import MyTrainDataset
 
 
 class Trainer:
@@ -69,8 +69,11 @@ def main(device, total_epochs, save_every):
 
 
 if __name__ == "__main__":
-    import sys
-    total_epochs = int(sys.argv[1])
-    save_every = int(sys.argv[2])
+    import argparse
+    parser = argparse.ArgumentParser(description='simple distributed training job')
+    parser.add_argument('total_epochs', type=int, help='Total epochs to train the model')
+    parser.add_argument('save_every', type=int, help='How often to save a snapshot')
+    args = parser.parse_args()
+    
     device = 0  # shorthand for cuda:0
-    main(device, total_epochs, save_every)
+    main(device, args.total_epochs, args.save_every)

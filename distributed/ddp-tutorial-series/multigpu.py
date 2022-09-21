@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import Dataset, DataLoader
-from utils import MyTrainDataset
+from datautils import MyTrainDataset
 
 import torch.multiprocessing as mp
 from torch.utils.data.distributed import DistributedSampler
@@ -89,8 +89,12 @@ def main(rank: int, world_size: int, save_every: int, total_epochs: int):
 
 
 if __name__ == "__main__":
-    import sys
-    total_epochs = int(sys.argv[1])
-    save_every = int(sys.argv[2])
+    import argparse
+    parser = argparse.ArgumentParser(description='simple distributed training job')
+    parser.add_argument('total_epochs', type=int, help='Total epochs to train the model')
+    parser.add_argument('save_every', type=int, help='How often to save a snapshot')
+    args = parser.parse_args()
+    
+    main(args.save_every, args.total_epochs)
     world_size = torch.cuda.device_count()
-    mp.spawn(main, args=(world_size, total_epochs, save_every,), nprocs=world_size)
+    mp.spawn(main, args=(world_size, args.total_epochs, args.save_every,), nprocs=world_size)
