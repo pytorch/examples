@@ -14,6 +14,7 @@ trainer_config:
   grad_norm_clip: 1.0
   snapshot_path: s3://mingpt-ddp/snapshot/gpt_snapshot.pt
   save_every: 3
+  use_amp: True
 optimizer_config:
   weight_decay: 0.1
   learning_rate: 0.0003

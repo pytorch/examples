@@ -26,6 +26,7 @@ class TrainerConfig:
     grad_norm_clip: float = None
     snapshot_path: Optional[str] = None
     save_every: int = None
+    use_amp: bool = None
 
 @dataclass
 class Snapshot:
@@ -56,6 +57,8 @@ class Trainer:
         self.model = model.to(self.local_rank)
         self.optimizer = optimizer        
         self.save_every = self.config.save_every
+        if self.config.use_amp:
+            self.scaler = torch.cuda.amp.GradScaler()
         # load snapshot if available. only necessary on the first node.
         if self.config.snapshot_path is None:
             self.config.snapshot_path = "snapshot.pt"
@@ -90,14 +93,20 @@ class Trainer:
 
 
     def _run_batch(self, source, targets, train: bool = True) -> float:
-        with torch.set_grad_enabled(train):
+        with torch.set_grad_enabled(train), torch.amp.autocast(device_type="cuda", dtype=torch.float16, enabled=(self.config.use_amp)):
             _, loss = self.model(source, targets)
         
         if train:
             self.optimizer.zero_grad(set_to_none=True)
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.grad_norm_clip)
-            self.optimizer.step()
+            if self.config.use_amp: 
+                self.scaler.scale(loss).backward()
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.grad_norm_clip)
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+            else:
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.grad_norm_clip)
+                self.optimizer.step()
         
         return loss.item()
 
@@ -137,4 +146,3 @@ class Trainer:
             # eval run
             if self.test_loader:
                 self._run_epoch(epoch, self.test_loader, train=False)
-
