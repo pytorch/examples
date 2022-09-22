@@ -20,6 +20,6 @@ srun torchrun \
 --rdzv_id $RANDOM \
 --rdzv_backend c10d \
 --rdzv_endpoint $head_node_ip:29500 \
-/shared/minGPT-ddp/mingpt/main.py
+/shared/examples/mingpt/main.py
 
 

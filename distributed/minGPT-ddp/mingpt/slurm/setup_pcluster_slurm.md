@@ -35,7 +35,7 @@ pcluster ssh --cluster-name dist-ml -i your-keypair-file
 ```
 sudo apt-get update
 sudo apt-get install -y python3-venv
-python3.7 -m venv /shared/venv/
+python3 -m venv /shared/venv/
 source /shared/venv/bin/activate
 pip install wheel
 echo 'source /shared/venv/bin/activate' >> ~/.bashrc
@@ -44,9 +44,9 @@ echo 'source /shared/venv/bin/activate' >> ~/.bashrc
 ## 7. Download training code and install requirements
 ```
 cd /shared
-git clone https://github.com/suraj813/minGPT-ddp.git
-
-cd /shared/minGPT-ddp
+git clone --depth 1 https://github.com/pytorch/examples;
+cd /shared/examples
+git filter-branch --prune-empty --subdirectory-filter distributed/minGPT-ddp
 python3 -m pip install setuptools==59.5.0
 pip install -r requirements.txt
 ```
