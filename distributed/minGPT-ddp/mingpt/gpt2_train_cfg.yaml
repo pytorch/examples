@@ -12,7 +12,7 @@ trainer_config:
   batch_size: 216
   data_loader_workers: 4
   grad_norm_clip: 1.0
-  snapshot_path: s3://mingpt-ddp/snapshot/gpt_snapshot.pt
+  snapshot_path: gpt_snapshot.pt
   save_every: 3
   use_amp: True
 optimizer_config:
