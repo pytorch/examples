@@ -17,7 +17,7 @@ class DataConfig:
 class CharDataset(Dataset):
 
     def __init__(self, data_cfg: DataConfig): #data_path: str, block_size):
-        data = fsspec.open(data_cfg.path).open().read()
+        data = fsspec.open(data_cfg.path).open().read().decode('utf-8')
         data = data[ : int(len(data) * data_cfg.truncate)]
 
         chars = sorted(list(set(data)))

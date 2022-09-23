@@ -1,5 +1,5 @@
 data_config:
-  path: s3://mingpt-ddp/data/input.txt
+  path: https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt
   block_size: 128
   train_split: 0.9
   truncate: 0.05
