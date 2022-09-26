@@ -133,6 +133,7 @@ experiment with PyTorch.
     ^^^^^^^^^^^^^^^^^^^
 
     This set of examples demonstrates `Distributed Data Parallel (DDP) <https://pytorch.org/tutorials/intermediate/ddp_tutorial.html>`__ and `Distributed RPC framework <https://pytorch.org/docs/stable/rpc.html>`__. 
+    Includes the code used in the `DDP tutorial series <https://pytorch.org/tutorials/beginner/ddp_series_intro.html>`__.
 
     `GO TO EXAMPLES <https://github.com/pytorch/examples/tree/main/distributed>`__ :opticon:`link-external`
     

@@ -1,0 +1,24 @@
+data_config:
+  path: https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt
+  block_size: 128
+  train_split: 0.9
+  truncate: 0.05
+gpt_config:
+  n_layer: 8
+  n_head: 8
+  n_embd: 512
+trainer_config:
+  max_epochs: 10
+  batch_size: 216
+  data_loader_workers: 4
+  grad_norm_clip: 1.0
+  snapshot_path: gpt_snapshot.pt
+  save_every: 3
+  use_amp: True
+optimizer_config:
+  weight_decay: 0.1
+  learning_rate: 0.0003
+
+hydra:
+  run:
+    dir: ./
