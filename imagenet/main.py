@@ -318,8 +318,8 @@ def train(train_loader, model, criterion, optimizer, epoch, device, args):
         data_time.update(time.time() - end)
 
         # move data to the same device as model
-        images = images.to(device)
-        target = target.to(device)
+        images = images.to(device, non_blocking=True)
+        target = target.to(device, non_blocking=True)
 
         # compute output
         output = model(images)
