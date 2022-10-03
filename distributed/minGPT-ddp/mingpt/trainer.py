@@ -111,6 +111,7 @@ class Trainer:
         return loss.item()
 
     def _run_epoch(self, epoch: int, dataloader: DataLoader, train: bool = True):
+        self.dataloader.sampler.set_epoch(epoch)
         for iter, (source, targets) in enumerate(dataloader):
             step_type = "Train" if train else "Eval"
             source = source.to(self.local_rank)
