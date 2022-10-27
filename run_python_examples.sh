@@ -99,6 +99,11 @@ function mnist_hogwild() {
   python main.py --epochs 1 --dry-run $CUDA_FLAG || error "mnist hogwild failed"
 }
 
+function mnist_rnn() {
+  start
+  python main.py --epochs 1 --dry-run || error "mnist rnn example failed"
+}
+
 function regression() {
   start
   python main.py --epochs 1 $CUDA_FLAG || error "regression failed"
@@ -190,6 +195,7 @@ function run_all() {
   imagenet
   mnist
   mnist_hogwild
+  mnist_rnn
   regression
   reinforcement_learning
   siamese_network
