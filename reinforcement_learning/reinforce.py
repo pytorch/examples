@@ -2,7 +2,7 @@ import argparse
 import gym
 import numpy as np
 from itertools import count
-
+from collections import deque
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -62,10 +62,10 @@ def select_action(state):
 def finish_episode():
     R = 0
     policy_loss = []
-    returns = []
+    returns = deque()
     for r in policy.rewards[::-1]:
         R = r + args.gamma * R
-        returns.insert(0, R)
+        returns.appendleft(R)
     returns = torch.tensor(returns)
     returns = (returns - returns.mean()) / (returns.std() + eps)
     for log_prob, R in zip(policy.saved_log_probs, returns):
