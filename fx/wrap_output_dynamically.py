@@ -1,8 +1,8 @@
 
-import torch
-from torch.fx import Proxy, GraphModule, Node, symbolic_trace
-
 from enum import Enum, auto
+
+import torch
+from torch.fx import GraphModule, Node, Proxy, symbolic_trace
 
 '''
 Wrap Graph Output Dynamically
@@ -82,4 +82,4 @@ orig_output = traced(x, y)
 wrap_in_activation_function(traced, ActivationFunction.LEAKY_RELU)
 new_output = traced(x, y)
 
-torch.testing.assert_allclose(new_output, torch.nn.LeakyReLU()(orig_output))
+torch.testing.assert_close(new_output, torch.nn.LeakyReLU()(orig_output))
