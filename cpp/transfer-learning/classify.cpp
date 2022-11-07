@@ -72,9 +72,6 @@ int main(int arc, char** argv)
     // You can also use: auto model = torch::jit::load(model_path);
     torch::jit::script::Module model = torch::jit::load(model_path);
     
-    torch::nn::Linear model_linear(512, 2);
-    torch::load(model_linear, model_path_linear);
-    
     // Print probabilities for dog and cat classes
     print_probabilities(location, model_path, model_path_linear);
     return 0;
