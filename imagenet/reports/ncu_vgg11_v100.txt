@@ -1,0 +1,11 @@
+==PROF== Target process 51568 terminated before first instrumented API call.
+usage: main.py [-h] [-a ARCH] [-j N] [--epochs N] [--start-epoch N] [-b N]
+               [--lr LR] [--momentum M] [--wd W] [-p N] [--resume PATH] [-e]
+               [--pretrained] [--world-size WORLD_SIZE] [--rank RANK]
+               [--dist-url DIST_URL] [--dist-backend DIST_BACKEND]
+               [--seed SEED] [--gpu GPU] [--multiprocessing-distributed]
+               [--dummy]
+               [DIR]
+main.py: error: argument -p/--print-freq: invalid int value: 'ochs'
+==ERROR== The application returned an error code (2).
+==WARNING== No kernels were profiled.
