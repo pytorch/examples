@@ -5,13 +5,19 @@ import torch.distributed as dist
 import torch.multiprocessing as mp
 import torch.nn as nn
 
-from torch.distributed._tensor import (
-    DeviceMesh,
-)
-from torch.distributed.tensor.parallel import (
-    PairwiseParallel,
-    parallelize_module,
-)
+TP_AVAILABLE = False
+try:
+    from torch.distributed._tensor import (
+        DeviceMesh,
+    )
+    from torch.distributed.tensor.parallel import (
+        PairwiseParallel,
+        parallelize_module,
+    )
+    TP_AVAILABLE = True
+except BaseException as e:
+    pass
+
 
 """
 This is the script to test Tensor Parallel(TP) on a toy model in a
@@ -117,6 +123,11 @@ if __name__ == "__main__":
     # The main entry point is called directly without using subprocess
     if n_gpus < 2:
         print("Requires at least 2 GPUs to run.")
+    elif not TP_AVAILABLE:
+        print(
+            "PyTorch doesn't have Tensor Parallelism available,"
+            " need nightly build."
+        )
     else:
         run_demo(demo_tp, args)
 
