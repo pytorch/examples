@@ -26,21 +26,22 @@ And it is built on top of Distributed Tensor which is proposed in:
 
 https://github.com/pytorch/pytorch/issues/88838.
 
-We use the example of two nn layers with an element-wise RELU in between
-to show an example of Megatron-LM, which was proposed in paper:
+We use the example of two `nn.Linear` layers with an element-wise `nn.RELU`
+in between to show an example of Megatron-LM, which was proposed in paper:
 
 https://arxiv.org/abs/1909.08053.
 
-The basic idea is that we parallelize the first nn by column and also
-parallelize the second nn by row so that we don't need the all gather
-of the result of first nn and all scatter of input of the second nn.
+The basic idea is that we parallelize the first linear layer by column
+and also parallelize the second linear layer by row so that we only need
+one all reduce in the end of the second linear layer.
+
 We can speed up the model training by avoiding communications between
 two layers.
 
-To parallelize a nn module, we need to create to specify what parallel style
-we want to use and our parallelize_module will parse and parallelize the module
-based on the given spec. We are using this PyTorch native APIs
-for all of them and this example shows how to use them.
+To parallelize a nn module, we need to specify what parallel style we want
+to use and our `parallelize_module` API will parse and parallelize the modules
+based on the given `ParallelStyle`. We are using this PyTorch native Tensor
+Parallelism APIs in this example to show users how to use them.
 """
 
 
@@ -77,7 +78,7 @@ def demo_tp(rank, args):
     # create a sharding plan based on the given world_size.
     device_mesh = DeviceMesh(
         "cuda",
-        torch.arange(0, args.world_size),
+        torch.arange(args.world_size),
     )
 
     # create model and move it to GPU with id rank

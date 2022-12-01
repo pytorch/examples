@@ -1,9 +1,9 @@
 # PyTorch Tensor Parallelism for distributed training
 
 This example demonstrates SPMD Megatron-LM style tensor parallel by using
-PyTorch native module parallelise APIs, which include:
+PyTorch native Tensor Parallelism APIs, which include:
 
-1. High-level APIs for module-level distribution with a dummy MLP model.
+1. High-level APIs for module-level parallelism with a dummy MLP model.
 2. Model agnostic ops for `DistributedTensor`, such as `Linear` and `RELU`.
 3. A E2E demo of tensor parallel for a given toy model (Forward/backward + optimization).
 
