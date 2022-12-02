@@ -60,9 +60,9 @@ function dcgan() {
 }
 
 function distributed() {
-    startrun
-    python distributed/tensor_parallelism/example.py || error "tensor parallel example failed"
-    python distributed/ddp/main.py || error "ddp example failed" 
+    start
+    python tensor_parallelism/example.py || error "tensor parallel example failed"
+    python ddp/main.py || error "ddp example failed" 
 }
 
 function fast_neural_style() {
