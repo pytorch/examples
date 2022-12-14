@@ -58,7 +58,7 @@ torch.manual_seed(args.seed)
 if torch.cuda.is_available():
     if not args.cuda:
         print("WARNING: You have a CUDA device, so you should probably run with --cuda.")
-if torch.backends.mps.is_available():
+if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
     if not args.mps:
         print("WARNING: You have mps device, to enable macOS GPU run with --mps.")
 
