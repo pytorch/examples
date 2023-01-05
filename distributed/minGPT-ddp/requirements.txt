@@ -2,3 +2,5 @@ torch>=1.11.0
 fsspec
 boto3
 hydra-core
+requests
+aiohttp
