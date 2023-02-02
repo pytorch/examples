@@ -7,7 +7,7 @@ possible.
 
 We actively welcome your pull requests.
 
-If you're new we encourage you to take a look at issues tagged with [good first issue](https://github.com/pytorch/examples/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+If you're new, we encourage you to take a look at issues tagged with [good first issue](https://github.com/pytorch/examples/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
 
 ### For new examples
 
@@ -29,7 +29,7 @@ If you're new we encourage you to take a look at issues tagged with [good first 
    When done working with `virtualenv`, run `deactivate`.
 
 5. Verify that there are no issues in your doc build. You can check the preview locally
-   by installing [sphinx-serve](https://pypi.org/project/sphinx-serve/) and
+   by installing [sphinx-serve](https://pypi.org/project/sphinx-serve/)
    then running `sphinx-serve -b build`.
 6. Ensure your test passes locally.
 7. If you haven't already, complete the Contributor License Agreement ("CLA").
@@ -41,7 +41,7 @@ If you're new we encourage you to take a look at issues tagged with [good first 
 2. Make sure you have a GPU-enabled machine, either locally or in the cloud. `g4dn.4xlarge` is a good starting point on AWS.
 3. Make your code change.
 4. First, install all dependencies with `./run_python_examples.sh "install_deps"`.
-5. Then make sure that `./run_python_examples.sh` passes locally by running the script end to end.
+5. Then, make sure that `./run_python_examples.sh` passes locally by running the script end to end.
 6. If you haven't already, complete the Contributor License Agreement ("CLA").
 7. Address any feedback in code review promptly.
 
