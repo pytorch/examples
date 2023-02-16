@@ -93,7 +93,12 @@ function mnist() {
   start
   python main.py --epochs 1 --dry-run || error "mnist example failed"
 }
+function mnist_forward_forward() {
+  # python3 main.py --epochs 1000 --lr 0.03 --threshold 2 --train_size 50000 --test_size 10000 --log_interval 10 --no_mps --no_cuda --save_model --seed 1
+  start 
+  python main.py --epochs 1 --no_mps --no_cuda || error "mnist forward forward failed"
 
+}
 function mnist_hogwild() {
   start
   python main.py --epochs 1 --dry-run $CUDA_FLAG || error "mnist hogwild failed"
