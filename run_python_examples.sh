@@ -198,6 +198,7 @@ function run_all() {
   distributed
   imagenet
   mnist
+  mnist_forward_forward
   mnist_hogwild
   mnist_rnn
   regression
@@ -208,7 +209,6 @@ function run_all() {
   vae
   word_language_model
   fx
-  mnist_forward_forward
 }
 
 # by default, run all examples
