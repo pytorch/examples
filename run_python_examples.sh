@@ -94,7 +94,6 @@ function mnist() {
   python main.py --epochs 1 --dry-run || error "mnist example failed"
 }
 function mnist_forward_forward() {
-  # python3 main.py --epochs 1000 --lr 0.03 --threshold 2 --train_size 50000 --test_size 10000 --log_interval 10 --no_mps --no_cuda --save_model --seed 1
   start 
   python main.py --epochs 1 --no_mps --no_cuda || error "mnist forward forward failed"
 
@@ -209,6 +208,7 @@ function run_all() {
   vae
   word_language_model
   fx
+  mnist_forward_forward
 }
 
 # by default, run all examples

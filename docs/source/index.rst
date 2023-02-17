@@ -150,12 +150,12 @@ experiment with PyTorch.
 
     ---
 
-    Image Classification Using Forward-Forward Propogation
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    Image Classification Using Forward-Forward Algorithm
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     This example implements the paper `The Forward-Forward Algorithm: Some Preliminary Investigations <https://arxiv.org/pdf/2212.13345.pdf>`__ by Geoffrey Hinton.
     on the `MNIST <https://en.wikipedia.org/wiki/MNIST_database>`__ database.
     It is an introductory example to the Forward-Forward algorithm.
 
-    `GO TO EXAMPLE <https://github.com/pytorch/examples/blob/main/mnist_forward_forward/main.py>`__ :opticon:`link-external` 
+    `GO TO EXAMPLE <https://github.com/pytorch/examples/tree/main/mnist_forward_forward>`__ :opticon:`link-external` 
 
