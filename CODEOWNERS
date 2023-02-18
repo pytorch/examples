@@ -17,9 +17,6 @@ run_python_examples.sh @msaroufim
 ./reinforcement_learning/ @msaroufim 
 ./word_language_model/ @msaroufim
 
-# Forward Forward Examples
-./mnist_forward_forward/ @viveks-codes
-
 # Need an owner 
 ./regression/
 ./mnist/
