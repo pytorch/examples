@@ -2,7 +2,7 @@ import argparse
 import gym
 import numpy as np
 from itertools import count
-from collections import namedtuple
+from collections import namedtuple, deque
 
 import torch
 import torch.nn as nn
@@ -99,13 +99,13 @@ def finish_episode():
     saved_actions = model.saved_actions
     policy_losses = [] # list to save actor (policy) loss
     value_losses = [] # list to save critic (value) loss
-    returns = [] # list to save the true values
+    returns = deque() # list to save the true values
 
     # calculate the true value using rewards returned from the environment
     for r in model.rewards[::-1]:
         # calculate the discounted value
         R = r + args.gamma * R
-        returns.insert(0, R)
+        returns.appendleft(R)
 
     returns = torch.tensor(returns)
     returns = (returns - returns.mean()) / (returns.std() + eps)
