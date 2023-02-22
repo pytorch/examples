@@ -1,3 +1,7 @@
+# This code is based on the implementation of Mohammad Pezeshki available at
+# https://github.com/mohammadpz/pytorch_forward_forward and licensed under the MIT License.
+# Modifications/Improvements to the original code have been made by Vivek V Patel.
+
 import argparse
 import torch
 import torch.nn as nn
