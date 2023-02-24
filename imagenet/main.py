@@ -215,7 +215,7 @@ def main_worker(gpu, ngpus_per_node, args):
                 best_acc1 = best_acc1.to(args.gpu)
             model.load_state_dict(checkpoint['state_dict'])
             optimizer.load_state_dict(checkpoint['optimizer'])
-            if args.lr:
+            if args.lr != parser.get_default('lr'):
                 # resume with newly specified learning rate
                 optimizer.param_groups[0]['lr'] = args.lr
             scheduler.load_state_dict(checkpoint['scheduler'])
