@@ -1,4 +1,4 @@
-torch==1.9.0
+torch==1.13.1
 torchvision==0.7.0
 numpy
 gym
