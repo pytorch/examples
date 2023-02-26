@@ -93,7 +93,11 @@ function mnist() {
   start
   python main.py --epochs 1 --dry-run || error "mnist example failed"
 }
+function mnist_forward_forward() {
+  start 
+  python main.py --epochs 1 --no_mps --no_cuda || error "mnist forward forward failed"
 
+}
 function mnist_hogwild() {
   start
   python main.py --epochs 1 --dry-run $CUDA_FLAG || error "mnist hogwild failed"
@@ -194,6 +198,7 @@ function run_all() {
   distributed
   imagenet
   mnist
+  mnist_forward_forward
   mnist_hogwild
   mnist_rnn
   regression

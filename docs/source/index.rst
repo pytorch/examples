@@ -147,3 +147,15 @@ experiment with PyTorch.
     (MNIST), and other useful examples using PyTorch C++ frontend.
 
     `GO TO EXAMPLES <https://github.com/pytorch/examples/tree/main/cpp>`__ :opticon:`link-external`
+
+    ---
+
+    Image Classification Using Forward-Forward Algorithm
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+    This example implements the paper `The Forward-Forward Algorithm: Some Preliminary Investigations <https://arxiv.org/pdf/2212.13345.pdf>`__ by Geoffrey Hinton.
+    on the `MNIST <https://en.wikipedia.org/wiki/MNIST_database>`__ database.
+    It is an introductory example to the Forward-Forward algorithm.
+
+    `GO TO EXAMPLE <https://github.com/pytorch/examples/tree/main/mnist_forward_forward>`__ :opticon:`link-external` 
+
