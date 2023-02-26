@@ -27,7 +27,7 @@ class SiameseNetwork(nn.Module):
     def __init__(self):
         super(SiameseNetwork, self).__init__()
         # get resnet model
-        self.resnet = torchvision.models.resnet18(pretrained=False)
+        self.resnet = torchvision.models.resnet18(weights=None)
 
         # over-write the first conv layer to be able to read MNIST images
         # as resnet18 reads (3,x,x) where 3 is RGB channels
@@ -53,7 +53,7 @@ class SiameseNetwork(nn.Module):
         
     def init_weights(self, m):
         if isinstance(m, nn.Linear):
-            torch.nn.init.xavier_uniform(m.weight)
+            torch.nn.init.xavier_uniform_(m.weight)
             m.bias.data.fill_(0.01)
 
     def forward_once(self, x):
