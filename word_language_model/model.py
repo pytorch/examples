@@ -121,7 +121,7 @@ class TransformerModel(nn.Module):
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
         self.encoder = nn.Embedding(ntoken, ninp)
         self.ninp = ninp
-        self.decoder = nn.Linear(nhid, ntoken)
+        self.decoder = nn.Linear(ninp, ntoken)
 
         self.init_weights()
 
