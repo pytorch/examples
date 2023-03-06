@@ -93,7 +93,7 @@ if __name__ == "__main__":
         type=int,
         default=1000,
         metavar="N",
-        help="number of epochs to train (default: 10)",
+        help="number of epochs to train (default: 1000)",
     )
     parser.add_argument(
         "--lr",
