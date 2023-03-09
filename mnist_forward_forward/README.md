@@ -14,7 +14,7 @@ The main.py script accepts the following arguments:
 ```bash
 optional arguments:
   -h, --help            show this help message and exit
-  --epochs EPOCHS       number of epochs to train (default: 10)
+  --epochs EPOCHS       number of epochs to train (default: 1000)
   --lr LR               learning rate (default: 0.03)
   --no_cuda             disables CUDA training
   --no_mps              disables MPS training
