@@ -14,9 +14,11 @@ class Sequence(nn.Module):
         self.lstm1 = nn.LSTMCell(1, 51)
         self.lstm2 = nn.LSTMCell(51, 51)
         self.linear = nn.Linear(51, 1)
+        self.dummy_param = nn.Parameter(torch.empty(0))
 
-    def forward(self, input, device, future = 0):
+    def forward(self, input, future = 0):
         outputs = []
+        device = self.dummy_param.device
         h_t = torch.zeros(input.size(0), 51, dtype=torch.double).to(device)
         c_t = torch.zeros(input.size(0), 51, dtype=torch.double).to(device)
         h_t2 = torch.zeros(input.size(0), 51, dtype=torch.double).to(device)
@@ -39,30 +41,26 @@ class Sequence(nn.Module):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--steps', type=int, default=15, help='steps to run')
-    parser.add_argument('--no-cuda', action='store_true', default=False,
-                        help='disables CUDA training')
-    parser.add_argument('--no-mps', action='store_true', default=False,
-                        help='disables macOS GPU training')
+    parser.add_argument('--device', type=str, default='cuda', help='training device. cuda, mps, or cpu.')
     opt = parser.parse_args()
-    # 
-    # Use GPU to train?
-    use_cuda = not opt.no_cuda and torch.cuda.is_available()
-    use_mps = not opt.no_mps and torch.backends.mps.is_available()
-    if use_cuda:
-        device = torch.device("cuda")
-    elif use_mps:
-        device = torch.device("mps")
-    else:
-        device = torch.device("cpu")
+    # training device
+    device_name = opt.device
+    if device_name == 'cuda' and not torch.cuda.is_available():
+        print('cuda is not available')
+        exit(-1)
+    elif device_name == 'mps' and not torch.backends.mps.is_available():
+        print('mps is not available')
+        exit(-1)
+    device = torch.device(device_name)
     # set random seed to 0
     np.random.seed(0)
     torch.manual_seed(0)
     # load data and make training set
-    data = torch.load('traindata.pt')
-    input = torch.from_numpy(data[3:, :-1]).to(device)
-    target = torch.from_numpy(data[3:, 1:]).to(device)
-    test_input = torch.from_numpy(data[:3, :-1]).to(device)
-    test_target = torch.from_numpy(data[:3, 1:]).to(device)
+    data = torch.from_numpy(torch.load('traindata.pt')).to(device)
+    input = data[3:, :-1]
+    target = data[3:, 1:]
+    test_input = data[:3, :-1]
+    test_target = data[:3, 1:]
     # build the model
     seq = Sequence().to(device).double()
     criterion = nn.MSELoss().to(device)
@@ -73,7 +71,7 @@ if __name__ == '__main__':
         print('STEP: ', i)
         def closure():
             optimizer.zero_grad()
-            out = seq(input, device = device)
+            out = seq(input)
             loss = criterion(out, target)
             print('loss:', loss.item())
             loss.backward()
@@ -82,7 +80,7 @@ if __name__ == '__main__':
         # begin to predict, no need to track gradient here
         with torch.no_grad():
             future = 1000
-            pred = seq(test_input, device = device, future=future)
+            pred = seq(test_input, future=future)
             loss = criterion(pred[:, :-future], test_target)
             print('test loss:', loss.item())
             y = pred.cpu().detach().numpy()
@@ -94,9 +92,8 @@ if __name__ == '__main__':
         plt.xticks(fontsize=20)
         plt.yticks(fontsize=20)
         def draw(yi, color):
-            cpu_input = input.to('cpu')
-            plt.plot(np.arange(cpu_input.size(1)), yi[:cpu_input.size(1)], color, linewidth = 2.0)
-            plt.plot(np.arange(cpu_input.size(1), cpu_input.size(1) + future), yi[cpu_input.size(1):], color + ':', linewidth = 2.0)
+            plt.plot(np.arange(input.size(1)), yi[:input.size(1)], color, linewidth = 2.0)
+            plt.plot(np.arange(input.size(1), input.size(1) + future), yi[input.size(1):], color + ':', linewidth = 2.0)
         draw(y[0], 'r')
         draw(y[1], 'g')
         draw(y[2], 'b')
