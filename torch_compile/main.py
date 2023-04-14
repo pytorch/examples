@@ -36,6 +36,9 @@ cudnn.benchmark=True
 ##################################################
 
 def train(args, model, device, train_loader, optimizer, criterion, epoch, profile):
+    """
+    Train the model
+    """
     model.train()
 
     if profile:
@@ -86,6 +89,9 @@ def train(args, model, device, train_loader, optimizer, criterion, epoch, profil
         ))
 
 def test(model, device, test_loader, criterion):
+    """
+    Evaluate the model
+    """
     model.eval()
     test_loss = 0
     correct = 0
