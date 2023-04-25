@@ -1,6 +1,6 @@
 # Vision Transformer in PyTorch
 
-This example shows a simple implementation of Vision Transformer on the CIFAR-10 dataset.\
+This example shows a simple implementation of [Vision Transformer](https://arxiv.org/abs/2010.11929) on the CIFAR-10 dataset.
 ### Run
 ```bash
 pip3 install -r requirements.txt

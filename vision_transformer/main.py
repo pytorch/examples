@@ -6,7 +6,7 @@ import torchvision
 from torchvision.transforms import Compose, ToTensor, Resize
 from torch import optim
 import numpy as np
-from tqdm import tqdm
+from torch.hub import tqdm
 
 
 class PatchExtractor(nn.Module):
@@ -28,6 +28,8 @@ class PatchExtractor(nn.Module):
             permute(0, 2, 3, 1, 4, 5). \
             contiguous(). \
             view(batch_size, num_patches, -1)
+
+        # Expected shape of a patch on default settings is (4, 196, 768)
 
         return patches
 
@@ -73,10 +75,7 @@ class EncoderBlock(nn.Module):
 
         self.latent_size = args.latent_size
         self.num_heads = args.num_heads
-        use_cuda = not args.no_cuda and torch.cuda.is_available()
-        self.device = torch.device("cuda" if use_cuda else "cpu")
         self.dropout = args.dropout
-
         self.norm = nn.LayerNorm(self.latent_size)
         self.attention = nn.MultiheadAttention(self.latent_size, self.num_heads, dropout=self.dropout)
         self.enc_MLP = nn.Sequential(
@@ -104,8 +103,6 @@ class ViT(nn.Module):
 
         self.num_encoders = args.num_encoders
         self.latent_size = args.latent_size
-        use_cuda = not args.no_cuda and torch.cuda.is_available()
-        self.device = torch.device("cuda" if use_cuda else "cpu")
         self.num_classes = args.num_classes
         self.dropout = args.dropout
 
@@ -188,6 +185,21 @@ class TrainEval:
                 best_train_loss = train_loss
         print(f"Training Loss : {best_train_loss}")
         print(f"Valid Loss : {best_valid_loss}")
+
+    '''
+        On default settings:
+        
+        Training Loss : 2.3081023390197752
+        Valid Loss : 2.302861615943909
+        
+        However, this score is not competitive compared to the 
+        high results in the original paper, which were achieved 
+        through pre-training on JFT-300M dataset, then fine-tuning 
+        it on the target dataset. To improve the model quality 
+        without pre-training, we could try training for more epochs, 
+        using more Transformer layers, resizing images or changing 
+        patch size,
+    '''
 
 
 def main():
