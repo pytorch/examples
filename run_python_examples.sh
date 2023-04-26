@@ -162,7 +162,7 @@ function vae() {
 
 function vision_transformer() {
   start
-  python main.py --epochs 1 || error "vision transformer example failed"
+  python main.py --epochs 1 --dry-run || error "vision transformer example failed"
 }
 
 function word_language_model() {

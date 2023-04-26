@@ -126,14 +126,15 @@ class ViT(nn.Module):
 
 class TrainEval:
 
-    def __init__(self, model, train_dataloader, val_dataloader, optimizer, criterion, epochs, device):
+    def __init__(self, args, model, train_dataloader, val_dataloader, optimizer, criterion, device):
         self.model = model
         self.train_dataloader = train_dataloader
         self.val_dataloader = val_dataloader
         self.optimizer = optimizer
         self.criterion = criterion
-        self.epoch = epochs
+        self.epoch = args.epochs
         self.device = device
+        self.args = args
 
     def train_fn(self, current_epoch):
         self.model.train()
@@ -151,6 +152,8 @@ class TrainEval:
 
             total_loss += loss.item()
             tk.set_postfix({"Loss": "%6f" % float(total_loss / (t + 1))})
+            if self.args.dry_run:
+                break
 
         return total_loss / len(self.train_dataloader)
 
@@ -168,6 +171,8 @@ class TrainEval:
 
             total_loss += loss.item()
             tk.set_postfix({"Loss": "%6f" % float(total_loss / (t + 1))})
+            if self.args.dry_run:
+                break
 
         return total_loss / len(self.val_dataloader)
 
@@ -230,6 +235,8 @@ def main():
                         help='weight decay value (default : 0.03)')
     parser.add_argument('--batch-size', type=int, default=4,
                         help='batch size (default : 4)')
+    parser.add_argument('--dry-run', action='store_true', default=False,
+                        help='quickly check a single pass')
     args = parser.parse_args()
 
     use_cuda = not args.no_cuda and torch.cuda.is_available()
@@ -249,8 +256,9 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     criterion = nn.CrossEntropyLoss()
 
-    TrainEval(model, train_loader, valid_loader, optimizer, criterion, args.epochs, device).train()
+    TrainEval(args, model, train_loader, valid_loader, optimizer, criterion, device).train()
 
 
 if __name__ == "__main__":
     main()
+
