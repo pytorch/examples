@@ -160,6 +160,11 @@ function vae() {
   python main.py --epochs 1 || error "vae failed"
 }
 
+function vision_transformer() {
+  start
+  python main.py --epochs 1 --dry-run || error "vision transformer example failed"
+}
+
 function word_language_model() {
   start
   python main.py --epochs 1 --dry-run $CUDA_FLAG --mps || error "word_language_model failed"
@@ -207,6 +212,7 @@ function run_all() {
   super_resolution
   time_sequence_prediction
   vae
+  vision_transformer
   word_language_model
   fx
 }
