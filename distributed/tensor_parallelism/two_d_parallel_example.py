@@ -9,11 +9,17 @@ from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from torch.distributed.tensor.parallel import (
     PairwiseParallel,
     parallelize_module,
-    SequenceParallel,
 )
 from torch.distributed.tensor.parallel.fsdp import enable_2d_with_fsdp
 
 from utils import cleanup, setup, ToyModel
+try:
+    from torch.distributed.tensor.parallel import (
+        SequenceParallel
+    )
+    SP_AVAILABLE = True
+except BaseException as e:
+    pass
 
 
 """
@@ -111,5 +117,10 @@ if __name__ == "__main__":
     # The main entry point is called directly without using subprocess
     if n_gpus < 4:
         print("Requires at least 4 GPUs to run.")
+    elif not SP_AVAILABLE:
+        print(
+            "PyTorch doesn't have Sequence Parallelism available,"
+            " need nightly build."
+        )
     else:
         mp.spawn(demo_2d, args=(args,), nprocs=args.world_size, join=True)

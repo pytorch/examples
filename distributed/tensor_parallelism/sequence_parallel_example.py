@@ -7,6 +7,14 @@ from torch.distributed._tensor import DeviceMesh
 from torch.distributed.tensor.parallel import parallelize_module, SequenceParallel
 from utils import cleanup, setup, ToyModel
 
+try:
+    from torch.distributed.tensor.parallel import (
+        SequenceParallel
+    )
+    SP_AVAILABLE = True
+except BaseException as e:
+    pass
+
 
 """
 This is the script to test Sequence Parallel(SP) on a toy model in a
@@ -66,5 +74,10 @@ if __name__ == "__main__":
     # The main entry point is called directly without using subprocess
     if n_gpus < 2:
         print("Requires at least 2 GPUs to run.")
+    elif not SP_AVAILABLE:
+        print(
+            "PyTorch doesn't have Sequence Parallelism available,"
+            " need nightly build."
+        )
     else:
         mp.spawn(demo_sp, args=(args,), nprocs=args.world_size, join=True)
