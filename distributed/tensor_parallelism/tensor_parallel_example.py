@@ -1,22 +1,11 @@
 import argparse
-import os
-import torch
-import torch.distributed as dist
-import torch.multiprocessing as mp
-import torch.nn as nn
 
-TP_AVAILABLE = False
-try:
-    from torch.distributed._tensor import (
-        DeviceMesh,
-    )
-    from torch.distributed.tensor.parallel import (
-        PairwiseParallel,
-        parallelize_module,
-    )
-    TP_AVAILABLE = True
-except BaseException as e:
-    pass
+import torch
+import torch.multiprocessing as mp
+
+from torch.distributed._tensor import DeviceMesh
+from torch.distributed.tensor.parallel import PairwiseParallel, parallelize_module
+from utils import cleanup, setup, ToyModel
 
 
 """
@@ -51,29 +40,6 @@ Parallelism APIs in this example to show users how to use them.
 """
 
 
-def setup(rank, world_size):
-    os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '12355'
-
-    # initialize the process group
-    dist.init_process_group("nccl", rank=rank, world_size=world_size)
-    torch.cuda.set_device(rank)
-
-def cleanup():
-    dist.destroy_process_group()
-
-
-class ToyModel(nn.Module):
-    def __init__(self):
-        super(ToyModel, self).__init__()
-        self.net1 = nn.Linear(10, 32)
-        self.relu = nn.ReLU()
-        self.net2 = nn.Linear(32, 5)
-
-    def forward(self, x):
-        return self.net2(self.relu(self.net1(x)))
-
-
 def demo_tp(rank, args):
     """
     Main body of the demo of a basic version of tensor parallel by using
@@ -81,11 +47,9 @@ def demo_tp(rank, args):
     """
     print(f"Running basic Megatron style TP example on rank {rank}.")
     setup(rank, args.world_size)
+
     # create a sharding plan based on the given world_size.
-    device_mesh = DeviceMesh(
-        "cuda",
-        torch.arange(args.world_size),
-    )
+    device_mesh = DeviceMesh("cuda", torch.arange(0, args.world_size))
 
     # create model and move it to GPU with id rank
     model = ToyModel().cuda(rank)
@@ -97,20 +61,16 @@ def demo_tp(rank, args):
 
     # Perform a num of iterations of forward/backward
     # and optimizations for the sharded module.
-    for _ in range(args.iter_nums):
+    for i in range(args.iter_nums):
+        # For TP, input needs to be same across all TP ranks.
+        # Setting the random seed is to mimic the behavior of dataloader.
+        torch.manual_seed(i)
         inp = torch.rand(20, 10).cuda(rank)
         output = model(inp)
         output.sum().backward()
         optimizer.step()
 
     cleanup()
-
-
-def run_demo(demo_fn, args):
-    mp.spawn(demo_fn,
-             args=(args,),
-             nprocs=args.world_size,
-             join=True)
 
 
 if __name__ == "__main__":
@@ -123,11 +83,5 @@ if __name__ == "__main__":
     # The main entry point is called directly without using subprocess
     if n_gpus < 2:
         print("Requires at least 2 GPUs to run.")
-    elif not TP_AVAILABLE:
-        print(
-            "PyTorch doesn't have Tensor Parallelism available,"
-            " need nightly build."
-        )
     else:
-        run_demo(demo_tp, args)
-
+        mp.spawn(demo_tp, args=(args,), nprocs=args.world_size, join=True)
