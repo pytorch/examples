@@ -10622,6 +10622,45 @@ article.pytorch-article .function dt, article.pytorch-article .attribute dt, art
   word-wrap: break-word;
   padding-right: 100px;
 }
+
+article.pytorch-article .class dt.field-odd, article.pytorch-article .class dt.field-even,
+article.pytorch-article .function dt.field-odd, article.pytorch-article .function dt.field-even,
+article.pytorch-article .attribute dt.field-odd, article.pytorch-article .attribute dt.field-even,
+article.pytorch-article .class .attribute dt.field-odd,article.pytorch-article .class .attribute dt.field-even,
+article.pytorch-article .class .method dt.field-odd, article.pytorch-article .class .staticmethod dt.field-odd,
+article.pytorch-article .class .method dt.field-even, article.pytorch-article .class .staticmethod dt.field-even
+{
+  background: none;
+  padding-right: -20px;
+  border-top: none;
+  border-left: none;
+  padding-left: 0.0rem;
+  padding-top: 0.0rem;
+  padding-bottom: 0.0rem;
+  font-weight: 700;
+}
+
+article.pytorch-article .function dt.sig {
+  position: relative;
+  background: #f3f4f7;
+  padding: 0.8rem;
+  border-left: 3px solid #ee4c2c;
+  word-wrap: break-word;
+  padding-right: 100px;
+  font-weight: 500;
+}
+
+article.pytorch-article .function dt {
+  background: #ffffff;
+  padding-right: -20px;
+  border-left: none;
+  border-top: none;
+  padding-left: 0.0rem;
+  padding-top: 0.0rem;
+  padding-bottom: 0.0rem;
+  font-weight: 700;
+}
+
 article.pytorch-article .function dt em.property, article.pytorch-article .attribute dt em.property, article.pytorch-article .class dt em.property {
   font-family: inherit;
 }
@@ -10735,11 +10774,13 @@ article.pytorch-article .class dl dt em.property {
   left: 0;
   padding-right: 0;
 }
+
 article.pytorch-article .class .method dt,
 article.pytorch-article .class .staticmethod dt {
   border-left: 3px solid #ee4c2c;
   border-top: none;
 }
+
 article.pytorch-article .class .method dt,
 article.pytorch-article .class .staticmethod dt {
   padding-left: 0.5rem;
