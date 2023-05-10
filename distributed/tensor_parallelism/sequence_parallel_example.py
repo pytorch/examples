@@ -4,7 +4,7 @@ import torch
 import torch.multiprocessing as mp
 
 from torch.distributed._tensor import DeviceMesh
-from torch.distributed.tensor.parallel import parallelize_module, SequenceParallel
+from torch.distributed.tensor.parallel import parallelize_module
 from utils import cleanup, setup, ToyModel
 
 try:
