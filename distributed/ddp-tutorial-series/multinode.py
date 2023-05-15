@@ -12,6 +12,7 @@ import os
 
 def ddp_setup():
     init_process_group(backend="nccl")
+    torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
 
 class Trainer:
     def __init__(
