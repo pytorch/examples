@@ -65,8 +65,7 @@ def load_model_sharded(model, rank, cfg, verbose=True):
         if rank == 0:
             ck = checkpoint.keys()
             print(f" checkpoint key len = {len(ck)} and \n keys =  {ck}")
-        # if dist.get_rank() == 0:
-        #    traverse_state_dict(checkpoint, print_sharded_tensor)
+      
         dist_cp.load_state_dict(
             state_dict=checkpoint,
             storage_reader=reader,
@@ -76,10 +75,6 @@ def load_model_sharded(model, rank, cfg, verbose=True):
             ck = checkpoint.keys()
             print(f" checkpoint key len = {len(ck)} and \n keys =  {ck}")
         model.load_state_dict(checkpoint)
-
-    # with FSDP.summon_full_params(model):
-    # p0(f"after-load: {model.weight}")
-
     if rank == 0:
         print(f"Sharded state checkpoint loaded from {load_dir}")
 
@@ -100,9 +95,6 @@ def save_model_and_optimizer_sharded(model, rank, cfg,optim=None, verbose=True):
 
     distributed_writer = dist_cp.FileSystemWriter(
         save_dir,
-        # single_file_per_rank=False,
-        # thread_count=cfg.save_using_num_threads,
-        # per_thread_copy_ahead=20_000_000,
     )
     t0 = time.perf_counter()
 
@@ -213,8 +205,6 @@ def save_optimizer_checkpoint(model, optimizer, rank, cfg, epoch=1):
         )
         opt_save_full_path = save_dir / opt_save_name
 
-        # note that saving can be time consuming...i.e. 1.5B can take up to 3 minutes (17GB)
-        # thus always print state so no one thinks it has hung
         print(f"--> saving optimizer state...")
 
         torch.save(optim_state, opt_save_full_path)
@@ -249,9 +239,6 @@ def load_optimizer_checkpoint(model, optimizer, rank, cfg):
     if cfg.verbose:
         print(f"optimizer shard loaded on rank {rank}")
 
-    # optimizer.load_state_dict(sharded_osd)
-    # sharded_osd = FSDP.shard_full_optim_state_dict(full_osd, model)
-    # optimizer.load_state_dict(sharded_osd)
 
 
 def load_distributed_model_checkpoint(model, rank, cfg):
@@ -294,7 +281,6 @@ def save_distributed_model_checkpoint(model, rank, cfg, epoch=1):
     # confirm type of checkpoint and save
     if cfg.checkpoint_type == StateDictType.LOCAL_STATE_DICT:
         # create writer to current path
-        # folder_name = cfg.dist_checkpoint_folder+"-"+cfg.model_name
         folder_name = (
             cfg.dist_checkpoint_root_folder
             + "/"
