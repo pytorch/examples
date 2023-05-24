@@ -3,12 +3,11 @@
 To run the T5 example with FSDP for text summarization:
 
 ## Get the wikihow dataset
-1 - Create a folder called 'data' and cd to it
-2 -  Download the two CSV files in [WikiHow](https://github.com/mahnazkoupaee/WikiHow-Dataset) dataset as linked below:
-~~~
-wget https://public-nlp-datasets.s3.us-west-2.amazonaws.com/wikihowAll.csv
-wget https://public-nlp-datasets.s3.us-west-2.amazonaws.com/wikihowSep.csv
-~~~
+```bash
+
+sh download_dataset.sh
+
+```
 
 ## Install the requirements:
 ~~~
