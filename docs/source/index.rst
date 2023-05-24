@@ -6,6 +6,16 @@ experiment with PyTorch.
 
 .. panels::
 
+    Image Classification using Vision Transformer
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 
+    This example shows how to train a `Vision Transformer <https://en.wikipedia.org/wiki/Vision_transformer>`__ 
+    from scratch on the `CIFAR10 <https://en.wikipedia.org/wiki/CIFAR-10>`__ database.
+
+    `GO TO EXAMPLE <https://github.com/pytorch/examples/blob/main/vision_transformer>`__ :opticon:`link-external` 
+
+    ---
+
     Image Classification Using ConvNets
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
  
@@ -133,6 +143,7 @@ experiment with PyTorch.
     ^^^^^^^^^^^^^^^^^^^
 
     This set of examples demonstrates `Distributed Data Parallel (DDP) <https://pytorch.org/tutorials/intermediate/ddp_tutorial.html>`__ and `Distributed RPC framework <https://pytorch.org/docs/stable/rpc.html>`__. 
+    Includes the code used in the `DDP tutorial series <https://pytorch.org/tutorials/beginner/ddp_series_intro.html>`__.
 
     `GO TO EXAMPLES <https://github.com/pytorch/examples/tree/main/distributed>`__ :opticon:`link-external`
     
@@ -143,6 +154,18 @@ experiment with PyTorch.
 
     The PyTorch C++ frontend is a C++14 library for CPU and GPU tensor computation.
     This set of examples includes a linear regression, autograd, image recognition
-    (MNIST), and other examples using PyTorch C++ frontend.
+    (MNIST), and other useful examples using PyTorch C++ frontend.
 
     `GO TO EXAMPLES <https://github.com/pytorch/examples/tree/main/cpp>`__ :opticon:`link-external`
+
+    ---
+
+    Image Classification Using Forward-Forward Algorithm
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+    This example implements the paper `The Forward-Forward Algorithm: Some Preliminary Investigations <https://arxiv.org/pdf/2212.13345.pdf>`__ by Geoffrey Hinton.
+    on the `MNIST <https://en.wikipedia.org/wiki/MNIST_database>`__ database.
+    It is an introductory example to the Forward-Forward algorithm.
+
+    `GO TO EXAMPLE <https://github.com/pytorch/examples/tree/main/mnist_forward_forward>`__ :opticon:`link-external` 
+

@@ -56,19 +56,15 @@ function start() {
 
 function dcgan() {
   start
-  if [ ! -d "lsun" ]; then
-    echo "cloning repo to get lsun dataset"
-    git clone https://github.com/fyu/lsun || { error "couldn't clone lsun repo needed for dcgan";  return; }
-  fi
-  # 'classroom' much smaller than the default 'bedroom' dataset.
-  DATACLASS="classroom"
-  if [ ! -d "lsun/${DATACLASS}_train_lmdb" ]; then
-    pushd lsun
-    python download.py -c $DATACLASS || { error "couldn't download $DATACLASS for dcgan";  return; }
-    unzip ${DATACLASS}_train_lmdb.zip || { error "couldn't unzip $DATACLASS"; return; }
-    popd
-  fi
-  python main.py --dataset lsun --dataroot lsun --classes $DATACLASS --niter 1 $CUDA_FLAG --dry-run || error "dcgan failed"
+  python main.py --dataset fake $CUDA_FLAG --mps --dry-run || error "dcgan failed"
+}
+
+function distributed() {
+    start
+    python tensor_parallelism/tensor_parallel_example.py || error "tensor parallel example failed"
+    python tensor_parallelism/sequence_parallel_example.py || error "sequence parallel example failed"
+    python tensor_parallelism/two_d_parallel_example.py || error "2D parallel example failed"
+    python ddp/main.py || error "ddp example failed" 
 }
 
 function fast_neural_style() {
@@ -80,7 +76,7 @@ function fast_neural_style() {
   test -d "saved_models" || { error "saved models not found"; return; }
 
   echo "running fast neural style model"
-  python neural_style/neural_style.py eval --content-image images/content-images/amber.jpg --model saved_models/candy.pth --output-image images/output-images/amber-candy.jpg --cuda $CUDA || error "neural_style.py failed"
+  python neural_style/neural_style.py eval --content-image images/content-images/amber.jpg --model saved_models/candy.pth --output-image images/output-images/amber-candy.jpg --cuda $CUDA --mps || error "neural_style.py failed"
 }
 
 function imagenet() {
@@ -88,7 +84,7 @@ function imagenet() {
   if [[ ! -d "sample/val" || ! -d "sample/train" ]]; then
     mkdir -p sample/val/n
     mkdir -p sample/train/n
-    wget "https://upload.wikimedia.org/wikipedia/commons/5/5a/Socks-clinton.jpg" || { error "couldn't download sample image for imagenet"; return; }
+    curl -O "https://upload.wikimedia.org/wikipedia/commons/5/5a/Socks-clinton.jpg" || { error "couldn't download sample image for imagenet"; return; }
     mv Socks-clinton.jpg sample/train/n
     cp sample/train/n/* sample/val/n/
   fi
@@ -99,10 +95,19 @@ function mnist() {
   start
   python main.py --epochs 1 --dry-run || error "mnist example failed"
 }
+function mnist_forward_forward() {
+  start 
+  python main.py --epochs 1 --no_mps --no_cuda || error "mnist forward forward failed"
 
+}
 function mnist_hogwild() {
   start
   python main.py --epochs 1 --dry-run $CUDA_FLAG || error "mnist hogwild failed"
+}
+
+function mnist_rnn() {
+  start
+  python main.py --epochs 1 --dry-run || error "mnist rnn example failed"
 }
 
 function regression() {
@@ -143,7 +148,7 @@ function fx() {
 
 function super_resolution() {
   start
-  python main.py --upscale_factor 3 --batchSize 4 --testBatchSize 100 --nEpochs 1 --lr 0.001  || error "super resolution failed"
+  python main.py --upscale_factor 3 --batchSize 4 --testBatchSize 100 --nEpochs 1 --lr 0.001 --mps || error "super resolution failed"
 }
 
 function time_sequence_prediction() {
@@ -157,18 +162,22 @@ function vae() {
   python main.py --epochs 1 || error "vae failed"
 }
 
+function vision_transformer() {
+  start
+  python main.py --epochs 1 --dry-run || error "vision transformer example failed"
+}
+
 function word_language_model() {
   start
-  python main.py --epochs 1 --dry-run $CUDA_FLAG || error "word_language_model failed"
+  python main.py --epochs 1 --dry-run $CUDA_FLAG --mps || error "word_language_model failed"
 }
 
 function clean() {
   cd $BASE_DIR
   echo "running clean to remove cruft"
-  rm -rf dcgan/_cache_lsun_classroom_train_lmdb \
-    dcgan/fake_samples_epoch_000.png dcgan/lsun/ \
-    dcgan/_cache_lsunclassroomtrainlmdb \
-    dcgan/netD_epoch_0.pth dcgan/netG_epoch_0.pth \
+  rm -rf dcgan/fake_samples_epoch_000.png \
+    dcgan/netD_epoch_0.pth \
+    dcgan/netG_epoch_0.pth \
     dcgan/real_samples.png \
     fast_neural_style/saved_models.zip \
     fast_neural_style/saved_models/ \
@@ -193,15 +202,19 @@ function run_all() {
   dcgan
   # distributed
   fast_neural_style
+  distributed
   imagenet
   mnist
+  mnist_forward_forward
   mnist_hogwild
+  mnist_rnn
   regression
   reinforcement_learning
   siamese_network
   super_resolution
   time_sequence_prediction
   vae
+  vision_transformer
   word_language_model
   fx
 }

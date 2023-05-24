@@ -10,18 +10,21 @@ with the samples from the generative model.
 After every epoch, models are saved to: `netG_epoch_%d.pth` and `netD_epoch_%d.pth`
 
 ## Downloading the dataset
+
 You can download the LSUN dataset by cloning [this repo](https://github.com/fyu/lsun) and running
+
 ```
 python download.py -c bedroom
 ```
 
 ## Usage
+
 ```
 usage: main.py [-h] --dataset DATASET --dataroot DATAROOT [--workers WORKERS]
                [--batchSize BATCHSIZE] [--imageSize IMAGESIZE] [--nz NZ]
                [--ngf NGF] [--ndf NDF] [--niter NITER] [--lr LR]
                [--beta1 BETA1] [--cuda] [--ngpu NGPU] [--netG NETG]
-               [--netD NETD]
+               [--netD NETD] [--mps]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -37,6 +40,7 @@ optional arguments:
   --lr LR               learning rate, default=0.0002
   --beta1 BETA1         beta1 for adam. default=0.5
   --cuda                enables cuda
+  --mps                 enables macOS GPU
   --ngpu NGPU           number of GPUs to use
   --netG NETG           path to netG (to continue training)
   --netD NETD           path to netD (to continue training)

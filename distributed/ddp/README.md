@@ -6,7 +6,8 @@ multiple nodes, each with multiple GPUs using PyTorch's distributed
 [launcher script](https://github.com/pytorch/pytorch/blob/master/torch/distributed/launch.py).
 
 # Prerequisites
-We assume you are  familiar with [PyTorch](https://pytorch.org/tutorials/beginner/deep_learning_60min_blitz.html), the primitives it provides for [writing distributed applications](https://pytorch.org/tutorials/intermediate/dist_tuto.html) as well as training [distributed models](https://pytorch.org/tutorials/intermediate/ddp_tutorial.html).
+
+We assume you are familiar with [PyTorch](https://pytorch.org/tutorials/beginner/deep_learning_60min_blitz.html), the primitives it provides for [writing distributed applications](https://pytorch.org/tutorials/intermediate/dist_tuto.html) as well as training [distributed models](https://pytorch.org/tutorials/intermediate/ddp_tutorial.html).
 
 The example program in this tutorial uses the
 [`torch.nn.parallel.DistributedDataParallel`](https://pytorch.org/docs/stable/nn.html#distributeddataparallel) class for training models
@@ -20,6 +21,7 @@ application but each one operates on different portions of the
 training dataset.
 
 # Application process topologies
+
 A Distributed Data Parallel (DDP) application can be executed on
 multiple nodes where each node can consist of multiple GPU
 devices. Each node in turn can run multiple copies of the DDP
@@ -49,6 +51,7 @@ computational costs. In the rest of this tutorial, we assume that the
 application follows this heuristic.
 
 # Preparing and launching a DDP application
+
 Independent of how a DDP application is launched, each process needs a
 mechanism to know its global and local ranks. Once this is known, all
 processes create a `ProcessGroup` that enables them to participate in
@@ -66,26 +69,32 @@ python -c "from os import path; import torch; print(path.join(path.dirname(torch
 ```
 
 This will print something like this:
+
 ```sh
 /home/username/miniconda3/envs/pytorch/lib/python3.8/site-packages/torch/distributed/launch.py
 ```
 
 When the DDP application is started via `launch.py`, it passes the world size, global rank, master address and master port via environment variables and the local rank as a command-line parameter to each instance.
 To use the launcher, an application needs to adhere to the following convention:
+
 1. It must provide an entry-point function for a _single worker_. For example, it should not launch subprocesses using `torch.multiprocessing.spawn`
 2. It must use environment variables for initializing the process group.
 
 For simplicity, the application can assume each process maps to a single GPU but in the next section we also show how a more general process-to-GPU mapping can be performed.
 
 # Sample application
+
 The sample DDP application in this repo is based on the "Hello, World" [DDP tutorial](https://pytorch.org/tutorials/intermediate/ddp_tutorial.html).
 
 ## Argument passing convention
+
 The DDP application takes two command-line arguments:
+
 1. `--local_rank`: This is passed in via `launch.py`
 2. `--local_world_size`: This is passed in explicitly and is typically either $1$ or the number of GPUs per node.
 
 The application parses these and calls the `spmd_main` entrypoint:
+
 ```py
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -94,7 +103,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     spmd_main(args.local_world_size, args.local_rank)
 ```
+
 In `spmd_main`, the process group is initialized with just the backend (NCCL or Gloo). The rest of the information needed for rendezvous comes from environment variables set by `launch.py`:
+
 ```py
 def spmd_main(local_world_size, local_rank):
     # These are the parameters used to initialize the process group
@@ -116,6 +127,7 @@ def spmd_main(local_world_size, local_rank):
 ```
 
 Given the local rank and world size, the training function, `demo_basic` initializes the `DistributedDataParallel` model across a set of GPUs local to the node via `device_ids`:
+
 ```py
 def demo_basic(local_world_size, local_rank):
 
@@ -144,10 +156,13 @@ def demo_basic(local_world_size, local_rank):
 ```
 
 The application can be launched via `launch.py` as follows on a 8 GPU node with one process per GPU:
+
 ```sh
 python /path/to/launch.py --nnode=1 --node_rank=0 --nproc_per_node=8 example.py --local_world_size=8
 ```
+
 and produces an output similar to the one shown below:
+
 ```sh
 *****************************************
 Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed.
@@ -177,11 +192,15 @@ Setting OMP_NUM_THREADS environment variable for each process to be 1 in default
 [238631] rank = 4, world_size = 8, n = 1, device_ids = [4]
 [238627] rank = 0, world_size = 8, n = 1, device_ids = [0]
 ```
+
 Similarly, it can be launched with a single process that spans all 8 GPUs using:
+
 ```sh
 python /path/to/launch.py --nnode=1 --node_rank=0 --nproc_per_node=1 example.py --local_world_size=1
 ```
+
 that in turn produces the following output
+
 ```sh
 [262816] Initializing process group with: {'MASTER_ADDR': '127.0.0.1', 'MASTER_PORT': '29500', 'RANK': '0', 'WORLD_SIZE': '1'}
 [262816]: world_size = 1, rank = 0, backend=nccl
@@ -189,4 +208,5 @@ that in turn produces the following output
 ```
 
 # Conclusions
+
 As the author of a distributed data parallel application, your code needs to be aware of two types of resources: compute nodes and the GPUs within each node. The process of setting up bookkeeping to track how the set of GPUs is mapped to the processes of your application can be tedious and error-prone. We hope that by structuring your application as shown in this example and using the launcher, the mechanics of setting up distributed training can be significantly simplified.

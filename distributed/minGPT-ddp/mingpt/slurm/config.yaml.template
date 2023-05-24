@@ -1,0 +1,33 @@
+Region: us-east-1
+
+Image:
+  Os: ubuntu1804
+
+SharedStorage:
+  - MountDir: /shared
+    Name: shared-fs
+    StorageType: FsxLustre
+    FsxLustreSettings:
+      StorageCapacity: 1200
+      DeploymentType: SCRATCH_1
+      StorageType: SSD
+
+HeadNode:
+  InstanceType: c5.xlarge
+  Networking:
+    SubnetId: subnet-xxxxxxx
+  Ssh:
+    KeyName: your-keyname-file
+
+Scheduling:
+  Scheduler: slurm
+  SlurmQueues:
+  - Name: train
+    ComputeResources:
+    - Name: p32xlarge
+      InstanceType: p3.2xlarge
+      MinCount: 0
+      MaxCount: 5
+    Networking:
+      SubnetIds:
+      - subnet-xxxxxxx

@@ -16,9 +16,9 @@ class RNNModel(nn.Module):
         else:
             try:
                 nonlinearity = {'RNN_TANH': 'tanh', 'RNN_RELU': 'relu'}[rnn_type]
-            except KeyError:
+            except KeyError as e:
                 raise ValueError( """An invalid option for `--model` was supplied,
-                                 options are ['LSTM', 'GRU', 'RNN_TANH' or 'RNN_RELU']""")
+                                 options are ['LSTM', 'GRU', 'RNN_TANH' or 'RNN_RELU']""") from e
             self.rnn = nn.RNN(ninp, nhid, nlayers, nonlinearity=nonlinearity, dropout=dropout)
         self.decoder = nn.Linear(nhid, ntoken)
 
@@ -111,8 +111,9 @@ class TransformerModel(nn.Module):
         super(TransformerModel, self).__init__()
         try:
             from torch.nn import TransformerEncoder, TransformerEncoderLayer
-        except:
-            raise ImportError('TransformerEncoder module does not exist in PyTorch 1.1 or lower.')
+        except BaseException as e:
+            raise ImportError('TransformerEncoder module does not exist in PyTorch 1.1 or '
+                              'lower.') from e
         self.model_type = 'Transformer'
         self.src_mask = None
         self.pos_encoder = PositionalEncoding(ninp, dropout)

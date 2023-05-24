@@ -2,7 +2,7 @@ import argparse
 import gym
 import numpy as np
 from itertools import count
-
+from collections import deque
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -23,7 +23,7 @@ args = parser.parse_args()
 
 
 env = gym.make('CartPole-v1')
-env.seed(args.seed)
+env.reset(seed=args.seed)
 torch.manual_seed(args.seed)
 
 
@@ -62,10 +62,10 @@ def select_action(state):
 def finish_episode():
     R = 0
     policy_loss = []
-    returns = []
+    returns = deque()
     for r in policy.rewards[::-1]:
         R = r + args.gamma * R
-        returns.insert(0, R)
+        returns.appendleft(R)
     returns = torch.tensor(returns)
     returns = (returns - returns.mean()) / (returns.std() + eps)
     for log_prob, R in zip(policy.saved_log_probs, returns):
@@ -81,10 +81,11 @@ def finish_episode():
 def main():
     running_reward = 10
     for i_episode in count(1):
-        state, ep_reward = env.reset(), 0
+        state, _ = env.reset()
+        ep_reward = 0
         for t in range(1, 10000):  # Don't infinite loop while learning
             action = select_action(state)
-            state, reward, done, _ = env.step(action)
+            state, reward, done, _, _ = env.step(action)
             if args.render:
                 env.render()
             policy.rewards.append(reward)

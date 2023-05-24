@@ -27,7 +27,7 @@ class SiameseNetwork(nn.Module):
     def __init__(self):
         super(SiameseNetwork, self).__init__()
         # get resnet model
-        self.resnet = torchvision.models.resnet18(pretrained=False)
+        self.resnet = torchvision.models.resnet18(weights=None)
 
         # over-write the first conv layer to be able to read MNIST images
         # as resnet18 reads (3,x,x) where 3 is RGB channels
@@ -53,7 +53,7 @@ class SiameseNetwork(nn.Module):
         
     def init_weights(self, m):
         if isinstance(m, nn.Linear):
-            torch.nn.init.xavier_uniform(m.weight)
+            torch.nn.init.xavier_uniform_(m.weight)
             m.bias.data.fill_(0.01)
 
     def forward_once(self, x):
@@ -249,6 +249,8 @@ def main():
                         help='Learning rate step gamma (default: 0.7)')
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
+    parser.add_argument('--no-mps', action='store_true', default=False,
+                        help='disables macOS GPU training')
     parser.add_argument('--dry-run', action='store_true', default=False,
                         help='quickly check a single pass')
     parser.add_argument('--seed', type=int, default=1, metavar='S',
@@ -260,10 +262,16 @@ def main():
     args = parser.parse_args()
     
     use_cuda = not args.no_cuda and torch.cuda.is_available()
+    use_mps = not args.no_mps and torch.backends.mps.is_available()
 
     torch.manual_seed(args.seed)
 
-    device = torch.device("cuda" if use_cuda else "cpu")
+    if use_cuda:
+        device = torch.device("cuda")
+    elif use_mps:
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
 
     train_kwargs = {'batch_size': args.batch_size}
     test_kwargs = {'batch_size': args.test_batch_size}

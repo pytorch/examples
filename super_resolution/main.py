@@ -17,6 +17,7 @@ parser.add_argument('--testBatchSize', type=int, default=10, help='testing batch
 parser.add_argument('--nEpochs', type=int, default=2, help='number of epochs to train for')
 parser.add_argument('--lr', type=float, default=0.01, help='Learning Rate. Default=0.01')
 parser.add_argument('--cuda', action='store_true', help='use cuda?')
+parser.add_argument('--mps', action='store_true', default=False, help='enables macOS GPU training')
 parser.add_argument('--threads', type=int, default=4, help='number of threads for data loader to use')
 parser.add_argument('--seed', type=int, default=123, help='random seed to use. Default=123')
 opt = parser.parse_args()
@@ -25,10 +26,18 @@ print(opt)
 
 if opt.cuda and not torch.cuda.is_available():
     raise Exception("No GPU found, please run without --cuda")
+if not opt.mps and torch.backends.mps.is_available():
+    raise Exception("Found mps device, please run with --mps to enable macOS GPU")
 
 torch.manual_seed(opt.seed)
+use_mps = opt.mps and torch.backends.mps.is_available()
 
-device = torch.device("cuda" if opt.cuda else "cpu")
+if opt.cuda:
+    device = torch.device("cuda")
+elif use_mps:
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
 
 print('===> Loading datasets')
 train_set = get_training_set(opt.upscale_factor)

@@ -20,9 +20,10 @@ $ make
 
 where /path/to/libtorch should be the path to the unzipped LibTorch distribution, which you can get from the [PyTorch homepage](https://pytorch.org/get-started/locally/).
 
-if you see an error like ```undefined reference to cv::imread(std::string const&, int)``` when running the ```make``` command, you should build LibTorch from source using the instructions [here](https://github.com/pytorch/pytorch#from-source), and then set ```CMAKE_PREFIX_PATH``` to that PyTorch source directory.
+if you see an error like `undefined reference to cv::imread(std::string const&, int)` when running the `make` command, you should build LibTorch from source using the instructions [here](https://github.com/pytorch/pytorch#from-source), and then set `CMAKE_PREFIX_PATH` to that PyTorch source directory.
 
 The build directory should look like this:
+
 ```
 .
 ├── custom-dataset
@@ -38,9 +39,10 @@ The build directory should look like this:
 └── ...
 ```
 
-```info.txt``` file gets copied from source directory during build.
+`info.txt` file gets copied from source directory during build.
 
 Execute the compiled binary to train the model:
+
 ```shell
 ./custom-dataset
 Running on: CUDA
