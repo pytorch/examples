@@ -1,6 +1,6 @@
 # minGPT-DDP
 
-Code accompanying the tutorial at https://pytorch.org/tutorials/intermediate/ddp_minGPT.html for training a GPT-like model with Distributed Data Parallel (DDP) in PyTorch. 
+Code accompanying the tutorial at https://pytorch.org/tutorials/intermediate/ddp_series_minGPT.html for training a GPT-like model with Distributed Data Parallel (DDP) in PyTorch. 
 
 Files marked with an asterisk (*) are adapted from the minGPT repo (https://github.com/karpathy/minGPT). 
 
