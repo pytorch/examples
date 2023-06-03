@@ -72,7 +72,7 @@ def validation(model, rank, world_size, val_loader):
     model.eval()
     correct = 0
     local_rank = int(os.environ['LOCAL_RANK'])
-    fsdp_loss = torch.zeros(3).to(local_rank)
+    fsdp_loss = torch.zeros(2).to(local_rank)
     if rank == 0:
         inner_pbar = tqdm.tqdm(
             range(len(val_loader)), colour="green", desc="Validation Epoch"
