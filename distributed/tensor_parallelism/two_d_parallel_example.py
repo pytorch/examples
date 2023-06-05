@@ -83,7 +83,8 @@ def demo_2d(rank, args):
     assert (
         enable_2d_with_fsdp()
     ), "FSDP 2D hook is not registered. Please use PyTorch with version >= 2.0"
-    model = FSDP(model)
+    dp_pg = device_mesh.get_dim_groups()[0]
+    model = FSDP(model, process_group=dp_pg)
 
     # Perform a num of iterations of forward/backward
     # and optimizations for the sharded module.
@@ -94,7 +95,7 @@ def demo_2d(rank, args):
         dp_rank = (
             rank
             if args.run_seq_parallel
-            else dist.get_rank(device_mesh.get_dim_groups()[0])
+            else dist.get_rank(dp_pg)
         )
         torch.manual_seed(i + dp_rank)
         inp = torch.rand(20, 10).cuda(rank)
