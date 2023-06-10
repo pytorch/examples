@@ -221,8 +221,8 @@ if __name__ == '__main__':
                         help='disables macOS GPU training')
     parser.add_argument('--dry-run', action='store_true', default=False,
                         help='quickly check a single pass')
-    parser.add_argument('--seed', type=int, default=1, metavar='S',
-                        help='random seed (default: 1)')
+    parser.add_argument('--seed', type=int, default=42, metavar='S',
+                        help='random seed (default: 42)')
     args = parser.parse_args()
 
     use_cuda = not args.no_cuda and torch.cuda.is_available()
