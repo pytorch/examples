@@ -174,6 +174,6 @@ experiment with PyTorch.
     Graph Convolutional Network
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-    This example implements the `Semi-Supervised Classification with Graph Convolutional Networks <https://arxiv.org/pdf/1609.02907.pdf>` __ paper on the `CORA <https://en.wikipedia.org/wiki/MNIST_database>`__ database.
+    This example implements the `Semi-Supervised Classification with Graph Convolutional Networks <https://arxiv.org/pdf/1609.02907.pdf>`__ paper on the CORA database.
 
-    `GO TO EXAMPLE <https://github.com/pytorch/examples/tree/main/graph_conv_network>`__ :opticon:`link-external` 
+    `GO TO EXAMPLE <https://github.com/pytorch/examples/tree/main/gcn>`__ :opticon:`link-external` 

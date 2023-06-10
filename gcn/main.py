@@ -213,13 +213,29 @@ if __name__ == '__main__':
                         help='dimension of the hidden representation (default: 16)')
     parser.add_argument('--val-every', type=int, default=20,
                         help='epochs to wait for print training and validation evaluation (default: 20)')
-    parser.add_argument('--include-bias', type=bool, default=False,
+    parser.add_argument('--include-bias', action='store_true', default=False,
                         help='use bias term in convolutions (default: False)')
-    parser.add_argument('--no-cuda', type=bool, default=False,
-                        help='disable CUDA training (default: False)')
+    parser.add_argument('--no-cuda', action='store_true', default=False,
+                        help='disables CUDA training')
+    parser.add_argument('--no-mps', action='store_true', default=False,
+                        help='disables macOS GPU training')
+    parser.add_argument('--dry-run', action='store_true', default=False,
+                        help='quickly check a single pass')
+    parser.add_argument('--seed', type=int, default=1, metavar='S',
+                        help='random seed (default: 1)')
     args = parser.parse_args()
 
-    device = 'cpu' if args.no_cuda else device
+    use_cuda = not args.no_cuda and torch.cuda.is_available()
+    use_mps = not args.no_mps and torch.backends.mps.is_available()
+
+    torch.manual_seed(args.seed)
+
+    if use_cuda:
+        device = torch.device('cuda')
+    elif use_mps:
+        device = torch.device('mps')
+    else:
+        device = torch.device('cpu')
     print(f'Using {device} device')
 
     cora_url = 'https://linqs-data.soe.ucsc.edu/public/lbc/cora.tgz'
@@ -239,6 +255,8 @@ if __name__ == '__main__':
 
     for epoch in range(args.epochs):
         train_iter(epoch + 1, gcn, optimizer, criterion, (features, adj_mat), labels, idx_train, idx_val, args.val_every)
+        if args.dry_run:
+            break
 
     loss_test, acc_test = test(gcn, criterion, (features, adj_mat), labels, idx_test)
     print(f'Test set results: loss {loss_test:.4f} accuracy {acc_test:.4f}')

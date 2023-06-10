@@ -172,6 +172,11 @@ function word_language_model() {
   python main.py --epochs 1 --dry-run $CUDA_FLAG --mps || error "word_language_model failed"
 }
 
+function gcn() {
+  start
+  python main.py --epochs 1 --dry-run || error "graph convolutional network failed"
+}
+
 function clean() {
   cd $BASE_DIR
   echo "running clean to remove cruft"
@@ -192,7 +197,8 @@ function clean() {
     super_resolution/model_epoch_1.pth \
     time_sequence_prediction/predict*.pdf \
     time_sequence_prediction/traindata.pt \
-    word_language_model/model.pt || error "couldn't clean up some files"
+    word_language_model/model.pt \
+    gcn/cora/ || error "couldn't clean up some files"
 
   git checkout fast_neural_style/images/output-images/amber-candy.jpg || error "couldn't clean up fast neural style image"
 }
@@ -217,6 +223,7 @@ function run_all() {
   vision_transformer
   word_language_model
   fx
+  gcn
 }
 
 # by default, run all examples
