@@ -176,4 +176,4 @@ experiment with PyTorch.
 
     This example implements the `Semi-Supervised Classification with Graph Convolutional Networks <https://arxiv.org/pdf/1609.02907.pdf>`__ paper on the CORA database.
 
-    `GO TO EXAMPLE <https://github.com/pytorch/examples/tree/main/gcn>`__ :opticon:`link-external` 
+    `GO TO EXAMPLE <https://github.com/pytorch/examples/blob/main/gcn>`__ :opticon:`link-external` 
