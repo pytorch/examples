@@ -1,3 +1,4 @@
+import os
 import torch
 from torch.utils.data import random_split
 from torch.distributed import init_process_group, destroy_process_group
