@@ -54,7 +54,7 @@ class BatchUpdateParameterServer(object):
                     p.grad /= self.batch_update_size
                 self.curr_update_size = 0
                 self.optimizer.step()
-                self.optimizer.zero_grad()
+                self.optimizer.zero_grad(set_to_none=False)
                 fut.set_result(self.model)
                 timed_log("PS updated model")
                 self.future_model = torch.futures.Future()
