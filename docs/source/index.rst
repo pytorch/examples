@@ -178,5 +178,3 @@ experiment with PyTorch.
 
     `GO TO EXAMPLE <https://github.com/pytorch/examples/blob/main/gcn>`__ :opticon:`link-external` 
 
-    ---
-
