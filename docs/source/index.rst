@@ -171,16 +171,6 @@ experiment with PyTorch.
 
     ---
 
-    Graph Attention Network
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
- 
-    This example implements the paper `Graph Attention Networks <https://arxiv.org/pdf/1710.10903.pdf>`__
-    by Velickovic et al on the `Cora <https://relational.fit.cvut.cz/dataset/CORA>`__ database.
-
-    `GO TO EXAMPLE <https://github.com/pytorch/examples/blob/main/gat>`__ :opticon:`link-external` 
-
-    ---
-    
     Graph Convolutional Network
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
