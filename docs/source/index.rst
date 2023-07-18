@@ -181,12 +181,11 @@ experiment with PyTorch.
     ---
 
     Graph Attention Network
-    ^^^^^^^^^^^^^^^^^^^^^^^
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 
+    This example implements the paper `Graph Attention Networks <https://arxiv.org/pdf/1710.10903.pdf>`__
+    by Velickovic et al on the `Cora <https://relational.fit.cvut.cz/dataset/CORA>`__ database.
 
-    This example implements the paper `Graph Attention Networks <https://arxiv.org/pdf/1710.10903.pdf>`__ by Velickovic et al.
-    on the `Cora dataset <https://relational.fit.cvut.cz/dataset/CORA>`__ .
-    It is an example to the GAT for node classification task.
-
-    `GO TO EXAMPLE <https://github.com/pytorch/examples/tree/main/gat>`__ :opticon:`link-external`
+    `GO TO EXAMPLE <https://github.com/pytorch/examples/blob/main/gat>`__ :opticon:`link-external` 
 
     ---
