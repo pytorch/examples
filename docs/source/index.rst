@@ -177,3 +177,16 @@ experiment with PyTorch.
     This example implements the `Semi-Supervised Classification with Graph Convolutional Networks <https://arxiv.org/pdf/1609.02907.pdf>`__ paper on the CORA database.
 
     `GO TO EXAMPLE <https://github.com/pytorch/examples/blob/main/gcn>`__ :opticon:`link-external` 
+
+    ---
+
+    Graph Attention Network
+    ^^^^^^^^^^^^^^^^^^^^^^^
+
+    This example implements the paper `Graph Attention Networks <https://arxiv.org/pdf/1710.10903.pdf>`__ by Velickovic et al.
+    on the `Cora dataset <https://relational.fit.cvut.cz/dataset/CORA>`__ .
+    It is an example to the GAT for node classification task.
+
+    `GO TO EXAMPLE <https://github.com/pytorch/examples/tree/main/gat>`__ :opticon:`link-external`
+
+    ---
