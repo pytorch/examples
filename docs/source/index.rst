@@ -171,15 +171,6 @@ experiment with PyTorch.
 
     ---
 
-    Graph Convolutional Network
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-    This example implements the `Semi-Supervised Classification with Graph Convolutional Networks <https://arxiv.org/pdf/1609.02907.pdf>`__ paper on the CORA database.
-
-    `GO TO EXAMPLE <https://github.com/pytorch/examples/blob/main/gcn>`__ :opticon:`link-external` 
-
-    ---
-
     Graph Attention Network
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
  
@@ -187,5 +178,14 @@ experiment with PyTorch.
     by Velickovic et al on the `Cora <https://relational.fit.cvut.cz/dataset/CORA>`__ database.
 
     `GO TO EXAMPLE <https://github.com/pytorch/examples/blob/main/gat>`__ :opticon:`link-external` 
+
+    ---
+    
+    Graph Convolutional Network
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+    This example implements the `Semi-Supervised Classification with Graph Convolutional Networks <https://arxiv.org/pdf/1609.02907.pdf>`__ paper on the CORA database.
+
+    `GO TO EXAMPLE <https://github.com/pytorch/examples/blob/main/gcn>`__ :opticon:`link-external` 
 
     ---
