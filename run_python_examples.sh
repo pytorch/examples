@@ -203,7 +203,7 @@ function clean() {
     time_sequence_prediction/predict*.pdf \
     time_sequence_prediction/traindata.pt \
     word_language_model/model.pt \
-    gcn/cora/ || error "couldn't clean up some files" \
+    gcn/cora/ \
     gat/cora/ || error "couldn't clean up some files"
 
   git checkout fast_neural_style/images/output-images/amber-candy.jpg || error "couldn't clean up fast neural style image"
