@@ -229,7 +229,7 @@ def main():
                         help='number of classes in dataset (default : 10 for CIFAR10)')
     parser.add_argument('--epochs', type=int, default=10,
                         help='number of epochs (default : 10)')
-    parser.add_argument('--lr', type=int, default=1e-2,
+    parser.add_argument('--lr', type=float, default=1e-2,
                         help='base learning rate (default : 0.01)')
     parser.add_argument('--weight-decay', type=int, default=3e-2,
                         help='weight decay value (default : 0.03)')
