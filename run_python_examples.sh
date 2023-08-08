@@ -177,6 +177,11 @@ function gcn() {
   python main.py --epochs 1 --dry-run || error "graph convolutional network failed"
 }
 
+function gat() {
+  start
+  python main.py --epochs 1 --dry-run || error "graph attention network failed"
+}
+
 function clean() {
   cd $BASE_DIR
   echo "running clean to remove cruft"
@@ -198,7 +203,8 @@ function clean() {
     time_sequence_prediction/predict*.pdf \
     time_sequence_prediction/traindata.pt \
     word_language_model/model.pt \
-    gcn/cora/ || error "couldn't clean up some files"
+    gcn/cora/ \
+    gat/cora/ || error "couldn't clean up some files"
 
   git checkout fast_neural_style/images/output-images/amber-candy.jpg || error "couldn't clean up fast neural style image"
 }
@@ -224,6 +230,7 @@ function run_all() {
   word_language_model
   fx
   gcn
+  gat
 }
 
 # by default, run all examples
