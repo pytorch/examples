@@ -1,5 +1,5 @@
 import argparse
-import gym
+import gymnasium as gym
 import numpy as np
 import os
 from itertools import count
@@ -85,7 +85,7 @@ class Observer:
     def __init__(self):
         self.id = rpc.get_worker_info().id
         self.env = gym.make('CartPole-v1')
-        self.env.seed(args.seed)
+        self.env.reset(seed=args.seed)
 
     def run_episode(self, agent_rref, n_steps):
         r"""
@@ -95,18 +95,18 @@ class Observer:
             agent_rref (RRef): an RRef referencing the agent object.
             n_steps (int): number of steps in this episode
         """
-        state, ep_reward = self.env.reset(), 0
+        state, ep_reward = self.env.reset()[0], 0
         for step in range(n_steps):
             # send the state to the agent to get an action
             action = _remote_method(Agent.select_action, agent_rref, self.id, state)
 
             # apply the action to the environment, and get the reward
-            state, reward, done, _ = self.env.step(action)
+            state, reward, terminated, truncated, _ = self.env.step(action)
 
             # report the reward to the agent for training purpose
             _remote_method(Agent.report_reward, agent_rref, self.id, reward)
 
-            if done:
+            if terminated or truncated:
                 break
 
 class Agent:
