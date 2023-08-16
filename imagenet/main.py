@@ -275,8 +275,9 @@ def main_worker(gpu, ngpus_per_node, args):
             train_sampler.set_epoch(epoch)
 
         # train for one epoch
+        start = time.time()
         train(train_loader, model, criterion, optimizer, epoch, device, args)
-
+        print(f"Time to finish epoch #{epoch}: {time.time()-start}")
         # evaluate on validation set
         acc1 = validate(val_loader, model, criterion, args)
         
