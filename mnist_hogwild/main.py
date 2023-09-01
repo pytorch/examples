@@ -30,7 +30,9 @@ parser.add_argument('--num-processes', type=int, default=2, metavar='N',
 parser.add_argument('--cuda', action='store_true', default=False,
                     help='enables CUDA training')
 parser.add_argument('--mps', action='store_true', default=False,
-                        help='enables macOS GPU training')
+                    help='enables macOS GPU training')
+parser.add_argument('--save_model', action='store_true', default=False,
+                    help='save the trained model to state_dict')
 parser.add_argument('--dry-run', action='store_true', default=False,
                     help='quickly check a single pass')
 
@@ -95,6 +97,9 @@ if __name__ == '__main__':
         processes.append(p)
     for p in processes:
         p.join()
+
+    if args.save_model:
+        torch.save(model.state_dict(), "MNIST_hogwild.pt")
 
     # Once training is complete, we can test the model
     test(args, model, device, dataset2, kwargs)
