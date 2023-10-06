@@ -5,7 +5,7 @@ import torch
 from torchvision import models
 
 # Download and load the pre-trained model
-model = models.resnet18(pretrained=True)
+model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
 
 # Set upgrading the gradients to False
 for param in model.parameters():
