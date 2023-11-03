@@ -112,6 +112,8 @@ def main():
     else:
         device = "cpu"
 
+    device = torch.device(device)
+
     torch.manual_seed(args.seed)
 
     kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
