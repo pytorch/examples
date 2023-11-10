@@ -5,6 +5,6 @@ find_package(Torch REQUIRED)
 
 # Define our library target
 add_library(interpreter SHARED interpreter.cpp)
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 # Link against LibTorch
 target_link_libraries(interpreter "${TORCH_LIBRARIES}")
