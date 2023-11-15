@@ -12,7 +12,13 @@ from torch.distributed.tensor.parallel import (
 )
 from torch.distributed.tensor.parallel.fsdp import enable_2d_with_fsdp
 
-from utils import cleanup, setup, ToyModel
+# updated imports
+from torch.distributed._shard.sharded_tensor import ShardedTensor
+from torch.distributed._tensor import DTensor, Replicate, sharding_prop
+from torch.distributed._tensor.device_mesh import init_device_mesh
+import os
+
+from utils import cleanup, torchrun_setup, ToyModel
 try:
     from torch.distributed.tensor.parallel import (
         SequenceParallel
@@ -54,24 +60,47 @@ https://docs.google.com/presentation/d/17g6WqrO00rP3MsxbRENsPpjrlSkwiA_QB4r93_eB
 """
 
 
-def demo_2d(rank, args):
+def demo_2d(args):
     """
     Main body of the demo of a basic version of tensor parallel by using
     PyTorch native APIs.
     """
-    print(f"Running basic Megatron style TP example on rank {rank}.")
-    setup(rank, args.world_size)
-    assert (
-        args.world_size % args.tp_size == 0
-    ), "World size needs to be divisible by TP size"
+    torchrun_setup()
 
+
+    _rank = int(os.environ["RANK"])
+    _local_rank = int(os.environ["LOCAL_RANK"])
+    torch.cuda.set_device(_local_rank)
+    _world_size = int(os.environ["WORLD_SIZE"])
+    _local_world_size = int(os.environ["LOCAL_WORLD_SIZE"])
+
+    def rank_print(msg):
+        if _rank==0:
+            print(f"{msg}")
+
+    print(f"Running basic Megatron style TP example on rank {_rank}.")
+
+    assert (
+        _world_size % args.tp_size == 0
+    ), f"World size {_world_size} needs to be divisible by TP size {args.tp_size}"
+
+    device = f"cuda" # :{_local_rank}"
     # create a sharding plan based on the given world_size.
-    device_mesh = DeviceMesh(
-        "cuda", torch.arange(0, args.world_size).view(-1, args.tp_size)
-    )
+
+
+
+    dp_size = _world_size // args.tp_size
+
+    device_mesh = init_device_mesh(device, (dp_size, args.tp_size))
+    assert device_mesh is not None, "unable to create valid device mesh"
+    rank_print(f"Device Mesh created: {device_mesh=}")
+
+
+
+
 
     # create model and move it to GPU with id rank
-    model = ToyModel().cuda(rank)
+    model = ToyModel().cuda(_rank)
     # Create a optimizer for the parallelized module.
     LR = 0.25
     optimizer = torch.optim.SGD(model.parameters(), lr=LR)
@@ -83,8 +112,10 @@ def demo_2d(rank, args):
     assert (
         enable_2d_with_fsdp()
     ), "FSDP 2D hook is not registered. Please use PyTorch with version >= 2.0"
-    dp_pg = device_mesh.get_dim_groups()[0]
-    model = FSDP(model, process_group=dp_pg)
+    # dp_pg = device_mesh.get_dim_groups()[0]
+    # rank_print(f"{dp_pg=}")
+    # dist.barrier()
+    model = FSDP(model, device_mesh = device_mesh)
 
     # Perform a num of iterations of forward/backward
     # and optimizations for the sharded module.
@@ -123,5 +154,6 @@ if __name__ == "__main__":
             "PyTorch doesn't have Sequence Parallelism available,"
             " need nightly build."
         )
-    else:
-        mp.spawn(demo_2d, args=(args,), nprocs=args.world_size, join=True)
+    #else:
+    #mp.spawn(demo_2d, args=(args,), nprocs=args.world_size, join=True)
+    demo_2d(args)
