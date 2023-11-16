@@ -112,36 +112,40 @@ def demo_2d(args):
 
 
     # create model and move it to GPU with id rank
-    model = ToyModel().cuda(_rank)
+    base_model_tp = ToyModel().cuda(_rank)
+    base_model_sp = ToyModel().cuda(_rank)
 
     _mlp_dim = 1024
-    mlp_model = MLP_swiglu(mlp_dim=_mlp_dim).cuda(_rank)
+    base_model_swiglu = MLP_swiglu(mlp_dim=_mlp_dim).cuda(_rank)
 
-    rank_print(f"{mlp_model=}")
-    # Create an optimizer for the parallelized module.
-    lr = 3e-3
-    rank_print(f"Creating AdamW optimizer with learning rate {lr}")
-    optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
+
+
 
     # Parallelize the module based on the given Parallel Style.
-    parallel_style = SequenceParallel() if args.run_seq_parallel else PairwiseParallel()
-    auto_model = parallelize_module(model, tp_mesh, parallel_style)
+    # parallel_style = SequenceParallel() if args.run_seq_parallel else PairwiseParallel()
+    auto_tp_model = parallelize_module(base_model_tp, tp_mesh, PairwiseParallel())
+
+    sequence_p_model = parallelize_module(base_model_sp, tp_mesh, SequenceParallel())
 
     # custom parallelization for the swiglu MLP model
-    mlp_tp_model = parallelize_module(module = mlp_model,
+    custom_tp_model = parallelize_module(module = base_model_swiglu,
                                     device_mesh = tp_mesh,
                                     parallelize_plan = {
                                         "in_proj": ColwiseParallel(),
                                         "gate_proj": ColwiseParallel(),
                                         "out_proj": RowwiseParallel(),
                                     },
-                                    tp_mesh_dim=1,
     )
 
-    rank_print(f" after parallelization {mlp_tp_model=}")
+    rank_print(f"after parallelization {custom_tp_model=}")
 
     # Init FSDP using the dp device mesh
-    model = FSDP(mlp_tp_model, device_mesh = dp_mesh)
+    sharded_model = FSDP(custom_tp_model, device_mesh = dp_mesh, use_orig_params=True)
+
+    # Create an optimizer for the parallelized module.
+    lr = 3e-3
+    rank_print(f"Creating AdamW optimizer with learning rate {lr}")
+    optimizer = torch.optim.AdamW(sharded_model.parameters(), lr=lr)
 
     # Training loop:
     # Perform a num of iterations of forward/backward
@@ -153,12 +157,50 @@ def demo_2d(args):
         inp = torch.rand(2, _mlp_dim).cuda(_rank)
         # inp = torch.rand(20,10).cuda(_rank)
 
-        output = model(inp)
+        output = sharded_model(inp)
         output.sum().backward()
         optimizer.step()
         rank_print(f"2D iter {i} complete")
 
-    rank_print(f"2D training successfully completed!")
+    rank_print(f"custom 2D training successfully completed!")
+
+    rank_print(f"starting auto parallel example...")
+
+    sharded_model = FSDP(auto_tp_model, device_mesh = dp_mesh, use_orig_params=True)
+    lr = 3e-3
+    rank_print(f"Creating AdamW optimizer with learning rate {lr}")
+    optimizer = torch.optim.AdamW(sharded_model.parameters(), lr=lr)
+
+    rank_print(f"\nStarting 2D training of auto-parallelized model...")
+    for i in range(args.iter_nums):
+        # seeding to ensure identical inputs for TP pairs (when running TP)
+        torch.manual_seed(i + dp_rank)
+        inp = torch.rand(20, 10).cuda(_rank)
+        # inp = torch.rand(20,10).cuda(_rank)
+
+        output = sharded_model(inp)
+        output.sum().backward()
+        optimizer.step()
+        rank_print(f"2D iter {i} complete")
+    rank_print(f"Pairwise Parallel training successfully completed!")
+
+    sharded_model = FSDP(sequence_p_model, device_mesh = dp_mesh, use_orig_params=True)
+    lr = 3e-3
+    rank_print(f"Creating AdamW optimizer for seq parallel model with learning rate {lr}")
+    optimizer = torch.optim.AdamW(sharded_model.parameters(), lr=lr)
+
+    rank_print(f"\nStarting Sequence Parallel training...")
+    for i in range(args.iter_nums):
+        # seeding to ensure different inputs for sequence parallel
+        torch.manual_seed(i + _rank)
+        inp = torch.rand(20, 10).cuda(_rank)
+
+        output = sharded_model(inp)
+        output.sum().backward()
+        optimizer.step()
+        rank_print(f"Sequence Parallel iter {i} complete")
+
+    rank_print(f"Sequence Parallel training successfully completed!")
     cleanup()
 
 
