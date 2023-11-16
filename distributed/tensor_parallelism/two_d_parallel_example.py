@@ -8,6 +8,8 @@ from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from torch.distributed.tensor.parallel import (
     PairwiseParallel,
     parallelize_module,
+    ColwiseParallel,
+    RowwiseParallel,
 )
 
 
@@ -16,7 +18,7 @@ from torch.distributed._tensor import DTensor, Replicate, sharding_prop
 from torch.distributed._tensor.device_mesh import init_device_mesh
 import os
 
-from utils import cleanup, torchrun_setup, ToyModel
+from utils import cleanup, torchrun_setup, ToyModel, MLP_swiglu
 try:
     from torch.distributed.tensor.parallel import (
         SequenceParallel
@@ -111,6 +113,11 @@ def demo_2d(args):
 
     # create model and move it to GPU with id rank
     model = ToyModel().cuda(_rank)
+
+    _mlp_dim = 1024
+    mlp_model = MLP_swiglu(mlp_dim=_mlp_dim).cuda(_rank)
+
+    rank_print(f"{mlp_model=}")
     # Create an optimizer for the parallelized module.
     lr = 3e-3
     rank_print(f"Creating AdamW optimizer with learning rate {lr}")
@@ -118,19 +125,33 @@ def demo_2d(args):
 
     # Parallelize the module based on the given Parallel Style.
     parallel_style = SequenceParallel() if args.run_seq_parallel else PairwiseParallel()
-    model = parallelize_module(model, tp_mesh, parallel_style)
+    auto_model = parallelize_module(model, tp_mesh, parallel_style)
+
+    # custom parallelization for the swiglu MLP model
+    mlp_tp_model = parallelize_module(module = mlp_model,
+                                    device_mesh = tp_mesh,
+                                    parallelize_plan = {
+                                        "in_proj": ColwiseParallel(),
+                                        "gate_proj": ColwiseParallel(),
+                                        "out_proj": RowwiseParallel(),
+                                    },
+                                    tp_mesh_dim=1,
+    )
+
+    rank_print(f" after parallelization {mlp_tp_model=}")
 
     # Init FSDP using the dp device mesh
-    model = FSDP(model, device_mesh = dp_mesh)
-
+    model = FSDP(mlp_tp_model, device_mesh = dp_mesh)
 
     # Training loop:
     # Perform a num of iterations of forward/backward
     # and optimizations for the sharded module.
+    rank_print(f"\nStarting 2D training...")
     for i in range(args.iter_nums):
         # seeding to ensure idential inputs for TP pairs (when running TP)
         torch.manual_seed(i + dp_rank)
-        inp = torch.rand(20, 10).cuda(_rank)
+        inp = torch.rand(2, _mlp_dim).cuda(_rank)
+        # inp = torch.rand(20,10).cuda(_rank)
 
         output = model(inp)
         output.sum().backward()
