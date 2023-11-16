@@ -2,7 +2,6 @@ import argparse
 
 import torch
 import torch.distributed as dist
-import torch.multiprocessing as mp
 
 from torch.distributed._tensor import DeviceMesh
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
@@ -10,9 +9,8 @@ from torch.distributed.tensor.parallel import (
     PairwiseParallel,
     parallelize_module,
 )
-from torch.distributed.tensor.parallel.fsdp import enable_2d_with_fsdp
 
-# updated imports
+
 from torch.distributed._shard.sharded_tensor import ShardedTensor
 from torch.distributed._tensor import DTensor, Replicate, sharding_prop
 from torch.distributed._tensor.device_mesh import init_device_mesh
@@ -36,8 +34,8 @@ and optimization.
 
 We enabled Fully Sharded Data Parallel + Tensor Parallel in
 separate parallel dimensions:
-    Data Parallel across hosts
-    Tensor Parallel within each host
+    Data Parallel ("dp") across hosts
+    Tensor Parallel ("tp") within each host
 
  We use a simple diagram to illustrate below:
 
@@ -75,6 +73,7 @@ def demo_2d(args):
     _local_world_size = int(os.environ["LOCAL_WORLD_SIZE"])
 
     def rank_print(msg):
+        """helper function to print only on rank 0"""
         if _rank==0:
             print(f"{msg}")
 
@@ -84,13 +83,15 @@ def demo_2d(args):
         _world_size % args.tp_size == 0
     ), f"World size {_world_size} needs to be divisible by TP size {args.tp_size}"
 
-    device = f"cuda" # :{_local_rank}"
+    device = f"cuda"
+
     # create a sharding plan based on the given world_size.
-
-
 
     dp_size = _world_size // args.tp_size
 
+    # Create a device mesh with 2 dimensions.
+    # First dim is the data parallel dimension
+    # and second dim is the tensor parallel dimension.
     device_mesh = init_device_mesh(device, (dp_size, args.tp_size), mesh_dim_names=("dp","tp"))
     assert device_mesh is not None, "unable to create valid device mesh"
 
@@ -98,39 +99,45 @@ def demo_2d(args):
     tp_mesh = device_mesh["tp"]
     dp_mesh = device_mesh["dp"]
 
+    # To support identical inputs for TP groups, we need the dp process group
+    dp_pg = device_mesh.get_dim_groups()[0]
+
+    # For TP, input needs to be same across all TP ranks.
+    # while for SP, input can be different across all ranks.
+    # We will use dp_rank for setting the random seed
+    # to mimic the behavior of the dataloader.
+    dp_rank = _rank if args.run_seq_parallel else dist.get_rank(dp_pg)
+
+
     # create model and move it to GPU with id rank
     model = ToyModel().cuda(_rank)
-    # Create a optimizer for the parallelized module.
-    LR = 0.25
-    optimizer = torch.optim.SGD(model.parameters(), lr=LR)
+    # Create an optimizer for the parallelized module.
+    lr = 3e-3
+    rank_print(f"Creating AdamW optimizer with learning rate {lr}")
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
+
     # Parallelize the module based on the given Parallel Style.
     parallel_style = SequenceParallel() if args.run_seq_parallel else PairwiseParallel()
     model = parallelize_module(model, tp_mesh, parallel_style)
 
-
-
+    # Init FSDP using the dp device mesh
     model = FSDP(model, device_mesh = dp_mesh)
 
+
+    # Training loop:
     # Perform a num of iterations of forward/backward
     # and optimizations for the sharded module.
     for i in range(args.iter_nums):
-        # For TP, input needs to be same across all TP ranks.
-        # while for SP, input can be different across all ranks.
-        # Setting the random seed is to mimic the behavior of dataloader.
-        dp_rank = _rank
-        '''(
-            rank
-            if args.run_seq_parallel
-            else dist.get_rank(dp_pg)
-        )
-        '''
+        # seeding to ensure idential inputs for TP pairs (when running TP)
         torch.manual_seed(i + dp_rank)
         inp = torch.rand(20, 10).cuda(_rank)
+
         output = model(inp)
         output.sum().backward()
         optimizer.step()
-        rank_print(f"tp iter {i}")
+        rank_print(f"2D iter {i} complete")
 
+    rank_print(f"2D training successfully completed!")
     cleanup()
 
 
