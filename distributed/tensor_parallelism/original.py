@@ -12,13 +12,7 @@ from torch.distributed.tensor.parallel import (
 )
 from torch.distributed.tensor.parallel.fsdp import enable_2d_with_fsdp
 
-# updated imports
-from torch.distributed._shard.sharded_tensor import ShardedTensor
-from torch.distributed._tensor import DTensor, Replicate, sharding_prop
-from torch.distributed._tensor.device_mesh import init_device_mesh
-import os
-
-from utils import cleanup, torchrun_setup, ToyModel
+from utils import cleanup, setup, ToyModel
 try:
     from torch.distributed.tensor.parallel import (
         SequenceParallel
@@ -60,56 +54,37 @@ https://docs.google.com/presentation/d/17g6WqrO00rP3MsxbRENsPpjrlSkwiA_QB4r93_eB
 """
 
 
-def demo_2d(args):
+def demo_2d(rank, args):
     """
     Main body of the demo of a basic version of tensor parallel by using
     PyTorch native APIs.
     """
-    torchrun_setup()
-
-
-    _rank = int(os.environ["RANK"])
-    _local_rank = int(os.environ["LOCAL_RANK"])
-    torch.cuda.set_device(_local_rank)
-    _world_size = int(os.environ["WORLD_SIZE"])
-    _local_world_size = int(os.environ["LOCAL_WORLD_SIZE"])
-
-    def rank_print(msg):
-        if _rank==0:
-            print(f"{msg}")
-
-    print(f"Running basic Megatron style TP example on rank {_rank}.")
-
+    print(f"Running basic Megatron style TP example on rank {rank}.")
+    setup(rank, args.world_size)
     assert (
-        _world_size % args.tp_size == 0
-    ), f"World size {_world_size} needs to be divisible by TP size {args.tp_size}"
+        args.world_size % args.tp_size == 0
+    ), "World size needs to be divisible by TP size"
 
-    device = f"cuda" # :{_local_rank}"
     # create a sharding plan based on the given world_size.
-
-
-
-    dp_size = _world_size // args.tp_size
-
-    device_mesh = init_device_mesh(device, (dp_size, args.tp_size), mesh_dim_names=("dp","tp"))
-    assert device_mesh is not None, "unable to create valid device mesh"
-
-    rank_print(f"Device Mesh created: {device_mesh=}")
-    tp_mesh = device_mesh["tp"]
-    dp_mesh = device_mesh["dp"]
+    device_mesh = DeviceMesh(
+        "cuda", torch.arange(0, args.world_size).view(-1, args.tp_size)
+    )
 
     # create model and move it to GPU with id rank
-    model = ToyModel().cuda(_rank)
+    model = ToyModel().cuda(rank)
     # Create a optimizer for the parallelized module.
     LR = 0.25
     optimizer = torch.optim.SGD(model.parameters(), lr=LR)
     # Parallelize the module based on the given Parallel Style.
     parallel_style = SequenceParallel() if args.run_seq_parallel else PairwiseParallel()
-    model = parallelize_module(model, tp_mesh, parallel_style)
+    model = parallelize_module(model, device_mesh, parallel_style, tp_mesh_dim=1)
 
-
-
-    model = FSDP(model, device_mesh = dp_mesh)
+    # We need to register hooks for TP + FSDP integration.
+    assert (
+        enable_2d_with_fsdp()
+    ), "FSDP 2D hook is not registered. Please use PyTorch with version >= 2.0"
+    dp_pg = device_mesh.get_dim_groups()[0]
+    model = FSDP(model, process_group=dp_pg)
 
     # Perform a num of iterations of forward/backward
     # and optimizations for the sharded module.
@@ -117,19 +92,16 @@ def demo_2d(args):
         # For TP, input needs to be same across all TP ranks.
         # while for SP, input can be different across all ranks.
         # Setting the random seed is to mimic the behavior of dataloader.
-        dp_rank = _rank
-        '''(
+        dp_rank = (
             rank
             if args.run_seq_parallel
             else dist.get_rank(dp_pg)
         )
-        '''
         torch.manual_seed(i + dp_rank)
-        inp = torch.rand(20, 10).cuda(_rank)
+        inp = torch.rand(20, 10).cuda(rank)
         output = model(inp)
         output.sum().backward()
         optimizer.step()
-        rank_print(f"tp iter {i}")
 
     cleanup()
 
@@ -151,6 +123,5 @@ if __name__ == "__main__":
             "PyTorch doesn't have Sequence Parallelism available,"
             " need nightly build."
         )
-    #else:
-    #mp.spawn(demo_2d, args=(args,), nprocs=args.world_size, join=True)
-    demo_2d(args)
+    else:
+        mp.spawn(demo_2d, args=(args,), nprocs=args.world_size, join=True)
