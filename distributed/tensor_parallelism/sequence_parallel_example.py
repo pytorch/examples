@@ -61,11 +61,10 @@ def demo_sp(args):
 
     print(f"Running basic Megatron style TP example on rank {_rank}.")
 
-    # create a sharding plan based on the given world_size.
-    device_mesh = DeviceMesh("cuda", torch.arange(0, _world_size))
+    # create a mesh based on the given world_size.
 
     device = f"cuda"
-    #device_mesh = init_device_mesh(device, torch.arange(0,_world_size)) # , mesh_dim_names=("sp",))
+    device_mesh = init_device_mesh(device_type = device,mesh_shape = (_world_size,))
     assert device_mesh is not None, "unable to create valid device mesh"
 
     rank_print(f"Device Mesh created: {device_mesh=}")
