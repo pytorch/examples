@@ -1,11 +1,17 @@
 import argparse
-
+import os
 import torch
-import torch.multiprocessing as mp
 
-from torch.distributed._tensor import DeviceMesh
-from torch.distributed.tensor.parallel import PairwiseParallel, parallelize_module
-from utils import cleanup, setup, ToyModel
+from torch.distributed._tensor.device_mesh import init_device_mesh
+from torch.distributed._tensor import DeviceMesh, DTensor, Replicate, Shard
+
+from torch.distributed.tensor.parallel import (
+    PairwiseParallel,
+    parallelize_module,
+    ColwiseParallel,
+    RowwiseParallel,
+)
+from utils import cleanup, ToyModel, torchrun_setup
 
 
 """
@@ -40,48 +46,74 @@ Parallelism APIs in this example to show users how to use them.
 """
 
 
-def demo_tp(rank, args):
+def demo_tp(args):
     """
     Main body of the demo of a basic version of tensor parallel by using
     PyTorch native APIs.
     """
-    print(f"Running basic Megatron style TP example on rank {rank}.")
-    setup(rank, args.world_size)
+    torchrun_setup()
 
-    # create a sharding plan based on the given world_size.
-    device_mesh = DeviceMesh("cuda", torch.arange(0, args.world_size))
+    # understand world topology
+    _rank = int(os.environ["RANK"])
+    _local_rank = int(os.environ["LOCAL_RANK"])
+    _world_size = int(os.environ["WORLD_SIZE"])
+    _local_world_size = int(os.environ["LOCAL_WORLD_SIZE"])
+
+    torch.cuda.set_device(_local_rank)
+
+    def rank_print(msg):
+        """helper function to print only on global rank 0"""
+        if _rank==0:
+            print(f"{msg}")
+
+    print(f"Running basic Megatron style TP example on rank {_rank}.")
+
+
+   # create a device mesh based on the given world_size.
+
+    device = f"cuda"
+    device_mesh = init_device_mesh(device_type = device,mesh_shape = (_world_size,))
+    assert device_mesh is not None, "unable to create valid device mesh"
+
+    rank_print(f"Device Mesh created: {device_mesh=}")
 
     # create model and move it to GPU with id rank
-    model = ToyModel().cuda(rank)
-    # Create a optimizer for the parallelized module.
-    LR = 0.25
-    optimizer = torch.optim.SGD(model.parameters(), lr=LR)
-    # Parallelize the module based on the given Parallel Style.
-    model = parallelize_module(model, device_mesh, PairwiseParallel())
+    tp_model = ToyModel().cuda(_rank)
 
+    # Create an optimizer for the parallelized module.
+    lr = 0.25
+    optimizer = torch.optim.AdamW(tp_model.parameters(), lr=lr)
+
+   # Custom parallelization plan for the model
+    tp_model = parallelize_module(module = tp_model,
+                                    device_mesh = device_mesh,
+                                    parallelize_plan = {
+                                        "net1": ColwiseParallel(),
+                                        "net2": RowwiseParallel(),
+                                    },
+    )
     # Perform a num of iterations of forward/backward
     # and optimizations for the sharded module.
-    for i in range(args.iter_nums):
+    num_iters = 10
+    rank_print(f"Tensor Parallel training starting...")
+
+    for i in range(num_iters):
         # For TP, input needs to be same across all TP ranks.
         # Setting the random seed is to mimic the behavior of dataloader.
         torch.manual_seed(i)
-        inp = torch.rand(20, 10).cuda(rank)
-        output = model(inp)
+        inp = torch.rand(20, 10).cuda(_rank)
+        output = tp_model(inp)
         output.sum().backward()
         optimizer.step()
+        rank_print(f"Tensor Parallel iter {i} completed")
+
+    rank_print(f"Tensor Parallel training completed!")
 
     cleanup()
 
 
 if __name__ == "__main__":
-    n_gpus = torch.cuda.device_count()
     parser = argparse.ArgumentParser()
     # This is passed in via cmd
-    parser.add_argument("--world_size", type=int, default=n_gpus)
-    parser.add_argument("--iter_nums", type=int, default=10)
     args = parser.parse_args()
-    # The main entry point is called directly without using subprocess
-    if n_gpus < 2:
-        print("Requires at least 2 GPUs to run.")
-    else:
-        mp.spawn(demo_tp, args=(args,), nprocs=args.world_size, join=True)
+    demo_tp(args)

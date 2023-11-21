@@ -59,9 +59,9 @@ def demo_sp(args):
         if _rank==0:
             print(f"{msg}")
 
-    print(f"Running basic Megatron style TP example on rank {_rank}.")
+    print(f"Running basic Megatron style Sequence Parallel example on rank {_rank}.")
 
-    # create a mesh based on the given world_size.
+    # create a device mesh based on the given world_size.
 
     device = f"cuda"
     device_mesh = init_device_mesh(device_type = device,mesh_shape = (_world_size,))
@@ -78,7 +78,7 @@ def demo_sp(args):
                                     device_mesh = device_mesh,
                                     parallelize_plan = {
                                         "net1": ColwiseParallel(input_layouts=Shard(0)),
-                                        "net1": RowwiseParallel(input_layouts=Shard(0)),
+                                        "net2": RowwiseParallel(output_layouts=Shard(0)),
                                     },
     )
 
