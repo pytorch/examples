@@ -1,4 +1,4 @@
-import argparse
+
 import os
 import torch
 
@@ -6,12 +6,11 @@ from torch.distributed._tensor.device_mesh import init_device_mesh
 from torch.distributed._tensor import DeviceMesh, DTensor, Replicate, Shard
 
 from torch.distributed.tensor.parallel import (
-    PairwiseParallel,
     parallelize_module,
     ColwiseParallel,
     RowwiseParallel,
 )
-from utils import cleanup, ToyModel, torchrun_setup
+from utils import ToyModel
 
 
 """
@@ -46,74 +45,66 @@ Parallelism APIs in this example to show users how to use them.
 """
 
 
-def demo_tp(args):
-    """
-    Main body of the demo of a basic version of tensor parallel by using
-    PyTorch native APIs.
-    """
-    torchrun_setup()
 
-    # understand world topology
-    _rank = int(os.environ["RANK"])
-    _local_rank = int(os.environ["LOCAL_RANK"])
-    _world_size = int(os.environ["WORLD_SIZE"])
-    _local_world_size = int(os.environ["LOCAL_WORLD_SIZE"])
+"""
+Main body of the demo of a basic version of tensor parallel by using
+PyTorch native APIs.
+"""
 
-    torch.cuda.set_device(_local_rank)
-
-    def rank_print(msg):
-        """helper function to print only on global rank 0"""
-        if _rank==0:
-            print(f"{msg}")
-
-    print(f"Running basic Megatron style TP example on rank {_rank}.")
+# understand world topology
+_rank = int(os.environ["RANK"])
+_local_rank = int(os.environ["LOCAL_RANK"])
+_world_size = int(os.environ["WORLD_SIZE"])
+#_local_world_size = int(os.environ["LOCAL_WORLD_SIZE"])
 
 
-   # create a device mesh based on the given world_size.
 
-    device = f"cuda"
-    device_mesh = init_device_mesh(device_type = device,mesh_shape = (_world_size,))
-    assert device_mesh is not None, "unable to create valid device mesh"
+def rank_print(msg):
+    """helper function to print only on global rank 0"""
+    if _rank==0:
+        print(f"{msg}")
 
-    rank_print(f"Device Mesh created: {device_mesh=}")
-
-    # create model and move it to GPU with id rank
-    tp_model = ToyModel().cuda(_rank)
-
-    # Create an optimizer for the parallelized module.
-    lr = 0.25
-    optimizer = torch.optim.AdamW(tp_model.parameters(), lr=lr)
-
-   # Custom parallelization plan for the model
-    tp_model = parallelize_module(module = tp_model,
-                                    device_mesh = device_mesh,
-                                    parallelize_plan = {
-                                        "net1": ColwiseParallel(),
-                                        "net2": RowwiseParallel(),
-                                    },
-    )
-    # Perform a num of iterations of forward/backward
-    # and optimizations for the sharded module.
-    num_iters = 10
-    rank_print(f"Tensor Parallel training starting...")
-
-    for i in range(num_iters):
-        # For TP, input needs to be same across all TP ranks.
-        # Setting the random seed is to mimic the behavior of dataloader.
-        torch.manual_seed(i)
-        inp = torch.rand(20, 10).cuda(_rank)
-        output = tp_model(inp)
-        output.sum().backward()
-        optimizer.step()
-        rank_print(f"Tensor Parallel iter {i} completed")
-
-    rank_print(f"Tensor Parallel training completed!")
-
-    cleanup()
+print(f"Running basic Megatron style TP example on rank {_rank}.")
+assert _world_size % 2 == 0, f"TP examples require even number of GPUs, but got {_world_size} gpus"
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    # This is passed in via cmd
-    args = parser.parse_args()
-    demo_tp(args)
+
+# create a device mesh based on the given world_size.
+
+_device = f"cuda"
+device_mesh = init_device_mesh(device_type = _device,mesh_shape = (_world_size,))
+assert device_mesh is not None, "unable to create valid device mesh"
+
+rank_print(f"Device Mesh created: {device_mesh=}")
+
+# create model and move it to GPU - init_device_mesh has already mapped GPU ids.
+tp_model = ToyModel().to(_device)
+
+# Create an optimizer for the parallelized module.
+lr = 0.25
+optimizer = torch.optim.AdamW(tp_model.parameters(), lr=lr, foreach=True)
+
+# Custom parallelization plan for the model
+tp_model = parallelize_module(module = tp_model,
+                                device_mesh = device_mesh,
+                                parallelize_plan = {
+                                    "net1": ColwiseParallel(),
+                                    "net2": RowwiseParallel(),
+                                },
+)
+# Perform a num of iterations of forward/backward
+# and optimizations for the sharded module.
+num_iters = 10
+rank_print(f"Tensor Parallel training starting...")
+
+for i in range(num_iters):
+    # For TP, input needs to be same across all TP ranks.
+    # Setting the random seed is to mimic the behavior of dataloader.
+    torch.manual_seed(i)
+    inp = torch.rand(20, 10, device=_device)
+    output = tp_model(inp)
+    output.sum().backward()
+    optimizer.step()
+    rank_print(f"Tensor Parallel iter {i} completed")
+
+rank_print(f"Tensor Parallel training completed!")

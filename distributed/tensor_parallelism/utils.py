@@ -17,10 +17,11 @@ def setup(rank, world_size):
 
 def torchrun_setup():
     """we use torchrun for init so no params needed here"""
-    dist.init_process_group("nccl")
+    #dist.init_process_group("nccl")
 
 def cleanup():
-    dist.destroy_process_group()
+    #dist.destroy_process_group()
+    pass
 
 
 class ToyModel(nn.Module):

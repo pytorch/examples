@@ -1,4 +1,3 @@
-import argparse
 
 import torch
 import torch.distributed as dist
@@ -6,7 +5,6 @@ import torch.distributed as dist
 from torch.distributed._tensor import DeviceMesh
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from torch.distributed.tensor.parallel import (
-    PairwiseParallel,
     parallelize_module,
     ColwiseParallel,
     RowwiseParallel,
@@ -18,7 +16,7 @@ from torch.distributed._tensor import DTensor, Replicate, sharding_prop
 from torch.distributed._tensor.device_mesh import init_device_mesh
 import os
 
-from utils import cleanup, torchrun_setup, MLP_swiglu
+from utils import MLP_swiglu
 
 
 """
@@ -53,109 +51,98 @@ https://docs.google.com/presentation/d/17g6WqrO00rP3MsxbRENsPpjrlSkwiA_QB4r93_eB
 """
 
 
-def demo_2d(args):
-    """
-    Main body of the demo of a basic version of tensor parallel by using
-    PyTorch native APIs.
-    """
-    torchrun_setup()
 
-    # understand world topology
-    _rank = int(os.environ["RANK"])
-    _local_rank = int(os.environ["LOCAL_RANK"])
-    _world_size = int(os.environ["WORLD_SIZE"])
-    _local_world_size = int(os.environ["LOCAL_WORLD_SIZE"])
-
-    torch.cuda.set_device(_local_rank)
-
-    def rank_print(msg):
-        """helper function to print only on global rank 0"""
-        if _rank==0:
-            print(f"{msg}")
-
-    print(f"Running basic Megatron style TP example on rank {_rank}.")
-
-    assert (
-        _world_size % args.tp_size == 0
-    ), f"World size {_world_size} needs to be divisible by TP size {args.tp_size}"
-
-    device = f"cuda"
-
-    # create a sharding plan based on the given world_size.
-
-    dp_size = _world_size // args.tp_size
-
-    # Create a device mesh with 2 dimensions.
-    # First dim is the data parallel dimension
-    # Second dim is the tensor parallel dimension.
-    device_mesh = init_device_mesh(device, (dp_size, args.tp_size), mesh_dim_names=("dp","tp"))
-    assert device_mesh is not None, "unable to create valid device mesh"
-
-    rank_print(f"Device Mesh created: {device_mesh=}")
-    tp_mesh = device_mesh["tp"]
-    dp_mesh = device_mesh["dp"]
-
-    # To support identical inputs for TP groups, we need the dp process group
-    dp_pg = device_mesh.get_dim_groups()[0]
-
-    # For TP, input needs to be same across all TP ranks.
-    # while for SP, input can be different across all ranks.
-    # We will use dp_rank for setting the random seed
-    # to mimic the behavior of the dataloader.
-    dp_rank = dist.get_rank(dp_pg)
+"""
+Main body of the demo of a basic version of tensor parallel by using
+PyTorch native APIs.
+"""
+tp_size = 2
 
 
-    # create model and move it to GPU with id rank
-    _mlp_dim = 1024
-    base_model_swiglu = MLP_swiglu(mlp_dim=_mlp_dim).cuda(_local_rank)
+# understand world topology
+_rank = int(os.environ["RANK"])
+_local_rank = int(os.environ["LOCAL_RANK"])
+_world_size = int(os.environ["WORLD_SIZE"])
+_local_world_size = int(os.environ["LOCAL_WORLD_SIZE"])
+
+
+def rank_print(msg):
+    """helper function to print only on global rank 0"""
+    if _rank==0:
+        print(f"{msg}")
+
+print(f"Running basic Megatron style TP example on rank {_rank}.")
+assert (
+    _world_size % tp_size == 0
+), f"World size {_world_size} needs to be divisible by TP size {tp_size}"
+
+
+_device = f"cuda"
+
+# create a sharding plan based on the given world_size.
+
+dp_size = _world_size // tp_size
+
+# Create a device mesh with 2 dimensions.
+# First dim is the data parallel dimension
+# Second dim is the tensor parallel dimension.
+device_mesh = init_device_mesh(_device, (dp_size, tp_size), mesh_dim_names=("dp","tp"))
+
+rank_print(f"Device Mesh created: {device_mesh=}")
+tp_mesh = device_mesh["tp"]
+dp_mesh = device_mesh["dp"]
+
+# To support identical inputs for TP groups, we need the dp process group
+dp_pg = device_mesh.get_dim_groups()[0]
+
+# For TP, input needs to be same across all TP ranks.
+# while for SP, input can be different across all ranks.
+# We will use dp_rank for setting the random seed
+# to mimic the behavior of the dataloader.
+dp_rank = dist.get_rank(dp_pg)
+
+
+# create model and move it to GPU with id rank
+_mlp_dim = 1024
+base_model_swiglu = MLP_swiglu(mlp_dim=_mlp_dim).to(_device)
 
 
 
-    # Custom parallelization plan for the swiglu MLP model
-    custom_tp_model = parallelize_module(module = base_model_swiglu,
-                                    device_mesh = tp_mesh,
-                                    parallelize_plan = {
-                                        "in_proj": ColwiseParallel(),
-                                        "gate_proj": ColwiseParallel(),
-                                        "out_proj": RowwiseParallel(),
-                                    },
-    )
+# Custom parallelization plan for the swiglu MLP model
+custom_tp_model = parallelize_module(module = base_model_swiglu,
+                                device_mesh = tp_mesh,
+                                parallelize_plan = {
+                                    "in_proj": ColwiseParallel(),
+                                    "gate_proj": ColwiseParallel(),
+                                    "out_proj": RowwiseParallel(),
+                                },
+)
 
-    rank_print(f"Model after parallelization {custom_tp_model=}\n")
+rank_print(f"Model after parallelization {custom_tp_model=}\n")
 
-    # Init FSDP using the dp device mesh
-    sharded_model = FSDP(custom_tp_model, device_mesh = dp_mesh, use_orig_params=True)
+# Init FSDP using the dp device mesh
+sharded_model = FSDP(custom_tp_model, device_mesh = dp_mesh, use_orig_params=True)
 
-    # Create an optimizer for the parallelized and sharded model.
-    lr = 3e-3
-    rank_print(f"Creating AdamW optimizer with learning rate {lr}")
-    optimizer = torch.optim.AdamW(sharded_model.parameters(), lr=lr)
+# Create an optimizer for the parallelized and sharded model.
+lr = 3e-3
+rank_print(f"Creating AdamW optimizer with learning rate {lr}")
+optimizer = torch.optim.AdamW(sharded_model.parameters(), lr=lr, foreach=True)
 
-    # Training loop:
-    # Perform a num of iterations of forward/backward
-    # and optimizations for the sharded module.
-    rank_print(f"\nStarting 2D training...")
-    num_iterations = 10
-    batch_size = 2
+# Training loop:
+# Perform a num of iterations of forward/backward
+# and optimizations for the sharded module.
+rank_print(f"\nStarting 2D training...")
+num_iterations = 10
+batch_size = 2
 
-    for i in range(num_iterations):
-        # seeding with dp_rank to ensure identical inputs for TP groups
-        torch.manual_seed(i + dp_rank)
-        inp = torch.rand(batch_size, _mlp_dim).cuda(_rank)
+for i in range(num_iterations):
+    # seeding with dp_rank to ensure identical inputs for TP groups
+    torch.manual_seed(i + dp_rank)
+    inp = torch.rand(batch_size, _mlp_dim, device=_device)
 
-        output = sharded_model(inp)
-        output.sum().backward()
-        optimizer.step()
-        rank_print(f"2D iter {i} complete")
+    output = sharded_model(inp)
+    output.sum().backward()
+    optimizer.step()
+    rank_print(f"2D iter {i} complete")
 
-    rank_print(f"2D training successfully completed!")
-
-    cleanup()
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    # This is passed in via cmd
-    parser.add_argument("--tp_size", type=int, default=2)
-    args = parser.parse_args()
-    demo_2d(args)
+rank_print(f"2D training successfully completed!")
