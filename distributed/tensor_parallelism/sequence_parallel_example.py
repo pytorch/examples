@@ -34,7 +34,7 @@ _min_gpu_count = 2
 
 if not verify_min_gpu_count(min_gpus=_min_gpu_count):
     print(f"Unable to locate sufficient {_min_gpu_count} gpus to run this example. Exiting.")
-    sys.exit(0)
+    sys.exit()
 
 
 class ToyModel(nn.Module):

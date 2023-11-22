@@ -47,11 +47,11 @@ More details can be seen in the slide:
 https://docs.google.com/presentation/d/17g6WqrO00rP3MsxbRENsPpjrlSkwiA_QB4r93_eB5is/
 """
 
-_min_gpu_count = 2
+_min_gpu_count = 4
 
 if not verify_min_gpu_count(min_gpus=_min_gpu_count):
     print(f"Unable to locate sufficient {_min_gpu_count} gpus to run this example. Exiting.")
-    sys.exit(0)
+    sys.exit()
 
 
 def find_multiple(n: int, k: int) -> int:
