@@ -14,7 +14,7 @@ from torch.distributed.tensor.parallel import (
 from torch.distributed._tensor.device_mesh import init_device_mesh
 import os
 import logging
-
+from utils import rank_log
 
 """
 This is the script to test 2D Parallel which combines Tensor/Sequence
@@ -91,13 +91,6 @@ _rank = int(os.environ["RANK"])
 _world_size = int(os.environ["WORLD_SIZE"])
 
 
-#
-def rank_log(msg):
-    """helper function to print only on global rank 0"""
-    if _rank == 0:
-        logger.info(f"  {msg}")
-
-
 print(f"Starting PyTorch 2D (FSDP + TP) example on rank {_rank}.")
 assert (
     _world_size % tp_size == 0
@@ -112,7 +105,7 @@ dp_size = _world_size // tp_size
 # Second dim is the tensor parallel dimension.
 device_mesh = init_device_mesh("cuda", (dp_size, tp_size), mesh_dim_names=("dp", "tp"))
 
-rank_log(f"Device Mesh created: {device_mesh=}")
+rank_log(_rank, logger, f"Device Mesh created: {device_mesh=}")
 tp_mesh = device_mesh["tp"]
 dp_mesh = device_mesh["dp"]
 
@@ -142,20 +135,20 @@ custom_tp_model = parallelize_module(
     },
 )
 
-rank_log(f"Model after parallelization {custom_tp_model=}\n")
+rank_log(_rank, logger, f"Model after parallelization {custom_tp_model=}\n")
 
 # Init FSDP using the dp device mesh
 sharded_model = FSDP(custom_tp_model, device_mesh=dp_mesh, use_orig_params=True)
 
 # Create an optimizer for the parallelized and sharded model.
 lr = 3e-3
-rank_log(f"Creating AdamW optimizer with learning rate {lr}")
+rank_log(_rank, logger, f"Creating AdamW optimizer with learning rate {lr}")
 optimizer = torch.optim.AdamW(sharded_model.parameters(), lr=lr, foreach=True)
 
 # Training loop:
 # Perform a num of iterations of forward/backward
 # and optimizations for the sharded module.
-rank_log("\nStarting 2D training...")
+rank_log(_rank, logger, "\nStarting 2D training...")
 num_iterations = 10
 batch_size = 2
 
@@ -167,6 +160,6 @@ for i in range(num_iterations):
     output = sharded_model(inp)
     output.sum().backward()
     optimizer.step()
-    rank_log(f"2D iter {i} complete")
+    rank_log(_rank, logger, f"2D iter {i} complete")
 
-rank_log("2D training successfully completed!")
+rank_log(_rank, logger, "2D training successfully completed!")

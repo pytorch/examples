@@ -11,6 +11,7 @@ from torch.distributed.tensor.parallel import (
 )
 
 import logging
+from utils import rank_log
 
 logging.basicConfig(
     format="%(asctime)s %(message)s", datefmt="%m/%d/%Y %I:%M:%S %p", level=logging.INFO
@@ -75,18 +76,12 @@ device_mesh = init_device_mesh(device_type="cuda", mesh_shape=(_world_size,))
 _rank = device_mesh.get_rank()
 
 
-def rank_log(msg):
-    """helper function to print only on global rank 0"""
-    if _rank == 0:
-        logger.info(f"  {msg}")
-
-
 print(f"Starting PyTorch TP example on rank {_rank}.")
 assert (
     _world_size % 2 == 0
 ), f"TP examples require even number of GPUs, but got {_world_size} gpus"
 
-rank_log(f"Device Mesh created: {device_mesh=}")
+rank_log(_rank, logger, f"Device Mesh created: {device_mesh=}")
 
 # create model and move it to GPU - init"cuda"_mesh has already mapped GPU ids.
 tp_model = ToyModel().to("cuda")
@@ -107,7 +102,7 @@ tp_model = parallelize_module(
 # Perform a num of iterations of forward/backward
 # and optimizations for the sharded module.
 num_iters = 10
-rank_log("Tensor Parallel training starting...")
+rank_log(_rank, logger, "Tensor Parallel training starting...")
 
 for i in range(num_iters):
     # For TP, input needs to be same across all TP ranks.
@@ -117,6 +112,6 @@ for i in range(num_iters):
     output = tp_model(inp)
     output.sum().backward()
     optimizer.step()
-    rank_log(f"Tensor Parallel iter {i} completed")
+    rank_log(_rank, logger, f"Tensor Parallel iter {i} completed")
 
-rank_log("Tensor Parallel training completed!")
+rank_log(_rank, logger, "Tensor Parallel training completed!")

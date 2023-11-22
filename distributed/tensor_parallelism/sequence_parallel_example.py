@@ -12,6 +12,7 @@ from torch.distributed.tensor.parallel import (
     RowwiseParallel,
 )
 
+from utils import rank_log
 
 logging.basicConfig(
     format="%(asctime)s %(message)s", datefmt="%m/%d/%Y %I:%M:%S %p", level=logging.INFO
@@ -61,16 +62,9 @@ device_mesh = init_device_mesh(
 
 _rank = device_mesh.get_rank()
 
-
-def rank_log(msg):
-    """helper function to log only on global rank 0"""
-    if _rank == 0:
-        logger.info(f" {msg}")
-
-
 print(f"Starting PyTorch Sequence Parallel example on rank {_rank}.")
 
-rank_log(f"Device Mesh created: {device_mesh=}")
+rank_log(_rank, logger, f"Device Mesh created: {device_mesh=}")
 
 # create model and move it to GPU.  Init_device_mesh has already assigned gpu ids...
 model = ToyModel().to("cuda")
@@ -94,7 +88,7 @@ optimizer = torch.optim.AdamW(sp_model.parameters(), lr=lr, foreach=True)
 # Perform a num of iterations of forward/backward
 # and optimizations for the sharded module.
 num_iters = 10
-rank_log("Sequence Parallel training starting...")
+rank_log(_rank, logger, "Sequence Parallel training starting...")
 
 for i in range(num_iters):
     # For SP, input can be different across all ranks.
@@ -102,6 +96,6 @@ for i in range(num_iters):
     output = sp_model(inp)
     output.sum().backward()
     optimizer.step()
-    rank_log(f"Sequence Parallel iter {i} completed")
+    rank_log(_rank, logger, f"Sequence Parallel iter {i} completed")
 
-rank_log("Sequence Parallel training completed!")
+rank_log(_rank, logger, "Sequence Parallel training completed!")
