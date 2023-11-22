@@ -13,8 +13,7 @@ from torch.distributed.tensor.parallel import (
 
 from torch.distributed._tensor.device_mesh import init_device_mesh
 import os
-import logging
-from utils import rank_log
+from log_utils import rank_log, get_logger
 
 """
 This is the script to test 2D Parallel which combines Tensor/Sequence
@@ -79,12 +78,7 @@ Main body of the demo of a basic version of tensor parallel by using
 PyTorch native APIs.
 """
 tp_size = 2
-
-logging.basicConfig(
-    format="%(asctime)s %(message)s", datefmt="%m/%d/%Y %I:%M:%S %p", level=logging.INFO
-)
-logger = logging.getLogger(__name__)
-
+logger = get_logger()
 
 # understand world topology
 _rank = int(os.environ["RANK"])

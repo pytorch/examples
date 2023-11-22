@@ -1,7 +1,6 @@
 import os
 import torch
 import torch.nn as nn
-import logging
 
 from torch.distributed._tensor.device_mesh import init_device_mesh
 from torch.distributed._tensor import Shard
@@ -12,12 +11,7 @@ from torch.distributed.tensor.parallel import (
     RowwiseParallel,
 )
 
-from utils import rank_log
-
-logging.basicConfig(
-    format="%(asctime)s %(message)s", datefmt="%m/%d/%Y %I:%M:%S %p", level=logging.INFO
-)
-logger = logging.getLogger(__name__)
+from log_utils import rank_log, get_logger
 
 
 """
@@ -54,6 +48,7 @@ class ToyModel(nn.Module):
 Main body of the demo of a basic version of sequence parallel by using
 PyTorch native APIs.
 """
+logger = get_logger()
 
 # create a device mesh based on the given world_size.
 device_mesh = init_device_mesh(
