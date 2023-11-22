@@ -1,11 +1,10 @@
 import os
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import logging
 
 from torch.distributed._tensor.device_mesh import init_device_mesh
-from torch.distributed._tensor import DeviceMesh, Shard
+from torch.distributed._tensor import Shard
 
 from torch.distributed.tensor.parallel import (
     parallelize_module,
@@ -86,7 +85,7 @@ optimizer = torch.optim.AdamW(sp_model.parameters(), lr=lr, foreach=True)
 # Perform a num of iterations of forward/backward
 # and optimizations for the sharded module.
 num_iters = 10
-rank_log(f"Sequence Parallel training starting...")
+rank_log("Sequence Parallel training starting...")
 
 for i in range(num_iters):
     # For SP, input can be different across all ranks.
@@ -96,4 +95,4 @@ for i in range(num_iters):
     optimizer.step()
     rank_log(f"Sequence Parallel iter {i} completed")
 
-rank_log(f"Sequence Parallel training completed!")
+rank_log("Sequence Parallel training completed!")

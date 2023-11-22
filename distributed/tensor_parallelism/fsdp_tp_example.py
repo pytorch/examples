@@ -4,7 +4,6 @@ import torch.distributed as dist
 import torch.nn as nn
 import torch.nn.functional as F
 
-from torch.distributed._tensor import DeviceMesh
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from torch.distributed.tensor.parallel import (
     parallelize_module,
@@ -13,7 +12,6 @@ from torch.distributed.tensor.parallel import (
 )
 
 
-from torch.distributed._shard.sharded_tensor import ShardedTensor
 from torch.distributed._tensor.device_mesh import init_device_mesh
 import os
 import logging
@@ -150,7 +148,7 @@ optimizer = torch.optim.AdamW(sharded_model.parameters(), lr=lr, foreach=True)
 # Training loop:
 # Perform a num of iterations of forward/backward
 # and optimizations for the sharded module.
-rank_log(f"\nStarting 2D training...")
+rank_log("\nStarting 2D training...")
 num_iterations = 10
 batch_size = 2
 
@@ -164,4 +162,4 @@ for i in range(num_iterations):
     optimizer.step()
     rank_log(f"2D iter {i} complete")
 
-rank_log(f"2D training successfully completed!")
+rank_log("2D training successfully completed!")

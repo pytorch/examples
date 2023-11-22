@@ -1,10 +1,8 @@
 import os
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from torch.distributed._tensor.device_mesh import init_device_mesh
-from torch.distributed._tensor import DeviceMesh
 
 from torch.distributed.tensor.parallel import (
     parallelize_module,
@@ -100,7 +98,7 @@ tp_model = parallelize_module(module = tp_model,
 # Perform a num of iterations of forward/backward
 # and optimizations for the sharded module.
 num_iters = 10
-rank_log(f"Tensor Parallel training starting...")
+rank_log("Tensor Parallel training starting...")
 
 for i in range(num_iters):
     # For TP, input needs to be same across all TP ranks.
@@ -112,4 +110,4 @@ for i in range(num_iters):
     optimizer.step()
     rank_log(f"Tensor Parallel iter {i} completed")
 
-rank_log(f"Tensor Parallel training completed!")
+rank_log("Tensor Parallel training completed!")
