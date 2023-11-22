@@ -63,8 +63,8 @@ function distributed() {
     start
     python tensor_parallelism/tensor_parallel_example.py || error "tensor parallel example failed"
     python tensor_parallelism/sequence_parallel_example.py || error "sequence parallel example failed"
-    python tensor_parallelism/two_d_parallel_example.py || error "2D parallel example failed"
-    python ddp/main.py || error "ddp example failed" 
+    python tensor_parallelism/fsdp_tp_example.py || error "2D parallel example failed"
+    python ddp/main.py || error "ddp example failed"
 }
 
 function fast_neural_style() {
@@ -96,7 +96,7 @@ function mnist() {
   python main.py --epochs 1 --dry-run || error "mnist example failed"
 }
 function mnist_forward_forward() {
-  start 
+  start
   python main.py --epochs 1 --no_mps --no_cuda || error "mnist forward forward failed"
 
 }
@@ -212,9 +212,8 @@ function clean() {
 function run_all() {
   # cpp
   dcgan
-  # distributed
-  fast_neural_style
   distributed
+  fast_neural_style
   imagenet
   mnist
   mnist_forward_forward
