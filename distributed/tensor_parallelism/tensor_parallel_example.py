@@ -3,16 +3,23 @@ import sys
 import torch
 import torch.nn as nn
 
-from torch.distributed._tensor.device_mesh import init_device_mesh
-
 from torch.distributed.tensor.parallel import (
     parallelize_module,
     ColwiseParallel,
     RowwiseParallel,
 )
 
-
 from log_utils import rank_log, get_logger, verify_min_gpu_count
+
+# ---- GPU check ------------
+_min_gpu_count = 2
+
+if not verify_min_gpu_count(min_gpus=_min_gpu_count):
+    print(f"Unable to locate sufficient {_min_gpu_count} gpus to run this example. Exiting.")
+    sys.exit()
+# ---------------------------
+
+from torch.distributed._tensor.device_mesh import init_device_mesh
 
 
 
@@ -47,12 +54,6 @@ to use and our `parallelize_module` API will parse and parallelize the modules
 based on the given `ParallelStyle`. We are using this PyTorch native Tensor
 Parallelism APIs in this example to show users how to use them.
 """
-
-_min_gpu_count = 2
-
-if not verify_min_gpu_count(min_gpus=_min_gpu_count):
-    print(f"Unable to locate sufficient {_min_gpu_count} gpus to run this example. Exiting.")
-    sys.exit()
 
 class ToyModel(nn.Module):
     """MLP based model"""

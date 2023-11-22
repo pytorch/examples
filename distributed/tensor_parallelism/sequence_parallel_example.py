@@ -3,7 +3,6 @@ import sys
 import torch
 import torch.nn as nn
 
-from torch.distributed._tensor.device_mesh import init_device_mesh
 from torch.distributed._tensor import Shard
 
 from torch.distributed.tensor.parallel import (
@@ -13,6 +12,19 @@ from torch.distributed.tensor.parallel import (
 )
 
 from log_utils import rank_log, get_logger, verify_min_gpu_count
+
+
+# ---- GPU check ------------
+_min_gpu_count = 2
+
+if not verify_min_gpu_count(min_gpus=_min_gpu_count):
+    print(f"Unable to locate sufficient {_min_gpu_count} gpus to run this example. Exiting.")
+    sys.exit()
+# ---------------------------
+
+
+from torch.distributed._tensor.device_mesh import init_device_mesh
+
 
 
 """
@@ -30,11 +42,6 @@ and also parallelize the second linear layer by row. But the input in each rank
 now is different so that we need one all-gather for input and one reduce-scatter
 in the end of the second linear layer.
 """
-_min_gpu_count = 2
-
-if not verify_min_gpu_count(min_gpus=_min_gpu_count):
-    print(f"Unable to locate sufficient {_min_gpu_count} gpus to run this example. Exiting.")
-    sys.exit()
 
 
 class ToyModel(nn.Module):

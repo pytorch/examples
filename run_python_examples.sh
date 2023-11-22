@@ -63,7 +63,7 @@ function distributed() {
     start
     python tensor_parallelism/tensor_parallel_example.py || error "tensor parallel example failed"
     python tensor_parallelism/sequence_parallel_example.py || error "sequence parallel example failed"
-    python tensor_parallelism/fsdp_tp_parallel_example.py || error "2D parallel example failed"
+    python tensor_parallelism/fsdp_tp_example.py || error "2D parallel example failed"
     python ddp/main.py || error "ddp example failed"
 }
 
