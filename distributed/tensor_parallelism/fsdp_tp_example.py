@@ -1,3 +1,4 @@
+import sys
 import torch
 import torch.distributed as dist
 import torch.nn as nn
@@ -13,7 +14,7 @@ from torch.distributed.tensor.parallel import (
 
 from torch.distributed._tensor.device_mesh import init_device_mesh
 import os
-from log_utils import rank_log, get_logger
+from log_utils import rank_log, get_logger, verify_min_gpu_count
 
 """
 This is the script to test 2D Parallel which combines Tensor/Sequence
@@ -45,6 +46,12 @@ FSDP:
 More details can be seen in the slide:
 https://docs.google.com/presentation/d/17g6WqrO00rP3MsxbRENsPpjrlSkwiA_QB4r93_eB5is/
 """
+
+_min_gpu_count = 2
+
+if not verify_min_gpu_count(min_gpus=_min_gpu_count):
+    print(f"Unable to locate sufficient {_min_gpu_count} gpus to run this example. Exiting.")
+    sys.exit(0)
 
 
 def find_multiple(n: int, k: int) -> int:

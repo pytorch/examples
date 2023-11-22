@@ -1,4 +1,5 @@
 import os
+import sys
 import torch
 import torch.nn as nn
 
@@ -11,7 +12,9 @@ from torch.distributed.tensor.parallel import (
 )
 
 
-from log_utils import rank_log, get_logger
+from log_utils import rank_log, get_logger, verify_min_gpu_count
+
+
 
 
 """
@@ -45,6 +48,11 @@ based on the given `ParallelStyle`. We are using this PyTorch native Tensor
 Parallelism APIs in this example to show users how to use them.
 """
 
+_min_gpu_count = 2
+
+if not verify_min_gpu_count(min_gpus=_min_gpu_count):
+    print(f"Unable to locate sufficient {_min_gpu_count} gpus to run this example. Exiting.")
+    sys.exit(0)
 
 class ToyModel(nn.Module):
     """MLP based model"""
