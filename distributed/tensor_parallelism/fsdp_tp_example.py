@@ -1,4 +1,3 @@
-
 import torch
 import torch.distributed as dist
 import torch.nn as nn
@@ -47,17 +46,19 @@ FSDP:
 More details can be seen in the slide:
 https://docs.google.com/presentation/d/17g6WqrO00rP3MsxbRENsPpjrlSkwiA_QB4r93_eB5is/
 """
+
+
 def find_multiple(n: int, k: int) -> int:
-    """ function to find resizing multiple for SwiGLU MLP """
+    """function to find resizing multiple for SwiGLU MLP"""
     if n % k == 0:
         return n
     return n + k - (n % k)
 
 
 class MLP_swiglu(nn.Module):
-    """ SwiGLU to showcase a Llama style MLP model """
+    """SwiGLU to showcase a Llama style MLP model"""
 
-    def __init__(self, mlp_dim: int= 1024) -> None:
+    def __init__(self, mlp_dim: int = 1024) -> None:
         super().__init__()
         hidden_dim = 4 * mlp_dim
         scaled_hidden = int(2 * hidden_dim / 3)
@@ -72,13 +73,16 @@ class MLP_swiglu(nn.Module):
         x = self.out_proj(x)
         return x
 
+
 """
 Main body of the demo of a basic version of tensor parallel by using
 PyTorch native APIs.
 """
 tp_size = 2
 
-logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.INFO)
+logging.basicConfig(
+    format="%(asctime)s %(message)s", datefmt="%m/%d/%Y %I:%M:%S %p", level=logging.INFO
+)
 logger = logging.getLogger(__name__)
 
 
@@ -86,11 +90,13 @@ logger = logging.getLogger(__name__)
 _rank = int(os.environ["RANK"])
 _world_size = int(os.environ["WORLD_SIZE"])
 
+
 #
 def rank_log(msg):
     """helper function to print only on global rank 0"""
-    if _rank==0:
+    if _rank == 0:
         logger.info(f"  {msg}")
+
 
 print(f"Starting PyTorch 2D (FSDP + TP) example on rank {_rank}.")
 assert (
@@ -104,7 +110,7 @@ dp_size = _world_size // tp_size
 # Create a device mesh with 2 dimensions.
 # First dim is the data parallel dimension
 # Second dim is the tensor parallel dimension.
-device_mesh = init_device_mesh("cuda", (dp_size, tp_size), mesh_dim_names=("dp","tp"))
+device_mesh = init_device_mesh("cuda", (dp_size, tp_size), mesh_dim_names=("dp", "tp"))
 
 rank_log(f"Device Mesh created: {device_mesh=}")
 tp_mesh = device_mesh["tp"]
@@ -126,19 +132,20 @@ base_model_swiglu = MLP_swiglu(mlp_dim=_mlp_dim).to("cuda")
 
 
 # Custom parallelization plan for the swiglu MLP model
-custom_tp_model = parallelize_module(module = base_model_swiglu,
-                                device_mesh = tp_mesh,
-                                parallelize_plan = {
-                                    "in_proj": ColwiseParallel(),
-                                    "gate_proj": ColwiseParallel(),
-                                    "out_proj": RowwiseParallel(),
-                                },
+custom_tp_model = parallelize_module(
+    module=base_model_swiglu,
+    device_mesh=tp_mesh,
+    parallelize_plan={
+        "in_proj": ColwiseParallel(),
+        "gate_proj": ColwiseParallel(),
+        "out_proj": RowwiseParallel(),
+    },
 )
 
 rank_log(f"Model after parallelization {custom_tp_model=}\n")
 
 # Init FSDP using the dp device mesh
-sharded_model = FSDP(custom_tp_model, device_mesh = dp_mesh, use_orig_params=True)
+sharded_model = FSDP(custom_tp_model, device_mesh=dp_mesh, use_orig_params=True)
 
 # Create an optimizer for the parallelized and sharded model.
 lr = 3e-3

@@ -12,7 +12,9 @@ from torch.distributed.tensor.parallel import (
 
 import logging
 
-logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.INFO)
+logging.basicConfig(
+    format="%(asctime)s %(message)s", datefmt="%m/%d/%Y %I:%M:%S %p", level=logging.INFO
+)
 logger = logging.getLogger(__name__)
 
 
@@ -49,7 +51,8 @@ Parallelism APIs in this example to show users how to use them.
 
 
 class ToyModel(nn.Module):
-    """ MLP based model """
+    """MLP based model"""
+
     def __init__(self):
         super(ToyModel, self).__init__()
         self.in_proj = nn.Linear(10, 32)
@@ -59,6 +62,7 @@ class ToyModel(nn.Module):
     def forward(self, x):
         return self.out_proj(self.relu(self.in_proj(x)))
 
+
 """
 Main body of the demo of a basic version of tensor parallel by using
 PyTorch native APIs.
@@ -67,16 +71,20 @@ PyTorch native APIs.
 # create a device mesh based on the given world_size.
 _world_size = int(os.environ["WORLD_SIZE"])
 
-device_mesh = init_device_mesh(device_type = "cuda",mesh_shape = (_world_size,))
+device_mesh = init_device_mesh(device_type="cuda", mesh_shape=(_world_size,))
 _rank = device_mesh.get_rank()
+
 
 def rank_log(msg):
     """helper function to print only on global rank 0"""
-    if _rank==0:
+    if _rank == 0:
         logger.info(f"  {msg}")
 
+
 print(f"Starting PyTorch TP example on rank {_rank}.")
-assert _world_size % 2 == 0, f"TP examples require even number of GPUs, but got {_world_size} gpus"
+assert (
+    _world_size % 2 == 0
+), f"TP examples require even number of GPUs, but got {_world_size} gpus"
 
 rank_log(f"Device Mesh created: {device_mesh=}")
 
@@ -88,12 +96,13 @@ lr = 0.25
 optimizer = torch.optim.AdamW(tp_model.parameters(), lr=lr, foreach=True)
 
 # Custom parallelization plan for the model
-tp_model = parallelize_module(module = tp_model,
-                                device_mesh = device_mesh,
-                                parallelize_plan = {
-                                    "in_proj": ColwiseParallel(),
-                                    "out_proj": RowwiseParallel(),
-                                },
+tp_model = parallelize_module(
+    module=tp_model,
+    device_mesh=device_mesh,
+    parallelize_plan={
+        "in_proj": ColwiseParallel(),
+        "out_proj": RowwiseParallel(),
+    },
 )
 # Perform a num of iterations of forward/backward
 # and optimizations for the sharded module.

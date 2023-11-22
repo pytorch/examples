@@ -13,7 +13,9 @@ from torch.distributed.tensor.parallel import (
 )
 
 
-logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.INFO)
+logging.basicConfig(
+    format="%(asctime)s %(message)s", datefmt="%m/%d/%Y %I:%M:%S %p", level=logging.INFO
+)
 logger = logging.getLogger(__name__)
 
 
@@ -33,8 +35,10 @@ now is different so that we need one all-gather for input and one reduce-scatter
 in the end of the second linear layer.
 """
 
+
 class ToyModel(nn.Module):
-    """ MLP based model """
+    """MLP based model"""
+
     def __init__(self):
         super().__init__()
         self.in_proj = nn.Linear(10, 32)
@@ -51,14 +55,18 @@ PyTorch native APIs.
 """
 
 # create a device mesh based on the given world_size.
-device_mesh = init_device_mesh(device_type = "cuda",mesh_shape = (int(os.environ["WORLD_SIZE"]),))
+device_mesh = init_device_mesh(
+    device_type="cuda", mesh_shape=(int(os.environ["WORLD_SIZE"]),)
+)
 
 _rank = device_mesh.get_rank()
 
+
 def rank_log(msg):
     """helper function to log only on global rank 0"""
-    if _rank==0:
+    if _rank == 0:
         logger.info(f" {msg}")
+
 
 print(f"Starting PyTorch Sequence Parallel example on rank {_rank}.")
 
@@ -68,12 +76,13 @@ rank_log(f"Device Mesh created: {device_mesh=}")
 model = ToyModel().to("cuda")
 
 # Custom parallelization plan for the model
-sp_model = parallelize_module(module = model,
-                                device_mesh = device_mesh,
-                                parallelize_plan = {
-                                    "in_proj": ColwiseParallel(input_layouts=Shard(0)),
-                                    "out_proj": RowwiseParallel(output_layouts=Shard(0)),
-                                },
+sp_model = parallelize_module(
+    module=model,
+    device_mesh=device_mesh,
+    parallelize_plan={
+        "in_proj": ColwiseParallel(input_layouts=Shard(0)),
+        "out_proj": RowwiseParallel(output_layouts=Shard(0)),
+    },
 )
 
 
@@ -89,7 +98,7 @@ rank_log("Sequence Parallel training starting...")
 
 for i in range(num_iters):
     # For SP, input can be different across all ranks.
-    inp = torch.rand(20, 10,device="cuda")
+    inp = torch.rand(20, 10, device="cuda")
     output = sp_model(inp)
     output.sum().backward()
     optimizer.step()
