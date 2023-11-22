@@ -1,5 +1,7 @@
 import os
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 from torch.distributed._tensor.device_mesh import init_device_mesh
 from torch.distributed._tensor import DeviceMesh, DTensor, Replicate, Shard
@@ -9,7 +11,7 @@ from torch.distributed.tensor.parallel import (
     ColwiseParallel,
     RowwiseParallel,
 )
-from utils import ToyModel
+
 
 try:
     from torch.distributed.tensor.parallel import (
@@ -36,6 +38,17 @@ now is different so that we need one all-gather for input and one reduce-scatter
 in the end of the second linear layer.
 """
 
+
+class ToyModel(nn.Module):
+    """ MLP based model """
+    def __init__(self):
+        super().__init__()
+        self.in_proj = nn.Linear(10, 32)
+        self.relu = nn.ReLU()
+        self.out_proj = nn.Linear(32, 5)
+
+    def forward(self, x):
+        return self.out_proj(self.relu(self.in_proj(x)))
 
 
 """
@@ -67,8 +80,8 @@ model = ToyModel().to(_device)
 sp_model = parallelize_module(module = model,
                                 device_mesh = device_mesh,
                                 parallelize_plan = {
-                                    "net1": ColwiseParallel(input_layouts=Shard(0)),
-                                    "net2": RowwiseParallel(output_layouts=Shard(0)),
+                                    "in_proj": ColwiseParallel(input_layouts=Shard(0)),
+                                    "out_proj": RowwiseParallel(output_layouts=Shard(0)),
                                 },
 )
 

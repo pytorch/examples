@@ -1,6 +1,8 @@
 
 import os
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 from torch.distributed._tensor.device_mesh import init_device_mesh
 from torch.distributed._tensor import DeviceMesh, DTensor, Replicate, Shard
@@ -10,7 +12,8 @@ from torch.distributed.tensor.parallel import (
     ColwiseParallel,
     RowwiseParallel,
 )
-from utils import ToyModel
+
+
 
 
 """
@@ -45,6 +48,16 @@ Parallelism APIs in this example to show users how to use them.
 """
 
 
+class ToyModel(nn.Module):
+    """ MLP based model """
+    def __init__(self):
+        super(ToyModel, self).__init__()
+        self.in_proj = nn.Linear(10, 32)
+        self.relu = nn.ReLU()
+        self.out_proj = nn.Linear(32, 5)
+
+    def forward(self, x):
+        return self.out_proj(self.relu(self.in_proj(x)))
 
 """
 Main body of the demo of a basic version of tensor parallel by using
@@ -88,8 +101,8 @@ optimizer = torch.optim.AdamW(tp_model.parameters(), lr=lr, foreach=True)
 tp_model = parallelize_module(module = tp_model,
                                 device_mesh = device_mesh,
                                 parallelize_plan = {
-                                    "net1": ColwiseParallel(),
-                                    "net2": RowwiseParallel(),
+                                    "in_proj": ColwiseParallel(),
+                                    "out_proj": RowwiseParallel(),
                                 },
 )
 # Perform a num of iterations of forward/backward

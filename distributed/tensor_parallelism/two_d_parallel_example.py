@@ -1,6 +1,8 @@
 
 import torch
 import torch.distributed as dist
+import torch.nn as nn
+import torch.nn.functional as F
 
 from torch.distributed._tensor import DeviceMesh
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
@@ -16,7 +18,6 @@ from torch.distributed._tensor import DTensor, Replicate, sharding_prop
 from torch.distributed._tensor.device_mesh import init_device_mesh
 import os
 
-from utils import MLP_swiglu
 
 
 """
@@ -49,8 +50,30 @@ FSDP:
 More details can be seen in the slide:
 https://docs.google.com/presentation/d/17g6WqrO00rP3MsxbRENsPpjrlSkwiA_QB4r93_eB5is/
 """
+def find_multiple(n: int, k: int) -> int:
+    """ function to find resizing multiple for SwiGLU MLP """
+    if n % k == 0:
+        return n
+    return n + k - (n % k)
 
 
+class MLP_swiglu(nn.Module):
+    """ SwiGLU to showcase a Llama style MLP model """
+
+    def __init__(self, mlp_dim: int= 1024) -> None:
+        super().__init__()
+        hidden_dim = 4 * mlp_dim
+        scaled_hidden = int(2 * hidden_dim / 3)
+        rounded_hidden = find_multiple(scaled_hidden, 256)
+
+        self.in_proj = nn.Linear(mlp_dim, rounded_hidden, bias=False)
+        self.gate_proj = nn.Linear(mlp_dim, rounded_hidden, bias=False)
+        self.out_proj = nn.Linear(rounded_hidden, mlp_dim, bias=False)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = F.silu(self.in_proj(x)) * self.gate_proj(x)
+        x = self.out_proj(x)
+        return x
 
 """
 Main body of the demo of a basic version of tensor parallel by using
@@ -105,7 +128,6 @@ dp_rank = dist.get_rank(dp_pg)
 # create model and move it to GPU with id rank
 _mlp_dim = 1024
 base_model_swiglu = MLP_swiglu(mlp_dim=_mlp_dim).to(_device)
-
 
 
 # Custom parallelization plan for the swiglu MLP model
