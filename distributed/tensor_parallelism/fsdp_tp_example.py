@@ -14,10 +14,9 @@ from torch.distributed.tensor.parallel import (
 
 
 from torch.distributed._shard.sharded_tensor import ShardedTensor
-from torch.distributed._tensor import DTensor, Replicate, sharding_prop
 from torch.distributed._tensor.device_mesh import init_device_mesh
 import os
-
+import logging
 
 
 """
@@ -81,37 +80,35 @@ PyTorch native APIs.
 """
 tp_size = 2
 
+logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 # understand world topology
 _rank = int(os.environ["RANK"])
-_local_rank = int(os.environ["LOCAL_RANK"])
 _world_size = int(os.environ["WORLD_SIZE"])
-_local_world_size = int(os.environ["LOCAL_WORLD_SIZE"])
 
-
-def rank_print(msg):
+#
+def rank_log(msg):
     """helper function to print only on global rank 0"""
     if _rank==0:
-        print(f"{msg}")
+        logger.info(f"  {msg}")
 
-print(f"Running basic Megatron style TP example on rank {_rank}.")
+print(f"Starting PyTorch 2D (FSDP + TP) example on rank {_rank}.")
 assert (
     _world_size % tp_size == 0
 ), f"World size {_world_size} needs to be divisible by TP size {tp_size}"
 
 
-_device = f"cuda"
-
 # create a sharding plan based on the given world_size.
-
 dp_size = _world_size // tp_size
 
 # Create a device mesh with 2 dimensions.
 # First dim is the data parallel dimension
 # Second dim is the tensor parallel dimension.
-device_mesh = init_device_mesh(_device, (dp_size, tp_size), mesh_dim_names=("dp","tp"))
+device_mesh = init_device_mesh("cuda", (dp_size, tp_size), mesh_dim_names=("dp","tp"))
 
-rank_print(f"Device Mesh created: {device_mesh=}")
+rank_log(f"Device Mesh created: {device_mesh=}")
 tp_mesh = device_mesh["tp"]
 dp_mesh = device_mesh["dp"]
 
@@ -127,7 +124,7 @@ dp_rank = dist.get_rank(dp_pg)
 
 # create model and move it to GPU with id rank
 _mlp_dim = 1024
-base_model_swiglu = MLP_swiglu(mlp_dim=_mlp_dim).to(_device)
+base_model_swiglu = MLP_swiglu(mlp_dim=_mlp_dim).to("cuda")
 
 
 # Custom parallelization plan for the swiglu MLP model
@@ -140,31 +137,31 @@ custom_tp_model = parallelize_module(module = base_model_swiglu,
                                 },
 )
 
-rank_print(f"Model after parallelization {custom_tp_model=}\n")
+rank_log(f"Model after parallelization {custom_tp_model=}\n")
 
 # Init FSDP using the dp device mesh
 sharded_model = FSDP(custom_tp_model, device_mesh = dp_mesh, use_orig_params=True)
 
 # Create an optimizer for the parallelized and sharded model.
 lr = 3e-3
-rank_print(f"Creating AdamW optimizer with learning rate {lr}")
+rank_log(f"Creating AdamW optimizer with learning rate {lr}")
 optimizer = torch.optim.AdamW(sharded_model.parameters(), lr=lr, foreach=True)
 
 # Training loop:
 # Perform a num of iterations of forward/backward
 # and optimizations for the sharded module.
-rank_print(f"\nStarting 2D training...")
+rank_log(f"\nStarting 2D training...")
 num_iterations = 10
 batch_size = 2
 
 for i in range(num_iterations):
     # seeding with dp_rank to ensure identical inputs for TP groups
     torch.manual_seed(i + dp_rank)
-    inp = torch.rand(batch_size, _mlp_dim, device=_device)
+    inp = torch.rand(batch_size, _mlp_dim, device="cuda")
 
     output = sharded_model(inp)
     output.sum().backward()
     optimizer.step()
-    rank_print(f"2D iter {i} complete")
+    rank_log(f"2D iter {i} complete")
 
-rank_print(f"2D training successfully completed!")
+rank_log(f"2D training successfully completed!")

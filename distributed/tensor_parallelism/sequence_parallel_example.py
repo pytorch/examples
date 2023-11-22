@@ -2,9 +2,10 @@ import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import logging
 
 from torch.distributed._tensor.device_mesh import init_device_mesh
-from torch.distributed._tensor import DeviceMesh, DTensor, Replicate, Shard
+from torch.distributed._tensor import DeviceMesh, Shard
 
 from torch.distributed.tensor.parallel import (
     parallelize_module,
@@ -13,13 +14,8 @@ from torch.distributed.tensor.parallel import (
 )
 
 
-try:
-    from torch.distributed.tensor.parallel import (
-        SequenceParallel
-    )
-    SP_AVAILABLE = True
-except BaseException as e:
-    pass
+logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 """
@@ -38,7 +34,6 @@ now is different so that we need one all-gather for input and one reduce-scatter
 in the end of the second linear layer.
 """
 
-
 class ToyModel(nn.Module):
     """ MLP based model """
     def __init__(self):
@@ -56,25 +51,22 @@ Main body of the demo of a basic version of sequence parallel by using
 PyTorch native APIs.
 """
 
-_rank = int(os.environ["RANK"])
-
-
-def rank_print(msg):
-    """helper function to print only on global rank 0"""
-    if _rank==0:
-        print(f"{msg}")
-
-print(f"Running basic Megatron style Sequence Parallel example on rank {_rank}.")
-
 # create a device mesh based on the given world_size.
-_device = f"cuda"
-device_mesh = init_device_mesh(device_type = _device,mesh_shape = (int(os.environ["WORLD_SIZE"]),))
+device_mesh = init_device_mesh(device_type = "cuda",mesh_shape = (int(os.environ["WORLD_SIZE"]),))
 
-rank_print(f"Device Mesh created: {device_mesh=}")
+_rank = device_mesh.get_rank()
 
+def rank_log(msg):
+    """helper function to log only on global rank 0"""
+    if _rank==0:
+        logger.info(f" {msg}")
+
+print(f"Starting PyTorch Sequence Parallel example on rank {_rank}.")
+
+rank_log(f"Device Mesh created: {device_mesh=}")
 
 # create model and move it to GPU.  Init_device_mesh has already assigned gpu ids...
-model = ToyModel().to(_device)
+model = ToyModel().to("cuda")
 
 # Custom parallelization plan for the model
 sp_model = parallelize_module(module = model,
@@ -94,14 +86,14 @@ optimizer = torch.optim.AdamW(sp_model.parameters(), lr=lr, foreach=True)
 # Perform a num of iterations of forward/backward
 # and optimizations for the sharded module.
 num_iters = 10
-rank_print(f"Sequence Parallel training starting...")
+rank_log(f"Sequence Parallel training starting...")
 
 for i in range(num_iters):
     # For SP, input can be different across all ranks.
-    inp = torch.rand(20, 10,device=_device)
+    inp = torch.rand(20, 10,device="cuda")
     output = sp_model(inp)
     output.sum().backward()
     optimizer.step()
-    rank_print(f"Sequence Parallel iter {i} completed")
+    rank_log(f"Sequence Parallel iter {i} completed")
 
-rank_print(f"Sequence Parallel training completed!")
+rank_log(f"Sequence Parallel training completed!")
