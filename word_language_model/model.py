@@ -120,9 +120,7 @@ class TransformerModel(nn.Transformer):
         self.init_weights()
 
     def _generate_square_subsequent_mask(self, sz):
-        mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
-        mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
-        return mask
+        return torch.log(torch.tril(torch.ones(sz,sz)))
 
     def init_weights(self):
         initrange = 0.1
