@@ -114,15 +114,11 @@ rank_log(_rank, logger, f"Device Mesh created: {device_mesh=}")
 tp_mesh = device_mesh["tp"]
 dp_mesh = device_mesh["dp"]
 
-# To support identical inputs for TP groups, we need the dp process group
-dp_pg = device_mesh.get_dim_groups()[0]
-
 # For TP, input needs to be same across all TP ranks.
 # while for SP, input can be different across all ranks.
 # We will use dp_rank for setting the random seed
 # to mimic the behavior of the dataloader.
-dp_rank = dist.get_rank(dp_pg)
-
+dp_rank = dp_mesh.get_local_rank()
 
 # create model and move it to GPU with id rank
 _mlp_dim = 1024
