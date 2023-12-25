@@ -49,9 +49,9 @@ class InputEmbedding(nn.Module):
         # Linear projection
         self.LinearProjection = nn.Linear(self.input_size, self.latent_size)
         # Class token
-        self.class_token = nn.Parameter(torch.randn(self.batch_size, 1, self.latent_size)).to(self.device)
+        self.class_token = nn.Parameter(torch.randn(self.batch_size, 1, self.latent_size).to(self.device))
         # Positional embedding
-        self.pos_embedding = nn.Parameter(torch.randn(self.batch_size, 1, self.latent_size)).to(self.device)
+        self.pos_embedding = nn.Parameter(torch.randn(self.batch_size, 1, self.latent_size).to(self.device))
 
     def forward(self, input_data):
         input_data = input_data.to(self.device)
