@@ -23,8 +23,8 @@ class RBM(nn.Module):
         with torch.no_grad():
             h_d = self.h_given_v(v_d)    #the calculation of hidden units of the data from the visible units
             v_m, h_m = self.gibbs_update(v_m, self.k)   # markov chain to get a fair sample from the model
-        positive_phase = self.b @ v_d.T + self.c @ h_d.T + ((v_d @ self.W) * h_d).sum(dim=-1)   #the positive phase of the loglikelyhood
-        negative_phase = self.b @ v_m.T + self.c @ h_m.T + ((v_m @ self.W) * h_m).sum(dim=-1)   #the negative phase of the loglikelyhood
+        positive_phase = self.b @ v_d.T + self.c @ h_d.T + ((v_d @ self.W) * h_d).sum(dim=-1)   #the positive phase of the loglikelihood
+        negative_phase = self.b @ v_m.T + self.c @ h_m.T + ((v_m @ self.W) * h_m).sum(dim=-1)   #the negative phase of the loglikelihood
         llh = positive_phase - negative_phase     
         m = llh.size(0)     #number of samples
         llh = -(llh.sum())/m
