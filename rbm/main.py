@@ -36,11 +36,11 @@ class RBM(nn.Module):
             v = self.v_given_h(h)
         return v, h
 
-    def h_given_v(self, v):    #this return the conditional  probability distibution p(h|v)
+    def h_given_v(self, v):    #this return a sample from the conditional  probability distibution p(h|v)
         pmf = self.sig(self.c + v @ self.W)
         return torch.bernoulli(pmf)
 
-    def v_given_h(self, h):    #this return the conditional  probability distibution p(v|h)
+    def v_given_h(self, h):    #this return a sample the conditional  probability distibution p(v|h)
         pmf = self.sig(self.b +  h @ self.W.T)
         return torch.bernoulli(pmf)
 
