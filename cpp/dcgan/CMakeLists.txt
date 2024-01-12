@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.5)
 project(dcgan)
 
 find_package(Torch REQUIRED)

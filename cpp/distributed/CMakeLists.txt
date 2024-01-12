@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.5)
 project(dist-mnist)
 
 find_package(Torch REQUIRED)
