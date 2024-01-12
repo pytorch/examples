@@ -218,7 +218,7 @@ def main():
     parser.add_argument('--n-channels', type=int, default=3,
                         help='number of channels in images (default : 3 for RGB)')
     parser.add_argument('--num-heads', type=int, default=12,
-                        help='(default : 16)')
+                        help='(default : 12)')
     parser.add_argument('--num-encoders', type=int, default=12,
                         help='number of encoders (default : 12)')
     parser.add_argument('--dropout', type=int, default=0.1,
