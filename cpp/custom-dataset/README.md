@@ -2,7 +2,7 @@
 
 This folder contains an example of loading a custom image dataset with OpenCV and training a model to label images, using the PyTorch C++ frontend.
 
-The dataset used here is [Caltech 101](http://www.vision.caltech.edu/Image_Datasets/Caltech101/) dataset.
+The dataset used here is [Caltech 101](https://data.caltech.edu/records/mzrjq-6wc02) dataset.
 
 The entire training code is contained in custom-data.cpp.
 

@@ -5,6 +5,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <random>
 
 struct Options {
   int image_size = 224;
@@ -55,7 +56,7 @@ class CustomDataset : public torch::data::datasets::Dataset<CustomDataset> {
     auto tdata = torch::cat({R, G, B})
                      .view({3, options.image_size, options.image_size})
                      .to(torch::kFloat);
-    auto tlabel = torch::from_blob(&data[index].second, {1}, torch::kLong);
+    auto tlabel = torch::tensor(data[index].second, torch::kLong);
     return {tdata, tlabel};
   }
 
@@ -65,6 +66,8 @@ class CustomDataset : public torch::data::datasets::Dataset<CustomDataset> {
 };
 
 std::pair<Data, Data> readInfo() {
+  std::random_device randomDevice;
+  std::mt19937 mersenneTwisterGenerator(randomDevice());
   Data train, test;
 
   std::ifstream stream(options.infoFilePath);
@@ -87,8 +90,8 @@ std::pair<Data, Data> readInfo() {
       break;
   }
 
-  std::random_shuffle(train.begin(), train.end());
-  std::random_shuffle(test.begin(), test.end());
+  std::shuffle(train.begin(), train.end(), mersenneTwisterGenerator);
+  std::shuffle(test.begin(), test.end(), mersenneTwisterGenerator);
   return std::make_pair(train, test);
 }
 
@@ -119,7 +122,8 @@ struct NetworkImpl : torch::nn::SequentialImpl {
     push_back(Linear(4096, 4096));
     push_back(Functional(torch::relu));
     push_back(Linear(4096, 102));
-    push_back(Functional(torch::log_softmax, 1, torch::nullopt));
+    push_back(Functional(
+        [](torch::Tensor input) { return torch::log_softmax(input, 1); }));
   }
 };
 TORCH_MODULE(Network);
