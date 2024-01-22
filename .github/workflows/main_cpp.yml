@@ -1,0 +1,33 @@
+name: Run Examples
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Every day at 3:00am
+    - cron: '0 3 * * *'
+
+
+jobs:
+  test:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.11
+        
+    - name: Install Cmake, Make, g++, MKL
+      run: |
+        sudo apt update && sudo apt upgrade
+        sudo apt install cmake g++ make
+        sudo apt-get -y install intel-mkl
+    - name: Run Cpp Tests
+      run: |
+        chmod +x ./run_cpp_examples.sh
+        ./run_cpp_examples.sh "get_libtorch,run_all,clean"
