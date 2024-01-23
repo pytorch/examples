@@ -22,8 +22,10 @@ function error() {
 function get_libtorch() {
   echo "Getting libtorch"
   cd $HOME_DIR
-  wget https://download.pytorch.org/libtorch/nightly/cpu/libtorch-cxx11-abi-shared-with-deps-latest.zip
-  unzip libtorch-cxx11-abi-shared-with-deps-latest.zip
+  if [ ! -d "libtorch" ]; then
+    wget https://download.pytorch.org/libtorch/nightly/cpu/libtorch-cxx11-abi-shared-with-deps-latest.zip
+    unzip libtorch-cxx11-abi-shared-with-deps-latest.zip
+  fi
 
   if [ $? -eq 0 ]; then
     echo "Successfully downloaded and extracted libtorch"
@@ -40,6 +42,16 @@ function start() {
   echo "Running example: $EXAMPLE"
 }
 
+function check_run_success() {
+  if [ $? -eq 0 ]; then
+    echo "Successfully ran $1"
+  else
+    echo "Failed to run $1"
+    error "Failed to run $1"
+    exit 1
+  fi
+}
+
 function autograd() {
   start
   mkdir build
@@ -49,6 +61,7 @@ function autograd() {
   if [ $? -eq 0 ]; then
     echo "Successfully built $EXAMPLE"
     ./$EXAMPLE # Run the executable
+    check_run_success $EXAMPLE
   else
     error "Failed to build $EXAMPLE"
     exit 1
@@ -75,6 +88,39 @@ function custom-dataset() {
     echo "Successfully built $EXAMPLE"
     cd $BASE_DIR/cpp/$EXAMPLE
     ./build/$EXAMPLE # Run the executable
+    check_run_success $EXAMPLE
+  else
+    error "Failed to build $EXAMPLE"
+    exit 1
+  fi
+}
+
+function mnist() {
+  start
+  mkdir build
+  cd build
+  cmake -DCMAKE_PREFIX_PATH=$LIBTORCH_PATH ..
+  make
+  if [ $? -eq 0 ]; then
+    echo "Successfully built $EXAMPLE"
+    ./$EXAMPLE # Run the executable
+    check_run_success $EXAMPLE
+  else
+    error "Failed to build $EXAMPLE"
+    exit 1
+  fi
+}
+
+function regression() {
+  start
+  mkdir build
+  cd build
+  cmake -DCMAKE_PREFIX_PATH=$LIBTORCH_PATH ..
+  make
+  if [ $? -eq 0 ]; then
+    echo "Successfully built $EXAMPLE"
+    ./$EXAMPLE # Run the executable
+    check_run_success $EXAMPLE
   else
     error "Failed to build $EXAMPLE"
     exit 1
@@ -95,6 +141,8 @@ function clean() {
 function run_all() {
   autograd
   custom-dataset
+  mnist
+  regression
 }
 
 # by default, run all examples
