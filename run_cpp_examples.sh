@@ -94,6 +94,21 @@ function custom-dataset() {
     exit 1
   fi
 }
+function dcgan() {
+  start
+  mkdir build
+  cd build
+  cmake -DCMAKE_PREFIX_PATH=$LIBTORCH_PATH ..
+  make
+  if [ $? -eq 0 ]; then
+    echo "Successfully built $EXAMPLE"
+    ./$EXAMPLE # Run the executable
+    check_run_success $EXAMPLE
+  else
+    error "Failed to build $EXAMPLE"
+    exit 1
+  fi
+}
 
 function mnist() {
   start
@@ -141,6 +156,7 @@ function clean() {
 function run_all() {
   autograd
   custom-dataset
+  dcgan
   mnist
   regression
 }
