@@ -6,6 +6,11 @@ set(CMAKE_CXX_STANDARD 17)
 find_package(Torch REQUIRED)
 find_package(OpenCV REQUIRED COMPONENTS core imgproc imgcodecs)
 
+message(STATUS "OpenCV include dirs: ${OpenCV_INCLUDE_DIRS}")
+message(STATUS "OpenCV libraries: ${OpenCV_LIBS}")
+
+
+include_directories(${OpenCV_INCLUDE_DIRS})
 add_executable(${PROJECT_NAME} "custom-dataset.cpp")
 target_link_libraries(${PROJECT_NAME} "${OpenCV_LIBS}")
 target_link_libraries(${PROJECT_NAME} "${TORCH_LIBRARIES}")

@@ -22,8 +22,8 @@ function error() {
 function get_libtorch() {
   echo "Getting libtorch"
   cd $HOME_DIR
-  wget https://download.pytorch.org/libtorch/nightly/cpu/libtorch-shared-with-deps-latest.zip
-  unzip libtorch-shared-with-deps-latest.zip
+  wget https://download.pytorch.org/libtorch/nightly/cpu/libtorch-cxx11-abi-shared-with-deps-latest.zip
+  unzip libtorch-cxx11-abi-shared-with-deps-latest.zip
 
   if [ $? -eq 0 ]; then
     echo "Successfully downloaded and extracted libtorch"
@@ -55,6 +55,32 @@ function autograd() {
   fi
 }
 
+function custom-dataset() {
+  start
+  # Download the dataset and unzip it
+  if [ ! -d "$BASE_DIR/cpp/$EXAMPLE/dataset" ]; then
+    wget https://data.caltech.edu/records/mzrjq-6wc02/files/caltech-101.zip
+    unzip caltech-101.zip
+    cd caltech-101
+    tar -xzf 101_ObjectCategories.tar.gz
+    mv 101_ObjectCategories $BASE_DIR/cpp/$EXAMPLE/dataset
+  fi
+  # build the executable and run it
+  cd $BASE_DIR/cpp/$EXAMPLE
+  mkdir build
+  cd build
+  cmake -DCMAKE_PREFIX_PATH=$LIBTORCH_PATH ..
+  make
+  if [ $? -eq 0 ]; then
+    echo "Successfully built $EXAMPLE"
+    cd $BASE_DIR/cpp/$EXAMPLE
+    ./build/$EXAMPLE # Run the executable
+  else
+    error "Failed to build $EXAMPLE"
+    exit 1
+  fi
+}
+
 function clean() {
   cd $BASE_DIR
   echo "Running clean to remove cruft"
@@ -62,11 +88,13 @@ function clean() {
   find . -type d -name 'build' -exec rm -rf {} +
   # Remove the libtorch directory
   rm -rf $HOME_DIR/libtorch
+  rm -f $HOME_DIR/libtorch-shared-with-deps-latest.zip
   echo "Clean completed"
 }
 
 function run_all() {
   autograd
+  custom-dataset
 }
 
 # by default, run all examples
