@@ -26,7 +26,7 @@ using Data = std::vector<std::pair<std::string, long>>;
 class CustomDataset : public torch::data::datasets::Dataset<CustomDataset> {
   using Example = torch::data::Example<>;
 
-  Data data;
+  const Data data;
 
  public:
   CustomDataset(const Data& data) : data(data) {}
@@ -198,7 +198,7 @@ int main() {
   std::cout << "Running on: "
             << (options.device == torch::kCUDA ? "CUDA" : "CPU") << std::endl;
 
-  auto data = readInfo();
+  const auto data = readInfo();
 
   auto train_set =
       CustomDataset(data.first).map(torch::data::transforms::Stack<>());
