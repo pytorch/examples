@@ -27,6 +27,21 @@ jobs:
         sudo apt update && sudo apt upgrade
         sudo apt install cmake g++ make
         sudo apt-get -y install intel-mkl
+    - name: Install OpenCV
+      run: |
+        sudo apt -y install libtbb-dev
+        sudo apt install libopencv-dev
+
+    # Alternatively, you can install OpenCV from source
+    # - name: Install OpenCV from source
+    #   run: |
+        # wget -O opencv.zip https://github.com/opencv/opencv/archive/4.x.zip
+        # unzip opencv.zip
+        # mkdir -p build && cd build
+        # cmake  ../opencv-4.x
+        # cmake --build .
+        # sudo make install    
+    
     - name: Run Cpp Tests
       run: |
         chmod +x ./run_cpp_examples.sh
