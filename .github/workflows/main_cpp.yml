@@ -22,7 +22,7 @@ jobs:
       with:
         python-version: 3.11
         
-    - name: Install Cmake, Make, g++, MKL, OpenCV
+    - name: Install Cmake, Make, g++, MKL
       run: |
         sudo apt update && sudo apt upgrade
         sudo apt install cmake g++ make
@@ -31,7 +31,7 @@ jobs:
       run: |
         sudo apt -y install libtbb-dev
         sudo apt install libopencv-dev
-        
+
     # Alternatively, you can install OpenCV from source
     # - name: Install OpenCV from source
     #   run: |
