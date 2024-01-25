@@ -31,7 +31,14 @@ jobs:
       run: |
         sudo apt -y install libtbb-dev
         sudo apt install libopencv-dev
-
+    - name: Install argparse
+      run: |
+        git clone https://github.com/p-ranav/argparse
+        cd argparse
+        mkdir build
+        cd build
+        cmake -DARGPARSE_BUILD_SAMPLES=off -DARGPARSE_BUILD_TESTS=off ..
+        sudo make install
     # Alternatively, you can install OpenCV from source
     # - name: Install OpenCV from source
     #   run: |

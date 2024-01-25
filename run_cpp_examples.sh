@@ -102,7 +102,7 @@ function dcgan() {
   make
   if [ $? -eq 0 ]; then
     echo "Successfully built $EXAMPLE"
-    ./$EXAMPLE # Run the executable
+    ./$EXAMPLE --epochs 5 # Run the executable with kNumberOfEpochs = 5
     check_run_success $EXAMPLE
   else
     error "Failed to build $EXAMPLE"

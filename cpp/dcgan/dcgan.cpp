@@ -1,5 +1,5 @@
 #include <torch/torch.h>
-
+#include <argparse/argparse.hpp>
 #include <cmath>
 #include <cstdio>
 #include <iostream>
@@ -9,9 +9,6 @@ const int64_t kNoiseSize = 100;
 
 // The batch size for training.
 const int64_t kBatchSize = 64;
-
-// The number of epochs to train.
-const int64_t kNumberOfEpochs = 30;
 
 // Where to find the MNIST dataset.
 const char* kDataFolder = "./data";
@@ -75,7 +72,43 @@ struct DCGANGeneratorImpl : nn::Module {
 
 TORCH_MODULE(DCGANGenerator);
 
+nn::Sequential create_discriminator() {
+    return nn::Sequential(
+     // Layer 1
+     nn::Conv2d(nn::Conv2dOptions(1, 64, 4).stride(2).padding(1).bias(false)),
+     nn::LeakyReLU(nn::LeakyReLUOptions().negative_slope(0.2)),
+     // Layer 2
+     nn::Conv2d(nn::Conv2dOptions(64, 128, 4).stride(2).padding(1).bias(false)),
+     nn::BatchNorm2d(128),
+     nn::LeakyReLU(nn::LeakyReLUOptions().negative_slope(0.2)),
+     // Layer 3
+     nn::Conv2d(
+         nn::Conv2dOptions(128, 256, 4).stride(2).padding(1).bias(false)),
+     nn::BatchNorm2d(256),
+     nn::LeakyReLU(nn::LeakyReLUOptions().negative_slope(0.2)),
+     // Layer 4
+     nn::Conv2d(nn::Conv2dOptions(256, 1, 3).stride(1).padding(0).bias(false)),
+     nn::Sigmoid());
+}
+
 int main(int argc, const char* argv[]) {
+  argparse::ArgumentParser parser("cpp/dcgan example");
+  parser.add_argument("--epochs")
+      .help("Number of epochs to train")
+      .default_value(std::int64_t{30})
+      .scan<'i', int64_t>();
+  try {
+    parser.parse_args(argc, argv);
+  } catch (const std::exception& err) {
+    std::cout << err.what() << std::endl;
+    std::cout << parser;
+    std::exit(1);
+  }
+  // The number of epochs to train, default value is 30.
+  const int64_t kNumberOfEpochs = parser.get<int64_t>("--epochs");
+  std::cout << "Traning with number of epochs: " << kNumberOfEpochs
+            << std::endl;
+
   torch::manual_seed(1);
 
   // Create the device we pass around based on whether CUDA is available.
@@ -88,33 +121,15 @@ int main(int argc, const char* argv[]) {
   DCGANGenerator generator(kNoiseSize);
   generator->to(device);
 
-  nn::Sequential discriminator(
-      // Layer 1
-      nn::Conv2d(
-          nn::Conv2dOptions(1, 64, 4).stride(2).padding(1).bias(false)),
-      nn::LeakyReLU(nn::LeakyReLUOptions().negative_slope(0.2)),
-      // Layer 2
-      nn::Conv2d(
-          nn::Conv2dOptions(64, 128, 4).stride(2).padding(1).bias(false)),
-      nn::BatchNorm2d(128),
-      nn::LeakyReLU(nn::LeakyReLUOptions().negative_slope(0.2)),
-      // Layer 3
-      nn::Conv2d(
-          nn::Conv2dOptions(128, 256, 4).stride(2).padding(1).bias(false)),
-      nn::BatchNorm2d(256),
-      nn::LeakyReLU(nn::LeakyReLUOptions().negative_slope(0.2)),
-      // Layer 4
-      nn::Conv2d(
-          nn::Conv2dOptions(256, 1, 3).stride(1).padding(0).bias(false)),
-      nn::Sigmoid());
+  nn::Sequential discriminator = create_discriminator();
   discriminator->to(device);
 
   // Assume the MNIST dataset is available under `kDataFolder`;
   auto dataset = torch::data::datasets::MNIST(kDataFolder)
                      .map(torch::data::transforms::Normalize<>(0.5, 0.5))
                      .map(torch::data::transforms::Stack<>());
-  const int64_t batches_per_epoch =
-      std::ceil(dataset.size().value() / static_cast<double>(kBatchSize));
+  const int64_t batches_per_epoch = static_cast<int64_t>(
+      std::ceil(dataset.size().value() / static_cast<double>(kBatchSize)));
 
   auto data_loader = torch::data::make_data_loader(
       std::move(dataset),
@@ -136,7 +151,7 @@ int main(int argc, const char* argv[]) {
   int64_t checkpoint_counter = 1;
   for (int64_t epoch = 1; epoch <= kNumberOfEpochs; ++epoch) {
     int64_t batch_index = 0;
-    for (torch::data::Example<>& batch : *data_loader) {
+    for (const torch::data::Example<>& batch : *data_loader) {
       // Train discriminator with real images.
       discriminator->zero_grad();
       torch::Tensor real_images = batch.data.to(device);
