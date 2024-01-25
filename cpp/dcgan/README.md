@@ -5,6 +5,8 @@ with the PyTorch C++ frontend.
 
 The entire training code is contained in `dcgan.cpp`.
 
+You can find the commands to install argparse [here](https://github.com/pytorch/examples/blob/main/.github/workflows/main_cpp.yml#L34).
+
 To build the code, run the following commands from your terminal:
 
 ```shell
@@ -45,6 +47,14 @@ $ ./dcgan
 -> checkpoint 10
 ...
 ```
+
+We can also specify the `--epochs` to change the number of epochs to train as follows:
+
+```shell
+$ ./dcgan --epochs 10
+```
+Without specifying the `--epochs` flag, the default number of epochs to train is 30.
+
 
 The training script periodically generates image samples. Use the
 `display_samples.py` script situated in this folder to generate a plot image.
