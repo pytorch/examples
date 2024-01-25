@@ -1,5 +1,5 @@
 #include <torch/torch.h>
-
+#include <argparse/argparse.hpp>
 #include <cmath>
 #include <cstdio>
 #include <iostream>
@@ -9,9 +9,6 @@ const int64_t kNoiseSize = 100;
 
 // The batch size for training.
 const int64_t kBatchSize = 64;
-
-// The default number of epochs to train.
-int64_t kNumberOfEpochs = 30;
 
 // Where to find the MNIST dataset.
 const char* kDataFolder = "./data";
@@ -95,18 +92,22 @@ nn::Sequential create_discriminator() {
 }
 
 int main(int argc, const char* argv[]) {
-
-  if (argc > 1) {
-      std::string arg = argv[1];
-      if (std::all_of(arg.begin(), arg.end(), ::isdigit)) {
-          try {
-              kNumberOfEpochs = std::stoll(arg);
-          } catch (const std::invalid_argument& ia) {
-              // If unable to parse, do nothing and keep the default value
-          }
-      }
+  argparse::ArgumentParser parser("cpp/dcgan example");
+  parser.add_argument("--epochs")
+      .help("Number of epochs to train")
+      .default_value(std::int64_t{30})
+      .scan<'i', int64_t>();
+  try {
+    parser.parse_args(argc, argv);
+  } catch (const std::exception& err) {
+    std::cout << err.what() << std::endl;
+    std::cout << parser;
+    std::exit(1);
   }
-  std::cout << "Traning with number of epochs: " << kNumberOfEpochs << std::endl;
+  // The number of epochs to train, default value is 30.
+  const int64_t kNumberOfEpochs = parser.get<int64_t>("--epochs");
+  std::cout << "Traning with number of epochs: " << kNumberOfEpochs
+            << std::endl;
 
   torch::manual_seed(1);
 
