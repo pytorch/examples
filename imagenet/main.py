@@ -106,12 +106,8 @@ def main():
 
     if torch.cuda.is_available():
         ngpus_per_node = torch.cuda.device_count()
-        assert not (ngpus_per_node == 1 and args.dist_backend == "nccl"),\
-        "nccl backend requires GPU count>1, see https://github.com/NVIDIA/nccl/issues/103 perhaps use 'gloo'"
     else:
-        ngpus_per_node = 0
-        assert args.dist_backend != "nccl",\
-        "nccl backend does not work without GPU, see https://pytorch.org/docs/stable/distributed.html"
+        ngpus_per_node = 1
     if args.multiprocessing_distributed:
         # Since we have ngpus_per_node processes per node, the total world_size
         # needs to be adjusted accordingly
