@@ -1,5 +1,6 @@
 from __future__ import print_function
 import argparse
+from pathlib import Path
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -73,6 +74,8 @@ def test(model, device, test_loader):
 def main():
     # Training settings
     parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
+    parser.add_argument('--data-path', type=str, default="../data",
+                        help='path to MNIST data (default: "../data")')
     parser.add_argument('--batch-size', type=int, default=64, metavar='N',
                         help='input batch size for training (default: 64)')
     parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
@@ -95,9 +98,18 @@ def main():
                         help='how many batches to wait before logging training status')
     parser.add_argument('--save-model', action='store_true', default=False,
                         help='For Saving the current Model')
+    parser.add_argument('--model-save-path', type=str, default=".",
+                        help='path to which model will be saved (default: cwd)')
     args = parser.parse_args()
     use_cuda = not args.no_cuda and torch.cuda.is_available()
     use_mps = not args.no_mps and torch.backends.mps.is_available()
+
+    # Ensure paths exist
+    data_path = Path(args.data_path)
+    data_path.mkdir(exist_ok=True)
+    if args.save_model:
+        model_save_path = Path(args.model_save_path)
+        model_save_path.mkdir(exist_ok=True)
 
     torch.manual_seed(args.seed)
 
@@ -121,9 +133,10 @@ def main():
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
         ])
-    dataset1 = datasets.MNIST('../data', train=True, download=True,
+    data_path = Path(args.data_path)
+    dataset1 = datasets.MNIST(data_path, train=True, download=True,
                        transform=transform)
-    dataset2 = datasets.MNIST('../data', train=False,
+    dataset2 = datasets.MNIST(data_path, train=False,
                        transform=transform)
     train_loader = torch.utils.data.DataLoader(dataset1,**train_kwargs)
     test_loader = torch.utils.data.DataLoader(dataset2, **test_kwargs)
@@ -138,7 +151,7 @@ def main():
         scheduler.step()
 
     if args.save_model:
-        torch.save(model.state_dict(), "mnist_cnn.pt")
+        torch.save(model.state_dict(), model_save_path / "mnist_cnn.pt")
 
 
 if __name__ == '__main__':
