@@ -42,12 +42,18 @@ class InputEmbedding(nn.Module):
         self.n_channels = args.n_channels
         self.latent_size = args.latent_size
         use_cuda = not args.no_cuda and torch.cuda.is_available()
-        self.device = torch.device("cuda" if use_cuda else "cpu")
+        use_mps = not args.no_mps and torch.backends.mps.is_available()
+        if use_cuda:
+            self.device = torch.device("cuda")
+        elif use_mps:
+            self.device = torch.device("mps")
+        else:
+            self.device = torch.device("cpu")
         self.batch_size = args.batch_size
         self.input_size = self.patch_size * self.patch_size * self.n_channels
 
         # Linear projection
-        self.LinearProjection = nn.Linear(self.input_size, self.latent_size)
+        self.LinearProjection = nn.Linear(self.input_size, self.latent_size, device=self.device)
         # Class token
         self.class_token = nn.Parameter(torch.randn(self.batch_size, 1, self.latent_size).to(self.device))
         # Positional embedding
@@ -211,6 +217,8 @@ def main():
     parser = argparse.ArgumentParser(description='Vision Transformer in PyTorch')
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
+    parser.add_argument('--no-mps', action='store_true', default=False,
+                        help='disables macOS GPU training')
     parser.add_argument('--patch-size', type=int, default=16,
                         help='patch size for images (default : 16)')
     parser.add_argument('--latent-size', type=int, default=768,
@@ -240,8 +248,14 @@ def main():
     args = parser.parse_args()
 
     use_cuda = not args.no_cuda and torch.cuda.is_available()
-    device = torch.device("cuda" if use_cuda else "cpu")
-
+    use_mps = not args.no_mps and torch.backends.mps.is_available()
+    if use_cuda:
+        device = torch.device("cuda")
+    elif use_mps:
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
+    print(device)
     transforms = Compose([
         Resize((args.img_size, args.img_size)),
         ToTensor()
