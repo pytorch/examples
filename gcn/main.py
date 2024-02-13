@@ -28,6 +28,7 @@ class GraphConv(nn.Module):
                 input features per node.
             A: Adjacency matrix of the graph with shape (N, N), representing the relationships between nodes.
             W: Learnable weight matrix with shape (F_in, F_out), where F_out is the number of output features per node.
+            D: The degree matrix.
     """
     def __init__(self, input_dim, output_dim, use_bias=False):
         super(GraphConv, self).__init__()
@@ -48,7 +49,7 @@ class GraphConv(nn.Module):
 
         Args:
             input_tensor (torch.Tensor): Input tensor representing node features.
-            adj_mat (torch.Tensor): Adjacency matrix representing graph structure.
+            adj_mat (torch.Tensor): Normalized adjacency matrix representing graph structure.
 
         Returns:
             torch.Tensor: Output tensor after the graph convolution operation.
@@ -92,7 +93,7 @@ class GCN(nn.Module):
         Args:
             input_tensor (torch.Tensor): Input node feature matrix with shape (N, input_dim), where N is the number of nodes
                 and input_dim is the number of input features per node.
-            adj_mat (torch.Tensor): Adjacency matrix of the graph with shape (N, N), representing the relationships between
+            adj_mat (torch.Tensor): Normalized adjacency matrix of the graph with shape (N, N), representing the relationships between
                 nodes.
 
         Returns:
@@ -113,7 +114,7 @@ class GCN(nn.Module):
 
 def load_cora(path='./cora', device='cpu'):
     """
-    The graph convolutional operation rquires normalize the adjacency matrix: D^(-1/2) * A * D^(-1/2). This step 
+    The graph convolutional operation rquires the normalized adjacency matrix: D^(-1/2) * A * D^(-1/2). This step 
     scales the adjacency matrix such that the features of neighboring nodes are weighted appropriately during 
     aggregation. The steps involved in the renormalization trick are as follows:
         - Compute the degree matrix.
@@ -249,7 +250,7 @@ if __name__ == '__main__':
     idx = torch.randperm(len(labels)).to(device)
     idx_test, idx_val, idx_train = idx[:1000], idx[1000:1500], idx[1500:]
 
-    gcn = GCN(features.shape[1], args.hidden_dim, labels.max().item() + 1,args.include_bias, args.dropout_p).to(device)
+    gcn = GCN(features.shape[1], args.hidden_dim, labels.max().item() + 1, args.include_bias, args.dropout_p).to(device)
     optimizer = Adam(gcn.parameters(), lr=args.lr, weight_decay=args.l2)
     criterion = nn.NLLLoss()
 
