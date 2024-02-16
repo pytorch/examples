@@ -27,7 +27,7 @@ options:
   --num-encoders NUM_ENCODERS
                         number of encoders (default : 12)
   --dropout DROPOUT     dropout value (default : 0.1)
-  --img-size IMG_SIZE   image size to be reshaped to (default : 224
+  --img-size IMG_SIZE   image size to be reshaped to (default : 224)
   --num-classes NUM_CLASSES
                         number of classes in dataset (default : 10 for CIFAR10)
   --epochs EPOCHS       number of epochs (default : 10)
