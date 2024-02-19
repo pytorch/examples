@@ -16,6 +16,7 @@ Each code file extends upon the previous one. The series starts with a non-distr
     * [slurm/config.yaml.template](slurm/config.yaml.template): configuration to set up an AWS cluster
     * [slurm/sbatch_run.sh](slurm/sbatch_run.sh): slurm script to launch the training job
 
-
-
-
+## Debugging multi-node training in AWS
+- Make sure DNS resolution and DNS hostname are enabled on the VPC.
+- Check whether the nodes can communicate with each other.
+- Check security group permissions.
