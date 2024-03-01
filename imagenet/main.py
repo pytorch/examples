@@ -5,6 +5,7 @@ import shutil
 import time
 import warnings
 from enum import Enum
+from typing import get_type_hints
 
 import torch
 import torch.backends.cudnn as cudnn
@@ -22,8 +23,8 @@ from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import Subset
 
 model_names = sorted(name for name in models.__dict__
-    if name.islower() and not name.startswith("__")
-    and callable(models.__dict__[name]))
+                     if name.islower() and not name.startswith("__")
+                     and callable(models.__dict__[name]))
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR', nargs='?', default='imagenet',
@@ -31,8 +32,14 @@ parser.add_argument('data', metavar='DIR', nargs='?', default='imagenet',
 parser.add_argument('-a', '--arch', metavar='ARCH', default='resnet18',
                     choices=model_names,
                     help='model architecture: ' +
-                        ' | '.join(model_names) +
-                        ' (default: resnet18)')
+                         ' | '.join(model_names) +
+                         ' (default: resnet18)')
+parser.add_argument('-m', '--use-module-definitions', metavar='MODULE', default=None,
+                    help='load a custom py file for the model and/or dataset & loader.'
+                         'The file can contain the following functions: '
+                         'get_model() -> nn.Module'
+                         'get_train_loader() -> DataLoader'
+                         '(default: None)')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=90, type=int, metavar='N',
@@ -107,7 +114,8 @@ def main():
     if torch.cuda.is_available():
         ngpus_per_node = torch.cuda.device_count()
         if ngpus_per_node == 1 and args.dist_backend == "nccl":
-            warnings.warn("nccl backend >=2.5 requires GPU count>1, see https://github.com/NVIDIA/nccl/issues/103 perhaps use 'gloo'")
+            warnings.warn(
+                "nccl backend >=2.5 requires GPU count>1, see https://github.com/NVIDIA/nccl/issues/103 perhaps use 'gloo'")
     else:
         ngpus_per_node = 1
 
@@ -121,6 +129,33 @@ def main():
     else:
         # Simply call main_worker function
         main_worker(args.gpu, ngpus_per_node, args)
+
+
+def safe_import(module_name):
+    import importlib
+    import sys
+
+    if module_name in sys.modules:
+        return sys.modules[module_name]
+
+    try:
+        module = importlib.import_module(module_name)
+        return module
+    except ImportError as e:
+        print(f'Error importing module {module_name}. Make sure the module exists and can be imported.')
+        raise e
+
+
+def get_module_method(module_name, method_name, expected_type_hint):
+    if hasattr(module_name, method_name) and callable(getattr(module_name, method_name)):
+        method = getattr(module_name, method_name)
+        if not get_type_hints(method)['return'] == expected_type_hint:
+            raise Exception(
+                f'The provided method {module_name}.{method_name} does not respect the '
+                f'expected type hint {expected_type_hint}')
+        return method()
+    else:
+        raise Exception(f'The provided module {module_name} does not have method {method_name}')
 
 
 def main_worker(gpu, ngpus_per_node, args):
@@ -144,9 +179,12 @@ def main_worker(gpu, ngpus_per_node, args):
         print("=> using pre-trained model '{}'".format(args.arch))
         model = models.__dict__[args.arch](pretrained=True)
     else:
-        print("=> creating model '{}'".format(args.arch))
-        model = models.__dict__[args.arch]()
-
+        if not args.use_module_definitions:
+            print("=> creating model '{}'".format(args.arch))
+            model = models.__dict__[args.arch]()
+        else:
+            module = safe_import(args.use_module_definitions.replace('.py', ''))
+            model = get_module_method(module, 'get_model', nn.Module)
     if not torch.cuda.is_available() and not torch.backends.mps.is_available():
         print('using CPU, this will be slow')
     elif args.distributed:
@@ -197,10 +235,10 @@ def main_worker(gpu, ngpus_per_node, args):
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
-    
+
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
     scheduler = StepLR(optimizer, step_size=30, gamma=0.1)
-    
+
     # optionally resume from a checkpoint
     if args.resume:
         if os.path.isfile(args.resume):
@@ -224,35 +262,39 @@ def main_worker(gpu, ngpus_per_node, args):
         else:
             print("=> no checkpoint found at '{}'".format(args.resume))
 
-
     # Data loading code
     if args.dummy:
         print("=> Dummy data is used!")
         train_dataset = datasets.FakeData(1281167, (3, 224, 224), 1000, transforms.ToTensor())
         val_dataset = datasets.FakeData(50000, (3, 224, 224), 1000, transforms.ToTensor())
     else:
-        traindir = os.path.join(args.data, 'train')
-        valdir = os.path.join(args.data, 'val')
-        normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
+        if not args.use_module_definitions:
+            traindir = os.path.join(args.data, 'train')
+            valdir = os.path.join(args.data, 'val')
+            normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                             std=[0.229, 0.224, 0.225])
 
-        train_dataset = datasets.ImageFolder(
-            traindir,
-            transforms.Compose([
-                transforms.RandomResizedCrop(224),
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                normalize,
-            ]))
+            train_dataset = datasets.ImageFolder(
+                traindir,
+                transforms.Compose([
+                    transforms.RandomResizedCrop(224),
+                    transforms.RandomHorizontalFlip(),
+                    transforms.ToTensor(),
+                    normalize,
+                ]))
 
-        val_dataset = datasets.ImageFolder(
-            valdir,
-            transforms.Compose([
-                transforms.Resize(256),
-                transforms.CenterCrop(224),
-                transforms.ToTensor(),
-                normalize,
-            ]))
+            val_dataset = datasets.ImageFolder(
+                valdir,
+                transforms.Compose([
+                    transforms.Resize(256),
+                    transforms.CenterCrop(224),
+                    transforms.ToTensor(),
+                    normalize,
+                ]))
+        else:
+            module = safe_import(args.use_module_definitions.replace('.py', ''))
+            train_dataset = get_module_method(module, 'get_train_dataset', torch.utils.data.Dataset)
+            val_dataset = get_module_method(module, 'get_val_dataset', torch.utils.data.Dataset)
 
     if args.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
@@ -261,13 +303,18 @@ def main_worker(gpu, ngpus_per_node, args):
         train_sampler = None
         val_sampler = None
 
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
-        num_workers=args.workers, pin_memory=True, sampler=train_sampler)
+    if not args.use_module_definitions:
+        train_loader = torch.utils.data.DataLoader(
+            train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
+            num_workers=args.workers, pin_memory=True, sampler=train_sampler)
 
-    val_loader = torch.utils.data.DataLoader(
-        val_dataset, batch_size=args.batch_size, shuffle=False,
-        num_workers=args.workers, pin_memory=True, sampler=val_sampler)
+        val_loader = torch.utils.data.DataLoader(
+            val_dataset, batch_size=args.batch_size, shuffle=False,
+            num_workers=args.workers, pin_memory=True, sampler=val_sampler)
+    else:
+        module = safe_import(args.use_module_definitions.replace('.py', ''))
+        train_loader = get_module_method(module, 'get_train_loader', torch.utils.data.DataLoader)
+        val_loader = get_module_method(module, 'get_val_loader', torch.utils.data.DataLoader)
 
     if args.evaluate:
         validate(val_loader, model, criterion, args)
@@ -282,22 +329,22 @@ def main_worker(gpu, ngpus_per_node, args):
 
         # evaluate on validation set
         acc1 = validate(val_loader, model, criterion, args)
-        
+
         scheduler.step()
-        
+
         # remember best acc@1 and save checkpoint
         is_best = acc1 > best_acc1
         best_acc1 = max(acc1, best_acc1)
 
         if not args.multiprocessing_distributed or (args.multiprocessing_distributed
-                and args.rank % ngpus_per_node == 0):
+                                                    and args.rank % ngpus_per_node == 0):
             save_checkpoint({
                 'epoch': epoch + 1,
                 'arch': args.arch,
                 'state_dict': model.state_dict(),
                 'best_acc1': best_acc1,
-                'optimizer' : optimizer.state_dict(),
-                'scheduler' : scheduler.state_dict()
+                'optimizer': optimizer.state_dict(),
+                'scheduler': scheduler.state_dict()
             }, is_best)
 
 
@@ -348,7 +395,6 @@ def train(train_loader, model, criterion, optimizer, epoch, device, args):
 
 
 def validate(val_loader, model, criterion, args):
-
     def run_validate(loader, base_progress=0):
         with torch.no_grad():
             end = time.time()
@@ -414,14 +460,17 @@ def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     if is_best:
         shutil.copyfile(filename, 'model_best.pth.tar')
 
+
 class Summary(Enum):
     NONE = 0
     AVERAGE = 1
     SUM = 2
     COUNT = 3
 
+
 class AverageMeter(object):
     """Computes and stores the average and current value"""
+
     def __init__(self, name, fmt=':f', summary_type=Summary.AVERAGE):
         self.name = name
         self.fmt = fmt
@@ -455,7 +504,7 @@ class AverageMeter(object):
     def __str__(self):
         fmtstr = '{name} {val' + self.fmt + '} ({avg' + self.fmt + '})'
         return fmtstr.format(**self.__dict__)
-    
+
     def summary(self):
         fmtstr = ''
         if self.summary_type is Summary.NONE:
@@ -468,7 +517,7 @@ class AverageMeter(object):
             fmtstr = '{name} {count:.3f}'
         else:
             raise ValueError('invalid summary type %r' % self.summary_type)
-        
+
         return fmtstr.format(**self.__dict__)
 
 
@@ -482,7 +531,7 @@ class ProgressMeter(object):
         entries = [self.prefix + self.batch_fmtstr.format(batch)]
         entries += [str(meter) for meter in self.meters]
         print('\t'.join(entries))
-        
+
     def display_summary(self):
         entries = [" *"]
         entries += [meter.summary() for meter in self.meters]
@@ -492,6 +541,7 @@ class ProgressMeter(object):
         num_digits = len(str(num_batches // 1))
         fmt = '{:' + str(num_digits) + 'd}'
         return '[' + fmt + '/' + fmt.format(num_batches) + ']'
+
 
 def accuracy(output, target, topk=(1,)):
     """Computes the accuracy over the k top predictions for the specified values of k"""
