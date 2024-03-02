@@ -38,7 +38,10 @@ parser.add_argument('-m', '--use-module-definitions', metavar='MODULE', default=
                     help='load a custom py file for the model and/or dataset & loader.'
                          'The file can contain the following functions: '
                          'get_model() -> nn.Module'
-                         'get_train_loader() -> DataLoader'
+                         'get_train_dataset() -> torch.utils.data.Dataset'
+                         'get_val_dataset() -> torch.utils.data.Dataset'
+                         'get_train_loader() -> torch.utils.data.DataLoader'
+                         'get_val_loader() -> torch.utils.data.DataLoader'
                          '(default: None)')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
