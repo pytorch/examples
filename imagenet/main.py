@@ -1,4 +1,5 @@
 import argparse
+import datetime
 import os
 import random
 import shutil
@@ -21,6 +22,7 @@ import torchvision.models as models
 import torchvision.transforms as transforms
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import Subset
+from torch.utils.tensorboard import SummaryWriter
 
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
@@ -43,6 +45,7 @@ parser.add_argument('-m', '--use-module-definitions', metavar='MODULE', default=
                          'get_train_loader() -> torch.utils.data.DataLoader'
                          'get_val_loader() -> torch.utils.data.DataLoader'
                          '(default: None)')
+parser.add_argument('-tb', '--tb-summary-writer-dir', metavar='SUMMARY_DIR', default=None)
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=90, type=int, metavar='N',
@@ -188,6 +191,7 @@ def main_worker(gpu, ngpus_per_node, args):
         else:
             module = safe_import(args.use_module_definitions.replace('.py', ''))
             model = get_module_method(module, 'get_model', nn.Module)
+
     if not torch.cuda.is_available() and not torch.backends.mps.is_available():
         print('using CPU, this will be slow')
     elif args.distributed:
@@ -323,12 +327,29 @@ def main_worker(gpu, ngpus_per_node, args):
         validate(val_loader, model, criterion, args)
         return
 
+    tensorboard_writer = None
+    if args.tb_summary_writer_dir:
+        today = datetime.datetime.now().strftime("%Y-%m-%d")
+        model_info = ""
+        train_dataset_info = len(train_dataset)
+        val_dataset_info = len(val_dataset)
+
+        if callable(getattr(model, "get_info", None)):
+            model_info = f"-{model.get_info()}"
+
+        tb_log_dir_name = (f"{today}_{model.__class__.__name__}{model_info}"
+                           f"_{train_dataset.__class__.__name__}-{train_dataset_info}"
+                           f"_{val_dataset.__class__.__name__}-{val_dataset_info}")
+        tb_log_dir_path = os.path.join(args.tb_summary_writer_dir, tb_log_dir_name)
+        tensorboard_writer = SummaryWriter(tb_log_dir_path)
+        print(f'TensorBoard summary writer is created at {tb_log_dir_path}')
+
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             train_sampler.set_epoch(epoch)
 
         # train for one epoch
-        train(train_loader, model, criterion, optimizer, epoch, device, args)
+        train_loss = train(train_loader, model, criterion, optimizer, epoch, device, args)
 
         # evaluate on validation set
         acc1 = validate(val_loader, model, criterion, args)
@@ -350,8 +371,12 @@ def main_worker(gpu, ngpus_per_node, args):
                 'scheduler': scheduler.state_dict()
             }, is_best)
 
+        if tensorboard_writer:
+            tensorboard_writer.add_scalars('Loss', dict(train=train_loss), epoch + 1)
+            tensorboard_writer.add_scalars('Accuracy', dict(val=acc1), epoch + 1)
 
-def train(train_loader, model, criterion, optimizer, epoch, device, args):
+
+def train(train_loader, model, criterion, optimizer, epoch, device, args) -> float:
     batch_time = AverageMeter('Time', ':6.3f')
     data_time = AverageMeter('Data', ':6.3f')
     losses = AverageMeter('Loss', ':.4e')
@@ -395,6 +420,8 @@ def train(train_loader, model, criterion, optimizer, epoch, device, args):
 
         if i % args.print_freq == 0:
             progress.display(i + 1)
+
+    return loss.item()
 
 
 def validate(val_loader, model, criterion, args):
