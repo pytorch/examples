@@ -6,8 +6,9 @@ import shutil
 import time
 import warnings
 from enum import Enum
-from typing import get_type_hints
+from typing import get_type_hints, Tuple, List, Union, Dict
 
+import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
 import torch.distributed as dist
@@ -20,6 +21,7 @@ import torch.utils.data.distributed
 import torchvision.datasets as datasets
 import torchvision.models as models
 import torchvision.transforms as transforms
+from sklearn.metrics import f1_score, precision_score, recall_score
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import Subset
 from torch.utils.tensorboard import SummaryWriter
@@ -68,6 +70,8 @@ parser.add_argument('-p', '--print-freq', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
+parser.add_argument('-ch', '--checkpoints', default='', type=str,
+                    help='path to checkpoints dir (default: none)')
 parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
                     help='evaluate model on validation set')
 parser.add_argument('--pretrained', dest='pretrained', action='store_true',
@@ -162,6 +166,19 @@ def get_module_method(module_name, method_name, expected_type_hint):
         return method()
     else:
         raise Exception(f'The provided module {module_name} does not have method {method_name}')
+
+
+def get_run_name(model, train_dataset, val_dataset):
+    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    model_info = ""
+    train_dataset_info = len(train_dataset)
+    val_dataset_info = len(val_dataset)
+
+    if callable(getattr(model, "get_info", None)):
+        model_info = f"-{model.get_info()}"
+    return (f"{today}_{model.__class__.__name__}{model_info}"
+            f"_{train_dataset.__class__.__name__}-{train_dataset_info}"
+            f"_{val_dataset.__class__.__name__}-{val_dataset_info}")
 
 
 def main_worker(gpu, ngpus_per_node, args):
@@ -323,26 +340,34 @@ def main_worker(gpu, ngpus_per_node, args):
         train_loader = get_module_method(module, 'get_train_loader', torch.utils.data.DataLoader)
         val_loader = get_module_method(module, 'get_val_loader', torch.utils.data.DataLoader)
 
+    target_class_translations = None
+    if args.use_module_definitions:
+        try:
+            module = safe_import(args.use_module_definitions.replace('.py', ''))
+            target_class_translations = get_module_method(module, 'target_class_translations', Dict[int, str])
+            print(f'Loaded target_class_translations from {args.use_module_definitions}')
+        except Exception as e:
+            print(f'Error getting target_class_translations from {args.use_module_definitions}: {e}')
+
+    def get_target_class(cl: int) -> str:
+        if target_class_translations:
+            return target_class_translations[cl]
+        return f"Class-{cl}"
+
     if args.evaluate:
         validate(val_loader, model, criterion, args)
         return
 
+    run_name = get_run_name(model, train_dataset, val_dataset)
     tensorboard_writer = None
     if args.tb_summary_writer_dir:
-        today = datetime.datetime.now().strftime("%Y-%m-%d")
-        model_info = ""
-        train_dataset_info = len(train_dataset)
-        val_dataset_info = len(val_dataset)
-
-        if callable(getattr(model, "get_info", None)):
-            model_info = f"-{model.get_info()}"
-
-        tb_log_dir_name = (f"{today}_{model.__class__.__name__}{model_info}"
-                           f"_{train_dataset.__class__.__name__}-{train_dataset_info}"
-                           f"_{val_dataset.__class__.__name__}-{val_dataset_info}")
-        tb_log_dir_path = os.path.join(args.tb_summary_writer_dir, tb_log_dir_name)
+        tb_log_dir_path = os.path.join(args.tb_summary_writer_dir, run_name)
         tensorboard_writer = SummaryWriter(tb_log_dir_path)
         print(f'TensorBoard summary writer is created at {tb_log_dir_path}')
+
+    if tensorboard_writer:
+        image, label = next(iter(train_loader))
+        tensorboard_writer.add_graph(model, image)
 
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
@@ -352,7 +377,11 @@ def main_worker(gpu, ngpus_per_node, args):
         train_loss = train(train_loader, model, criterion, optimizer, epoch, device, args)
 
         # evaluate on validation set
-        acc1 = validate(val_loader, model, criterion, args)
+        (acc1,
+         f1_micro, f1_macro,
+         prec_micro, prec_macro,
+         rec_micro, rec_macro,
+         f1_per_class) = validate(val_loader, model, criterion, args)
 
         scheduler.step()
 
@@ -360,8 +389,9 @@ def main_worker(gpu, ngpus_per_node, args):
         is_best = acc1 > best_acc1
         best_acc1 = max(acc1, best_acc1)
 
-        if not args.multiprocessing_distributed or (args.multiprocessing_distributed
-                                                    and args.rank % ngpus_per_node == 0):
+        if not args.multiprocessing_distributed or \
+                (args.multiprocessing_distributed and args.rank % ngpus_per_node == 0) or \
+                epoch == args.epochs - 1:
             save_checkpoint({
                 'epoch': epoch + 1,
                 'arch': args.arch,
@@ -369,22 +399,30 @@ def main_worker(gpu, ngpus_per_node, args):
                 'best_acc1': best_acc1,
                 'optimizer': optimizer.state_dict(),
                 'scheduler': scheduler.state_dict()
-            }, is_best)
+            }, is_best, run_name, args.checkpoints)
 
         if tensorboard_writer:
             tensorboard_writer.add_scalars('Loss', dict(train=train_loss), epoch + 1)
             tensorboard_writer.add_scalars('Accuracy', dict(val=acc1), epoch + 1)
+            tensorboard_writer.add_scalars('F1', dict(micro=f1_micro, macro=f1_macro), epoch + 1)
+            tensorboard_writer.add_scalars('Precision', dict(micro=prec_micro, macro=prec_macro), epoch + 1)
+            tensorboard_writer.add_scalars('Recall', dict(micro=rec_micro, macro=rec_macro), epoch + 1)
+            tensorboard_writer.add_scalars('F1/class', {get_target_class(cl): f1 for cl, f1 in f1_per_class}, epoch + 1)
+
+    tensorboard_writer.add_hparams({"param1": 1, "param2": 2},
+                                   {"Accuracy": best_acc1})
 
 
 def train(train_loader, model, criterion, optimizer, epoch, device, args) -> float:
     batch_time = AverageMeter('Time', ':6.3f')
     data_time = AverageMeter('Data', ':6.3f')
     losses = AverageMeter('Loss', ':.4e')
-    top1 = AverageMeter('Acc@1', ':6.2f')
-    top5 = AverageMeter('Acc@5', ':6.2f')
+    acc_top1 = AverageMeter('Acc@1', ':6.2f')
+    acc_top5 = AverageMeter('Acc@5', ':6.2f')
+
     progress = ProgressMeter(
         len(train_loader),
-        [batch_time, data_time, losses, top1, top5],
+        [batch_time, data_time, losses, acc_top1, acc_top5],
         prefix="Epoch: [{}]".format(epoch))
 
     # switch to train mode
@@ -406,8 +444,8 @@ def train(train_loader, model, criterion, optimizer, epoch, device, args) -> flo
         # measure accuracy and record loss
         acc1, acc5 = accuracy(output, target, topk=(1, 5))
         losses.update(loss.item(), images.size(0))
-        top1.update(acc1[0], images.size(0))
-        top5.update(acc5[0], images.size(0))
+        acc_top1.update(acc1[0], images.size(0))
+        acc_top5.update(acc5[0], images.size(0))
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
@@ -424,8 +462,22 @@ def train(train_loader, model, criterion, optimizer, epoch, device, args) -> flo
     return loss.item()
 
 
-def validate(val_loader, model, criterion, args):
-    def run_validate(loader, base_progress=0):
+def validate(val_loader, model, criterion, args) -> Tuple[
+    float, float, float, float, float, float, float, List[Tuple[int, float]]]:
+    """
+    :return: acc1,
+        f1_micro, f1_macro,
+        prec_micro, prec_macro,
+        rec_micro, rec_macro,
+        f1_per_class: [(target-index, f1), ]
+    """
+
+    def run_validate(loader, base_progress=0) -> Tuple[
+        float, float, float, float, float, float, List[Tuple[int, float]]
+    ]:
+        labels_true = np.array([])
+        labels_pred = np.array([])
+
         with torch.no_grad():
             end = time.time()
             for i, (images, target) in enumerate(loader):
@@ -445,8 +497,14 @@ def validate(val_loader, model, criterion, args):
                 # measure accuracy and record loss
                 acc1, acc5 = accuracy(output, target, topk=(1, 5))
                 losses.update(loss.item(), images.size(0))
-                top1.update(acc1[0], images.size(0))
-                top5.update(acc5[0], images.size(0))
+                acc_top1.update(acc1[0], images.size(0))
+                acc_top5.update(acc5[0], images.size(0))
+
+                # measure f1, precision, recall
+                with torch.no_grad():
+                    predicted_values, predicted_indices = torch.max(output.data, 1)
+                    labels_true = np.append(labels_true, target.numpy())
+                    labels_pred = np.append(labels_pred, predicted_indices.cpu().numpy())
 
                 # measure elapsed time
                 batch_time.update(time.time() - end)
@@ -455,22 +513,25 @@ def validate(val_loader, model, criterion, args):
                 if i % args.print_freq == 0:
                     progress.display(i + 1)
 
+        return metrics_labels_true_pred(labels_true, labels_pred)
+
     batch_time = AverageMeter('Time', ':6.3f', Summary.NONE)
     losses = AverageMeter('Loss', ':.4e', Summary.NONE)
-    top1 = AverageMeter('Acc@1', ':6.2f', Summary.AVERAGE)
-    top5 = AverageMeter('Acc@5', ':6.2f', Summary.AVERAGE)
+    acc_top1 = AverageMeter('Acc@1', ':6.2f', Summary.AVERAGE)
+    acc_top5 = AverageMeter('Acc@5', ':6.2f', Summary.AVERAGE)
+
     progress = ProgressMeter(
         len(val_loader) + (args.distributed and (len(val_loader.sampler) * args.world_size < len(val_loader.dataset))),
-        [batch_time, losses, top1, top5],
+        [batch_time, losses, acc_top1, acc_top5],
         prefix='Test: ')
 
     # switch to evaluate mode
     model.eval()
 
-    run_validate(val_loader)
+    metrics = run_validate(val_loader)
     if args.distributed:
-        top1.all_reduce()
-        top5.all_reduce()
+        acc_top1.all_reduce()
+        acc_top5.all_reduce()
 
     if args.distributed and (len(val_loader.sampler) * args.world_size < len(val_loader.dataset)):
         aux_val_dataset = Subset(val_loader.dataset,
@@ -478,17 +539,21 @@ def validate(val_loader, model, criterion, args):
         aux_val_loader = torch.utils.data.DataLoader(
             aux_val_dataset, batch_size=args.batch_size, shuffle=False,
             num_workers=args.workers, pin_memory=True)
-        run_validate(aux_val_loader, len(val_loader))
+        metrics = run_validate(aux_val_loader, len(val_loader))
 
     progress.display_summary()
+    f1_micro, f1_macro, prec_micro, prec_macro, rec_micro, rec_macro, f1_per_class = metrics
 
-    return top1.avg
+    return acc_top1.avg, f1_micro, f1_macro, prec_micro, prec_macro, rec_micro, rec_macro, f1_per_class
 
 
-def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
-    torch.save(state, filename)
+def save_checkpoint(state, is_best, run_info: str = "", dir="./"):
+    filename = f'{run_info}_checkpoint.pth.tar'
+    filepath = os.path.join(dir, filename)
+    print(f'Saving checkpoint to {filename} at {filepath}')
+    torch.save(state, filepath)
     if is_best:
-        shutil.copyfile(filename, 'model_best.pth.tar')
+        shutil.copyfile(filepath, filepath.replace("checkpoint", "model_best"))
 
 
 class Summary(Enum):
@@ -500,6 +565,11 @@ class Summary(Enum):
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
+
+    val: float
+    sum: float
+    count: int
+    avg: float
 
     def __init__(self, name, fmt=':f', summary_type=Summary.AVERAGE):
         self.name = name
@@ -552,7 +622,7 @@ class AverageMeter(object):
 
 
 class ProgressMeter(object):
-    def __init__(self, num_batches, meters, prefix=""):
+    def __init__(self, num_batches, meters: List[AverageMeter], prefix=""):
         self.batch_fmtstr = self._get_batch_fmtstr(num_batches)
         self.meters = meters
         self.prefix = prefix
@@ -588,6 +658,23 @@ def accuracy(output, target, topk=(1,)):
             correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)
             res.append(correct_k.mul_(100.0 / batch_size))
         return res
+
+
+def metrics_labels_true_pred(labels_true: np.array, labels_pred: np.array) -> Tuple[
+    float, float, float, float, float, float, List[Tuple[Union[int, str], float]]
+]:
+    unique_labels = list({l for l in labels_true})
+    f1_per_class = f1_score(labels_true, labels_pred, average=None, labels=unique_labels)
+    f1_micro = f1_score(labels_true, labels_pred, average="micro")
+    f1_macro = f1_score(labels_true, labels_pred, average="macro")
+
+    prec_micro = precision_score(labels_true, labels_pred, average="micro")
+    prec_macro = precision_score(labels_true, labels_pred, average="macro")
+    rec_micro = recall_score(labels_true, labels_pred, average="micro")
+    rec_macro = recall_score(labels_true, labels_pred, average="macro")
+
+    return f1_micro, f1_macro, prec_micro, prec_macro, rec_micro, rec_macro, [(cl, f1) for cl, f1 in
+                                                                              zip(unique_labels, f1_per_class)]
 
 
 if __name__ == '__main__':
