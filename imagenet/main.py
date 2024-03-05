@@ -365,9 +365,11 @@ def main_worker(gpu, ngpus_per_node, args):
         tensorboard_writer = SummaryWriter(tb_log_dir_path)
         print(f'TensorBoard summary writer is created at {tb_log_dir_path}')
 
-    if tensorboard_writer:
-        image, label = next(iter(train_loader))
-        tensorboard_writer.add_graph(model, image)
+        try:
+            image, label = next(iter(train_loader))
+            tensorboard_writer.add_graph(model, image)
+        except Exception as e:
+            print(f"Failed to add graph to tensorboard: {e}")
 
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
@@ -503,7 +505,7 @@ def validate(val_loader, model, criterion, args) -> Tuple[
                 # measure f1, precision, recall
                 with torch.no_grad():
                     predicted_values, predicted_indices = torch.max(output.data, 1)
-                    labels_true = np.append(labels_true, target.numpy())
+                    labels_true = np.append(labels_true, target.cpu().numpy())
                     labels_pred = np.append(labels_pred, predicted_indices.cpu().numpy())
 
                 # measure elapsed time
