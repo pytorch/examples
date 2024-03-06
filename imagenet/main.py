@@ -22,7 +22,7 @@ import torch.utils.data.distributed
 import torchvision.datasets as datasets
 import torchvision.models as models
 import torchvision.transforms as transforms
-from sklearn.metrics import f1_score, precision_score, recall_score
+from sklearn.metrics import f1_score, precision_score, recall_score, balanced_accuracy_score
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import Subset
 from torch.utils.tensorboard import SummaryWriter
@@ -392,6 +392,7 @@ def main_worker(gpu, ngpus_per_node, args):
 
             # evaluate on validation set
             (acc1,
+             acc_balanced,
              f1_micro, f1_macro,
              prec_micro, prec_macro,
              rec_micro, rec_macro,
@@ -417,7 +418,7 @@ def main_worker(gpu, ngpus_per_node, args):
 
             if tensorboard_writer:
                 tensorboard_writer.add_scalars('Loss', dict(train=train_loss), epoch + 1)
-                tensorboard_writer.add_scalars('Accuracy', dict(val=acc1), epoch + 1)
+                tensorboard_writer.add_scalars('Accuracy', dict(acc=acc1 / 100.0, balanced_acc=acc_balanced), epoch + 1)
                 tensorboard_writer.add_scalars('F1', dict(micro=f1_micro, macro=f1_macro), epoch + 1)
                 tensorboard_writer.add_scalars('Precision', dict(micro=prec_micro, macro=prec_macro), epoch + 1)
                 tensorboard_writer.add_scalars('Recall', dict(micro=rec_micro, macro=rec_macro), epoch + 1)
@@ -483,7 +484,7 @@ def train(train_loader, model, criterion, optimizer, epoch, device, args) -> flo
 
 
 def validate(val_loader, model, criterion, args) -> Tuple[
-    float, float, float, float, float, float, float, List[Tuple[int, float]]]:
+    float, float, float, float, float, float, float, float, List[Tuple[int, float]]]:
     """
     :return: acc1,
         f1_micro, f1_macro,
@@ -493,7 +494,7 @@ def validate(val_loader, model, criterion, args) -> Tuple[
     """
 
     def run_validate(loader, base_progress=0) -> Tuple[
-        float, float, float, float, float, float, List[Tuple[int, float]]
+        float, float, float, float, float, float, float, List[Tuple[int, float]]
     ]:
         labels_true = np.array([])
         labels_pred = np.array([])
@@ -562,9 +563,9 @@ def validate(val_loader, model, criterion, args) -> Tuple[
         metrics = run_validate(aux_val_loader, len(val_loader))
 
     progress.display_summary()
-    f1_micro, f1_macro, prec_micro, prec_macro, rec_micro, rec_macro, f1_per_class = metrics
+    acc_balanced, f1_micro, f1_macro, prec_micro, prec_macro, rec_micro, rec_macro, f1_per_class = metrics
 
-    return acc_top1.avg, f1_micro, f1_macro, prec_micro, prec_macro, rec_micro, rec_macro, f1_per_class
+    return acc_top1.avg, acc_balanced, f1_micro, f1_macro, prec_micro, prec_macro, rec_micro, rec_macro, f1_per_class
 
 
 def save_checkpoint(state, is_best, run_info: str = "", dir="./"):
@@ -681,20 +682,24 @@ def accuracy(output, target, topk=(1,)):
 
 
 def metrics_labels_true_pred(labels_true: np.array, labels_pred: np.array) -> Tuple[
-    float, float, float, float, float, float, List[Tuple[Union[int, str], float]]
+    float, float, float, float, float, float, float, List[Tuple[Union[int, str], float]]
 ]:
     unique_labels = list({l for l in labels_true})
     f1_per_class = f1_score(labels_true, labels_pred, average=None, labels=unique_labels)
     f1_micro = f1_score(labels_true, labels_pred, average="micro")
     f1_macro = f1_score(labels_true, labels_pred, average="macro")
 
+    acc_balanced = balanced_accuracy_score(labels_true, labels_pred)
     prec_micro = precision_score(labels_true, labels_pred, average="micro")
     prec_macro = precision_score(labels_true, labels_pred, average="macro")
     rec_micro = recall_score(labels_true, labels_pred, average="micro")
     rec_macro = recall_score(labels_true, labels_pred, average="macro")
 
-    return f1_micro, f1_macro, prec_micro, prec_macro, rec_micro, rec_macro, [(cl, f1) for cl, f1 in
-                                                                              zip(unique_labels, f1_per_class)]
+    return (acc_balanced,
+            f1_micro, f1_macro,
+            prec_micro, prec_macro,
+            rec_micro, rec_macro,
+            [(cl, f1) for cl, f1 in zip(unique_labels, f1_per_class)])
 
 
 if __name__ == '__main__':
