@@ -1,5 +1,6 @@
 import argparse
 import datetime
+import logging
 import os
 import random
 import shutil
@@ -169,21 +170,31 @@ def get_module_method(module_name, method_name, expected_type_hint):
 
 
 def get_run_name(model, train_dataset, val_dataset):
-    today = datetime.datetime.now().strftime("%Y-%m-%d")
-    model_info = ""
-    train_dataset_info = len(train_dataset)
-    val_dataset_info = len(val_dataset)
+    today = datetime.datetime.now().strftime('%m%d-%H%M')
+    model_info = model.get_info() if callable(getattr(model, "get_info", None)) else model.__class__.__name__
+    train_dataset_info = train_dataset.get_info() if callable(
+        getattr(train_dataset, "get_info", None)) else train_dataset.__class__.__name__
+    val_dataset_info = val_dataset.get_info() if callable(
+        getattr(val_dataset, "get_info", None)) else val_dataset.__class__.__name__
+    train_dataset_size = len(train_dataset)
+    val_dataset_size = len(val_dataset)
 
-    if callable(getattr(model, "get_info", None)):
-        model_info = f"-{model.get_info()}"
-    return (f"{today}_{model.__class__.__name__}{model_info}"
-            f"_{train_dataset.__class__.__name__}-{train_dataset_info}"
-            f"_{val_dataset.__class__.__name__}-{val_dataset_info}")
+    return (f"{today}_{model_info}"
+            f"_{train_dataset_info}-{train_dataset_size}"
+            f"_{val_dataset_info}-{val_dataset_size}")
 
 
 def main_worker(gpu, ngpus_per_node, args):
     global best_acc1
     args.gpu = gpu
+
+    if args.use_module_definitions:
+        module = safe_import(args.use_module_definitions.replace('.py', ''))
+        try:
+            logger = get_module_method(module, 'get_logger', logging.Logger)
+            print = logger.info
+        except:
+            pass
 
     if args.gpu is not None:
         print("Use GPU: {} for training".format(args.gpu))
