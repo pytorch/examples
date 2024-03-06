@@ -382,48 +382,55 @@ def main_worker(gpu, ngpus_per_node, args):
         except Exception as e:
             print(f"Failed to add graph to tensorboard: {e}")
 
-    for epoch in range(args.start_epoch, args.epochs):
-        if args.distributed:
-            train_sampler.set_epoch(epoch)
+    try:
+        for epoch in range(args.start_epoch, args.epochs):
+            if args.distributed:
+                train_sampler.set_epoch(epoch)
 
-        # train for one epoch
-        train_loss = train(train_loader, model, criterion, optimizer, epoch, device, args)
+            # train for one epoch
+            train_loss = train(train_loader, model, criterion, optimizer, epoch, device, args)
 
-        # evaluate on validation set
-        (acc1,
-         f1_micro, f1_macro,
-         prec_micro, prec_macro,
-         rec_micro, rec_macro,
-         f1_per_class) = validate(val_loader, model, criterion, args)
+            # evaluate on validation set
+            (acc1,
+             f1_micro, f1_macro,
+             prec_micro, prec_macro,
+             rec_micro, rec_macro,
+             f1_per_class) = validate(val_loader, model, criterion, args)
 
-        scheduler.step()
+            scheduler.step()
 
-        # remember best acc@1 and save checkpoint
-        is_best = acc1 > best_acc1
-        best_acc1 = max(acc1, best_acc1)
+            # remember best acc@1 and save checkpoint
+            is_best = acc1 > best_acc1
+            best_acc1 = max(acc1, best_acc1)
 
-        if not args.multiprocessing_distributed or \
-                (args.multiprocessing_distributed and args.rank % ngpus_per_node == 0) or \
-                epoch == args.epochs - 1:
-            save_checkpoint({
-                'epoch': epoch + 1,
-                'arch': args.arch,
-                'state_dict': model.state_dict(),
-                'best_acc1': best_acc1,
-                'optimizer': optimizer.state_dict(),
-                'scheduler': scheduler.state_dict()
-            }, is_best, run_name, args.checkpoints)
+            if not args.multiprocessing_distributed or \
+                    (args.multiprocessing_distributed and args.rank % ngpus_per_node == 0) or \
+                    epoch == args.epochs - 1:
+                save_checkpoint({
+                    'epoch': epoch + 1,
+                    'arch': args.arch,
+                    'state_dict': model.state_dict(),
+                    'best_acc1': best_acc1,
+                    'optimizer': optimizer.state_dict(),
+                    'scheduler': scheduler.state_dict()
+                }, is_best, run_name, args.checkpoints)
 
-        if tensorboard_writer:
-            tensorboard_writer.add_scalars('Loss', dict(train=train_loss), epoch + 1)
-            tensorboard_writer.add_scalars('Accuracy', dict(val=acc1), epoch + 1)
-            tensorboard_writer.add_scalars('F1', dict(micro=f1_micro, macro=f1_macro), epoch + 1)
-            tensorboard_writer.add_scalars('Precision', dict(micro=prec_micro, macro=prec_macro), epoch + 1)
-            tensorboard_writer.add_scalars('Recall', dict(micro=rec_micro, macro=rec_macro), epoch + 1)
-            tensorboard_writer.add_scalars('F1/class', {get_target_class(cl): f1 for cl, f1 in f1_per_class}, epoch + 1)
-
-    tensorboard_writer.add_hparams({"param1": 1, "param2": 2},
-                                   {"Accuracy": best_acc1})
+            if tensorboard_writer:
+                tensorboard_writer.add_scalars('Loss', dict(train=train_loss), epoch + 1)
+                tensorboard_writer.add_scalars('Accuracy', dict(val=acc1), epoch + 1)
+                tensorboard_writer.add_scalars('F1', dict(micro=f1_micro, macro=f1_macro), epoch + 1)
+                tensorboard_writer.add_scalars('Precision', dict(micro=prec_micro, macro=prec_macro), epoch + 1)
+                tensorboard_writer.add_scalars('Recall', dict(micro=rec_micro, macro=rec_macro), epoch + 1)
+                tensorboard_writer.add_scalars('F1/class', {get_target_class(cl): f1 for cl, f1 in f1_per_class},
+                                               epoch + 1)
+    except KeyboardInterrupt:
+        print('Training interrupted, saving hparams to TensorBoard...')
+    finally:
+        if args.use_module_definitions:
+            module = safe_import(args.use_module_definitions.replace('.py', ''))
+            hparams = get_module_method(module, 'get_hparams', Dict[str, Union[int, float, bool, str]])
+            if tensorboard_writer and hparams:
+                tensorboard_writer.add_hparams(hparams, {"Accuracy": best_acc1})
 
 
 def train(train_loader, model, criterion, optimizer, epoch, device, args) -> float:
