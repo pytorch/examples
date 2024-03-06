@@ -174,14 +174,11 @@ def get_run_name(model, train_dataset, val_dataset):
     model_info = model.get_info() if callable(getattr(model, "get_info", None)) else model.__class__.__name__
     train_dataset_info = train_dataset.get_info() if callable(
         getattr(train_dataset, "get_info", None)) else train_dataset.__class__.__name__
-    val_dataset_info = val_dataset.get_info() if callable(
-        getattr(val_dataset, "get_info", None)) else val_dataset.__class__.__name__
     train_dataset_size = len(train_dataset)
     val_dataset_size = len(val_dataset)
 
     return (f"{today}_{model_info}"
-            f"_{train_dataset_info}-{train_dataset_size}"
-            f"_{val_dataset_info}-{val_dataset_size}")
+            f"_{train_dataset_info}-train-{train_dataset_size}-val-{val_dataset_size}")
 
 
 def main_worker(gpu, ngpus_per_node, args):
@@ -673,7 +670,6 @@ def accuracy(output, target, topk=(1,)):
         _, pred = output.topk(maxk, 1, True, True)
         pred = pred.t()
         correct = pred.eq(target.view(1, -1).expand_as(pred))
-
         res = []
         for k in topk:
             correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)
