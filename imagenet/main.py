@@ -169,9 +169,17 @@ def get_module_method(module_name, method_name, expected_type_hint):
         raise Exception(f'The provided module {module_name} does not have method {method_name}')
 
 
-def get_run_name(model, train_dataset, val_dataset):
+def get_run_name(model, train_dataset, val_dataset, args):
     today = datetime.datetime.now().strftime('%m%d-%H%M')
-    model_info = model.get_info() if callable(getattr(model, "get_info", None)) else model.__class__.__name__
+
+    model_info = model.__class__.__name__
+    if args.use_module_definitions:
+        module = safe_import(args.use_module_definitions.replace('.py', ''))
+        try:
+            model_info = get_module_method(module, 'get_model_info', str)
+        except:
+            pass
+
     train_dataset_info = train_dataset.get_info() if callable(
         getattr(train_dataset, "get_info", None)) else train_dataset.__class__.__name__
     train_dataset_size = len(train_dataset)
@@ -366,7 +374,7 @@ def main_worker(gpu, ngpus_per_node, args):
         validate(val_loader, model, criterion, args)
         return
 
-    run_name = get_run_name(model, train_dataset, val_dataset)
+    run_name = get_run_name(model, train_dataset, val_dataset, args)
     tensorboard_writer = None
     if args.tb_summary_writer_dir:
         tb_log_dir_path = os.path.join(args.tb_summary_writer_dir, run_name)
