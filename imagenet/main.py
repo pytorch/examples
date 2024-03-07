@@ -173,20 +173,23 @@ def get_run_name(model, train_dataset, val_dataset, args):
     today = datetime.datetime.now().strftime('%m%d-%H%M')
 
     model_info = model.__class__.__name__
+    dataset_info = train_dataset.__class__.__name__
     if args.use_module_definitions:
         module = safe_import(args.use_module_definitions.replace('.py', ''))
         try:
             model_info = get_module_method(module, 'get_model_info', str)
         except:
             pass
+        try:
+            dataset_info = get_module_method(module, 'get_dataset_info', str)
+        except:
+            pass
 
-    train_dataset_info = train_dataset.get_info() if callable(
-        getattr(train_dataset, "get_info", None)) else train_dataset.__class__.__name__
     train_dataset_size = len(train_dataset)
     val_dataset_size = len(val_dataset)
 
     return (f"{today}_{model_info}"
-            f"_{train_dataset_info}-train-{train_dataset_size}-val-{val_dataset_size}")
+            f"_{dataset_info}-train-{train_dataset_size}-val-{val_dataset_size}")
 
 
 def main_worker(gpu, ngpus_per_node, args):
