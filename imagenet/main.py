@@ -1,5 +1,6 @@
 import argparse
 import datetime
+import itertools
 import logging
 import os
 import random
@@ -7,8 +8,9 @@ import shutil
 import time
 import warnings
 from enum import Enum
-from typing import get_type_hints, Tuple, List, Union, Dict
+from typing import get_type_hints, Tuple, List, Union, Dict, NamedTuple
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
@@ -22,7 +24,7 @@ import torch.utils.data.distributed
 import torchvision.datasets as datasets
 import torchvision.models as models
 import torchvision.transforms as transforms
-from sklearn.metrics import f1_score, precision_score, recall_score, balanced_accuracy_score
+from sklearn.metrics import f1_score, precision_score, recall_score, balanced_accuracy_score, confusion_matrix
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import Subset
 from torch.utils.tensorboard import SummaryWriter
@@ -399,12 +401,7 @@ def main_worker(gpu, ngpus_per_node, args):
             train_loss = train(train_loader, model, criterion, optimizer, epoch, device, args)
 
             # evaluate on validation set
-            (acc1,
-             acc_balanced,
-             f1_micro, f1_macro,
-             prec_micro, prec_macro,
-             rec_micro, rec_macro,
-             f1_per_class) = validate(val_loader, model, criterion, args)
+            acc1, metrics = validate(val_loader, model, criterion, args)
 
             scheduler.step()
 
@@ -425,13 +422,21 @@ def main_worker(gpu, ngpus_per_node, args):
                 }, is_best, run_name, args.checkpoints)
 
             if tensorboard_writer:
+                m = metrics
                 tensorboard_writer.add_scalars('Loss', dict(train=train_loss), epoch + 1)
-                tensorboard_writer.add_scalars('Accuracy', dict(acc=acc1 / 100.0, balanced_acc=acc_balanced), epoch + 1)
-                tensorboard_writer.add_scalars('F1', dict(micro=f1_micro, macro=f1_macro), epoch + 1)
-                tensorboard_writer.add_scalars('Precision', dict(micro=prec_micro, macro=prec_macro), epoch + 1)
-                tensorboard_writer.add_scalars('Recall', dict(micro=rec_micro, macro=rec_macro), epoch + 1)
-                tensorboard_writer.add_scalars('F1/class', {get_target_class(cl): f1 for cl, f1 in f1_per_class},
+                tensorboard_writer.add_scalars('Accuracy', dict(acc=acc1 / 100.0, balanced_acc=m.acc_balanced),
                                                epoch + 1)
+                tensorboard_writer.add_scalars('F1', dict(micro=m.f1_micro, macro=m.f1_macro), epoch + 1)
+                tensorboard_writer.add_scalars('Precision', dict(micro=m.prec_micro, macro=m.prec_macro), epoch + 1)
+                tensorboard_writer.add_scalars('Recall', dict(micro=m.rec_micro, macro=m.rec_macro), epoch + 1)
+                tensorboard_writer.add_scalars('F1/class', {get_target_class(cl): f1 for cl, f1 in m.f1_per_class},
+                                               epoch + 1)
+
+                if epoch % 10 == 0 or epoch == args.epochs - 1:
+                    fig, plot = plot_confusion_matrix(m.conf_matrix, class_names=[get_target_class(cl) for cl in
+                                                                                  list({l for l in m.class_labels})])
+                    tensorboard_writer.add_figure('Confusion matrix', fig, epoch + 1)
+
     except KeyboardInterrupt:
         print('Training interrupted, saving hparams to TensorBoard...')
     finally:
@@ -491,19 +496,8 @@ def train(train_loader, model, criterion, optimizer, epoch, device, args) -> flo
     return loss.item()
 
 
-def validate(val_loader, model, criterion, args) -> Tuple[
-    float, float, float, float, float, float, float, float, List[Tuple[int, float]]]:
-    """
-    :return: acc1,
-        f1_micro, f1_macro,
-        prec_micro, prec_macro,
-        rec_micro, rec_macro,
-        f1_per_class: [(target-index, f1), ]
-    """
-
-    def run_validate(loader, base_progress=0) -> Tuple[
-        float, float, float, float, float, float, float, List[Tuple[int, float]]
-    ]:
+def validate(val_loader, model, criterion, args) -> Tuple[float, "ValidationMetrics"]:
+    def run_validate(loader, base_progress=0) -> ValidationMetrics:
         labels_true = np.array([])
         labels_pred = np.array([])
 
@@ -571,9 +565,8 @@ def validate(val_loader, model, criterion, args) -> Tuple[
         metrics = run_validate(aux_val_loader, len(val_loader))
 
     progress.display_summary()
-    acc_balanced, f1_micro, f1_macro, prec_micro, prec_macro, rec_micro, rec_macro, f1_per_class = metrics
 
-    return acc_top1.avg, acc_balanced, f1_micro, f1_macro, prec_micro, prec_macro, rec_micro, rec_macro, f1_per_class
+    return acc_top1.avg, metrics
 
 
 def save_checkpoint(state, is_best, run_info: str = "", dir="./"):
@@ -672,6 +665,23 @@ class ProgressMeter(object):
         return '[' + fmt + '/' + fmt.format(num_batches) + ']'
 
 
+# =================
+# Metrics
+# =================
+
+class ValidationMetrics(NamedTuple):
+    class_labels: List[int]
+    acc_balanced: float
+    f1_micro: float
+    f1_macro: float
+    prec_micro: float
+    prec_macro: float
+    rec_micro: float
+    rec_macro: float
+    f1_per_class: List[Tuple[int, float]]
+    conf_matrix: np.array
+
+
 def accuracy(output, target, topk=(1,)):
     """Computes the accuracy over the k top predictions for the specified values of k"""
     with torch.no_grad():
@@ -688,9 +698,7 @@ def accuracy(output, target, topk=(1,)):
         return res
 
 
-def metrics_labels_true_pred(labels_true: np.array, labels_pred: np.array) -> Tuple[
-    float, float, float, float, float, float, float, List[Tuple[Union[int, str], float]]
-]:
+def metrics_labels_true_pred(labels_true: np.array, labels_pred: np.array) -> ValidationMetrics:
     unique_labels = list({l for l in labels_true})
     f1_per_class = f1_score(labels_true, labels_pred, average=None, labels=unique_labels)
     f1_micro = f1_score(labels_true, labels_pred, average="micro")
@@ -702,11 +710,40 @@ def metrics_labels_true_pred(labels_true: np.array, labels_pred: np.array) -> Tu
     rec_micro = recall_score(labels_true, labels_pred, average="micro")
     rec_macro = recall_score(labels_true, labels_pred, average="macro")
 
-    return (acc_balanced,
-            f1_micro, f1_macro,
-            prec_micro, prec_macro,
-            rec_micro, rec_macro,
-            [(cl, f1) for cl, f1 in zip(unique_labels, f1_per_class)])
+    conf_matrix = confusion_matrix(labels_true, labels_pred)
+
+    return ValidationMetrics(
+        unique_labels,
+        acc_balanced,
+        f1_micro, f1_macro,
+        prec_micro, prec_macro,
+        rec_micro, rec_macro,
+        [(cl, f1) for cl, f1 in zip(unique_labels, f1_per_class)],
+        conf_matrix)
+
+
+def plot_confusion_matrix(cm, class_names, display_cell_values=False):
+    plt.switch_backend('agg')
+    fig = plt.figure(figsize=(10, 10))
+    plt.imshow(cm, interpolation='nearest', cmap="Blues")
+    plt.title("Confusion matrix")
+    plt.colorbar()
+    tick_marks = np.arange(len(class_names))
+    plt.xticks(tick_marks, class_names, rotation=90)
+    plt.yticks(tick_marks, class_names)
+
+    if display_cell_values:
+        cm_norm = np.around(cm.astype('float') / cm.sum(axis=1)[:, np.newaxis], decimals=2)
+        threshold = cm.max() / 2.
+        for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+            color = "white" if cm[i, j] > threshold else "black"
+            plt.text(j, i, f"{round(cm_norm[i, j], 2)}\n({cm[i, j]})", horizontalalignment="center",
+                     verticalalignment="center", color=color)
+
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+    return fig, plt
 
 
 if __name__ == '__main__':
