@@ -16,6 +16,7 @@ import torch.backends.cudnn as cudnn
 import torch.distributed as dist
 import torch.multiprocessing as mp
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.nn.parallel
 import torch.optim
 import torch.utils.data
@@ -27,6 +28,7 @@ from sklearn.metrics import f1_score, precision_score, recall_score, balanced_ac
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import Subset
 from torch.utils.tensorboard import SummaryWriter
+from torchmetrics.classification import MulticlassPrecisionRecallCurve
 
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
@@ -438,6 +440,16 @@ def main_worker(gpu, ngpus_per_node, args):
                     tensorboard_writer.add_figure('Confusion matrix', fig_abs, epoch + 1)
                     tensorboard_writer.add_figure('Confusion matrix normalized', fig_rel, epoch + 1)
 
+                    for cl in m.class_labels:
+                        class_index = int(cl)
+                        labels_true = m.labels_true == class_index
+                        pred_probs = m.labels_probs[:, class_index]
+                        tensorboard_writer.add_pr_curve(f'PR curve: {get_target_class(class_index)}',
+                                                        labels_true, pred_probs, epoch + 1)
+
+                    tensorboard_writer.add_figure('PR curve micro avg.', m.fig_pr_curve_micro, epoch + 1)
+
+
     except KeyboardInterrupt:
         print('Training interrupted, saving hparams to TensorBoard...')
     finally:
@@ -499,8 +511,9 @@ def train(train_loader, model, criterion, optimizer, epoch, device, args) -> flo
 
 def validate(val_loader, model, criterion, args) -> Tuple[float, "ValidationMetrics"]:
     def run_validate(loader, base_progress=0) -> ValidationMetrics:
-        labels_true = np.array([])
-        labels_pred = np.array([])
+        labels_true = np.array([], dtype=np.int64)
+        labels_pred = np.array([], dtype=np.int64)
+        labels_probs = []
 
         with torch.no_grad():
             end = time.time()
@@ -530,6 +543,9 @@ def validate(val_loader, model, criterion, args) -> Tuple[float, "ValidationMetr
                     labels_true = np.append(labels_true, target.cpu().numpy())
                     labels_pred = np.append(labels_pred, predicted_indices.cpu().numpy())
 
+                    class_probs_batch = [F.softmax(el, dim=0) for el in output]
+                    labels_probs.append(class_probs_batch)
+
                 # measure elapsed time
                 batch_time.update(time.time() - end)
                 end = time.time()
@@ -537,7 +553,9 @@ def validate(val_loader, model, criterion, args) -> Tuple[float, "ValidationMetr
                 if i % args.print_freq == 0:
                     progress.display(i + 1)
 
-        return metrics_labels_true_pred(labels_true, labels_pred)
+        labels_probs = torch.cat([torch.stack(batch) for batch in labels_probs])
+
+        return metrics_labels_true_pred(labels_true, labels_pred, labels_probs)
 
     batch_time = AverageMeter('Time', ':6.3f', Summary.NONE)
     losses = AverageMeter('Loss', ':.4e', Summary.NONE)
@@ -681,6 +699,10 @@ class ValidationMetrics(NamedTuple):
     rec_macro: float
     f1_per_class: List[Tuple[int, float]]
     conf_matrix: np.array
+    labels_true: np.array
+    labels_pred: np.array
+    labels_probs: np.array
+    fig_pr_curve_micro: plt.Figure
 
 
 def accuracy(output, target, topk=(1,)):
@@ -699,7 +721,7 @@ def accuracy(output, target, topk=(1,)):
         return res
 
 
-def metrics_labels_true_pred(labels_true: np.array, labels_pred: np.array) -> ValidationMetrics:
+def metrics_labels_true_pred(labels_true: np.array, labels_pred: np.array, labels_probs: np.array) -> ValidationMetrics:
     unique_labels = list({l for l in labels_true})
     f1_per_class = f1_score(labels_true, labels_pred, average=None, labels=unique_labels)
     f1_micro = f1_score(labels_true, labels_pred, average="micro")
@@ -713,6 +735,8 @@ def metrics_labels_true_pred(labels_true: np.array, labels_pred: np.array) -> Va
 
     conf_matrix = confusion_matrix(labels_true, labels_pred)
 
+    fig_pr_curve_micro, _ = plot_pr_curve_micro(len(unique_labels), labels_probs, labels_true)
+
     return ValidationMetrics(
         unique_labels,
         acc_balanced,
@@ -720,7 +744,12 @@ def metrics_labels_true_pred(labels_true: np.array, labels_pred: np.array) -> Va
         prec_micro, prec_macro,
         rec_micro, rec_macro,
         [(cl, f1) for cl, f1 in zip(unique_labels, f1_per_class)],
-        conf_matrix)
+        conf_matrix,
+        labels_true,
+        labels_pred,
+        labels_probs,
+        fig_pr_curve_micro
+    )
 
 
 def plot_confusion_matrix(cm, class_names, normalize=False):
@@ -743,6 +772,16 @@ def plot_confusion_matrix(cm, class_names, normalize=False):
     plt.tight_layout()
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
+    return fig, plt
+
+
+def plot_pr_curve_micro(num_classes, labels_probs, labels_true):
+    fig = plt.figure(figsize=(8, 8))
+    metric = MulticlassPrecisionRecallCurve(num_classes=num_classes, average="micro")
+    metric.update(torch.tensor(labels_probs), torch.tensor(labels_true))
+    metric.plot(ax=plt.gca())
+    plt.title("PR curve micro avg.")
+    plt.tight_layout()
     return fig, plt
 
 
