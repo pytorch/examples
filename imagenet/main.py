@@ -1,6 +1,5 @@
 import argparse
 import datetime
-import itertools
 import logging
 import os
 import random
@@ -433,9 +432,11 @@ def main_worker(gpu, ngpus_per_node, args):
                                                epoch + 1)
 
                 if epoch % 10 == 0 or epoch == args.epochs - 1:
-                    fig, plot = plot_confusion_matrix(m.conf_matrix, class_names=[get_target_class(cl) for cl in
-                                                                                  list({l for l in m.class_labels})])
-                    tensorboard_writer.add_figure('Confusion matrix', fig, epoch + 1)
+                    class_names = [get_target_class(cl) for cl in list({l for l in m.class_labels})]
+                    fig_abs, _ = plot_confusion_matrix(m.conf_matrix, class_names=class_names, normalize=False)
+                    fig_rel, _ = plot_confusion_matrix(m.conf_matrix, class_names=class_names, normalize=True)
+                    tensorboard_writer.add_figure('Confusion matrix', fig_abs, epoch + 1)
+                    tensorboard_writer.add_figure('Confusion matrix normalized', fig_rel, epoch + 1)
 
     except KeyboardInterrupt:
         print('Training interrupted, saving hparams to TensorBoard...')
@@ -722,23 +723,22 @@ def metrics_labels_true_pred(labels_true: np.array, labels_pred: np.array) -> Va
         conf_matrix)
 
 
-def plot_confusion_matrix(cm, class_names, display_cell_values=False):
+def plot_confusion_matrix(cm, class_names, normalize=False):
     plt.switch_backend('agg')
     fig = plt.figure(figsize=(10, 10))
-    plt.imshow(cm, interpolation='nearest', cmap="Blues")
-    plt.title("Confusion matrix")
+
+    if normalize:
+        cm = np.around(cm.astype('float') / cm.sum(axis=1)[:, np.newaxis], decimals=2)
+        colormap = "Greens"
+    else:
+        colormap = "Blues"
+
+    plt.imshow(cm, interpolation='nearest', cmap=colormap)
+    plt.title('Confusion matrix')
     plt.colorbar()
     tick_marks = np.arange(len(class_names))
     plt.xticks(tick_marks, class_names, rotation=90)
     plt.yticks(tick_marks, class_names)
-
-    if display_cell_values:
-        cm_norm = np.around(cm.astype('float') / cm.sum(axis=1)[:, np.newaxis], decimals=2)
-        threshold = cm.max() / 2.
-        for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
-            color = "white" if cm[i, j] > threshold else "black"
-            plt.text(j, i, f"{round(cm_norm[i, j], 2)}\n({cm[i, j]})", horizontalalignment="center",
-                     verticalalignment="center", color=color)
 
     plt.tight_layout()
     plt.ylabel('True label')
