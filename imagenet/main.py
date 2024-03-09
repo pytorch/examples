@@ -388,10 +388,16 @@ def main_worker(gpu, ngpus_per_node, args):
         print(f'TensorBoard summary writer is created at {tb_log_dir_path}')
 
         try:
-            image, label = next(iter(train_loader))
-            tensorboard_writer.add_graph(model, image)
+            model.eval()
+            with torch.no_grad():
+                images, _ = next(iter(train_loader))
+                if args.gpu is not None and torch.cuda.is_available():
+                    images = images.cuda(args.gpu, non_blocking=True)
+                if torch.backends.mps.is_available():
+                    images = images.to('mps')
+                tensorboard_writer.add_graph(model, images)
         except Exception as e:
-            print(f"Failed to add graph to tensorboard: {e}")
+            print(f"Failed to add graph to tensorboard.")
 
     try:
         for epoch in range(args.start_epoch, args.epochs):
@@ -425,12 +431,12 @@ def main_worker(gpu, ngpus_per_node, args):
             if tensorboard_writer:
                 m = metrics
                 tensorboard_writer.add_scalars('Loss', dict(train=train_loss), epoch + 1)
-                tensorboard_writer.add_scalars('Accuracy', dict(acc=acc1 / 100.0, balanced_acc=m.acc_balanced),
+                tensorboard_writer.add_scalars('Metrics/Accuracy', dict(acc=acc1 / 100.0, balanced_acc=m.acc_balanced),
                                                epoch + 1)
-                tensorboard_writer.add_scalars('F1', dict(micro=m.f1_micro, macro=m.f1_macro), epoch + 1)
-                tensorboard_writer.add_scalars('Precision', dict(micro=m.prec_micro, macro=m.prec_macro), epoch + 1)
-                tensorboard_writer.add_scalars('Recall', dict(micro=m.rec_micro, macro=m.rec_macro), epoch + 1)
-                tensorboard_writer.add_scalars('F1/class', {get_target_class(cl): f1 for cl, f1 in m.f1_per_class},
+                tensorboard_writer.add_scalars('Metrics/F1', dict(micro=m.f1_micro, macro=m.f1_macro), epoch + 1)
+                tensorboard_writer.add_scalars('Metrics/Precision', dict(micro=m.prec_micro, macro=m.prec_macro), epoch + 1)
+                tensorboard_writer.add_scalars('Metrics/Recall', dict(micro=m.rec_micro, macro=m.rec_macro), epoch + 1)
+                tensorboard_writer.add_scalars('Metrics/F1/class', {get_target_class(cl): f1 for cl, f1 in m.f1_per_class},
                                                epoch + 1)
 
                 if epoch % 10 == 0 or epoch == args.epochs - 1:
@@ -438,16 +444,16 @@ def main_worker(gpu, ngpus_per_node, args):
                     fig_abs, _ = plot_confusion_matrix(m.conf_matrix, class_names=class_names, normalize=False)
                     fig_rel, _ = plot_confusion_matrix(m.conf_matrix, class_names=class_names, normalize=True)
                     tensorboard_writer.add_figure('Confusion matrix', fig_abs, epoch + 1)
-                    tensorboard_writer.add_figure('Confusion matrix normalized', fig_rel, epoch + 1)
+                    tensorboard_writer.add_figure('Confusion matrix/normalized', fig_rel, epoch + 1)
 
                     for cl in m.class_labels:
                         class_index = int(cl)
                         labels_true = m.labels_true == class_index
                         pred_probs = m.labels_probs[:, class_index]
-                        tensorboard_writer.add_pr_curve(f'PR curve: {get_target_class(class_index)}',
+                        tensorboard_writer.add_pr_curve(f'PR curve/{get_target_class(class_index)}',
                                                         labels_true, pred_probs, epoch + 1)
 
-                    tensorboard_writer.add_figure('PR curve micro avg.', m.fig_pr_curve_micro, epoch + 1)
+                    tensorboard_writer.add_figure('PR curve', m.fig_pr_curve_micro, epoch + 1)
 
 
     except KeyboardInterrupt:
@@ -553,7 +559,7 @@ def validate(val_loader, model, criterion, args) -> Tuple[float, "ValidationMetr
                 if i % args.print_freq == 0:
                     progress.display(i + 1)
 
-        labels_probs = torch.cat([torch.stack(batch) for batch in labels_probs])
+        labels_probs = torch.cat([torch.stack(batch) for batch in labels_probs]).cpu()
 
         return metrics_labels_true_pred(labels_true, labels_pred, labels_probs)
 
@@ -721,7 +727,7 @@ def accuracy(output, target, topk=(1,)):
         return res
 
 
-def metrics_labels_true_pred(labels_true: np.array, labels_pred: np.array, labels_probs: np.array) -> ValidationMetrics:
+def metrics_labels_true_pred(labels_true: np.array, labels_pred: np.array, labels_probs: torch.Tensor) -> ValidationMetrics:
     unique_labels = list({l for l in labels_true})
     f1_per_class = f1_score(labels_true, labels_pred, average=None, labels=unique_labels)
     f1_micro = f1_score(labels_true, labels_pred, average="micro")
@@ -735,7 +741,7 @@ def metrics_labels_true_pred(labels_true: np.array, labels_pred: np.array, label
 
     conf_matrix = confusion_matrix(labels_true, labels_pred)
 
-    fig_pr_curve_micro, _ = plot_pr_curve_micro(len(unique_labels), labels_probs, labels_true)
+    fig_pr_curve_micro, _ = plot_pr_curve_micro(len(unique_labels), labels_probs, torch.tensor(labels_true))
 
     return ValidationMetrics(
         unique_labels,
@@ -775,10 +781,10 @@ def plot_confusion_matrix(cm, class_names, normalize=False):
     return fig, plt
 
 
-def plot_pr_curve_micro(num_classes, labels_probs, labels_true):
+def plot_pr_curve_micro(num_classes: int, labels_probs: torch.Tensor, labels_true: torch.Tensor):
     fig = plt.figure(figsize=(8, 8))
     metric = MulticlassPrecisionRecallCurve(num_classes=num_classes, average="micro")
-    metric.update(torch.tensor(labels_probs), torch.tensor(labels_true))
+    metric.update(labels_probs, labels_true)
     metric.plot(ax=plt.gca())
     plt.title("PR curve micro avg.")
     plt.tight_layout()
