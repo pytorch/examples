@@ -409,6 +409,7 @@ def main_worker(gpu, ngpus_per_node, args):
 
             # evaluate on validation set
             acc1, metrics = validate(val_loader, model, criterion, args)
+            m = metrics
 
             scheduler.step()
 
@@ -429,17 +430,18 @@ def main_worker(gpu, ngpus_per_node, args):
                 }, is_best, run_name, args.checkpoints)
 
             if tensorboard_writer:
-                m = metrics
                 tensorboard_writer.add_scalars('Loss', dict(train=train_loss), epoch + 1)
                 tensorboard_writer.add_scalars('Metrics/Accuracy', dict(acc=acc1 / 100.0, balanced_acc=m.acc_balanced),
                                                epoch + 1)
                 tensorboard_writer.add_scalars('Metrics/F1', dict(micro=m.f1_micro, macro=m.f1_macro), epoch + 1)
-                tensorboard_writer.add_scalars('Metrics/Precision', dict(micro=m.prec_micro, macro=m.prec_macro), epoch + 1)
+                tensorboard_writer.add_scalars('Metrics/Precision', dict(micro=m.prec_micro, macro=m.prec_macro),
+                                               epoch + 1)
                 tensorboard_writer.add_scalars('Metrics/Recall', dict(micro=m.rec_micro, macro=m.rec_macro), epoch + 1)
-                tensorboard_writer.add_scalars('Metrics/F1/class', {get_target_class(cl): f1 for cl, f1 in m.f1_per_class},
+                tensorboard_writer.add_scalars('Metrics/F1/class',
+                                               {get_target_class(cl): f1 for cl, f1 in m.f1_per_class},
                                                epoch + 1)
 
-                if epoch % 10 == 0 or epoch == args.epochs - 1:
+                if epoch < 10 or epoch % 5 == 0 or epoch == args.epochs - 1:
                     class_names = [get_target_class(cl) for cl in list({l for l in m.class_labels})]
                     fig_abs, _ = plot_confusion_matrix(m.conf_matrix, class_names=class_names, normalize=False)
                     fig_rel, _ = plot_confusion_matrix(m.conf_matrix, class_names=class_names, normalize=True)
@@ -463,7 +465,15 @@ def main_worker(gpu, ngpus_per_node, args):
             module = safe_import(args.use_module_definitions.replace('.py', ''))
             hparams = get_module_method(module, 'get_hparams', Dict[str, Union[int, float, bool, str]])
             if tensorboard_writer and hparams:
-                tensorboard_writer.add_hparams(hparams, {"Accuracy": best_acc1})
+                tensorboard_writer.add_hparams(hparams, {
+                    'hparams/Accuracy': best_acc1 / 100.0,
+                    'hparams/F1-micro': m.f1_micro,
+                    'hparams/F1-macro': m.f1_macro,
+                    'hparams/P-micro': m.prec_micro,
+                    'hparams/P-macro': m.prec_macro,
+                    'hparams/R-micro': m.rec_micro,
+                    'hparams/R-macro': m.rec_macro,
+                })
 
 
 def train(train_loader, model, criterion, optimizer, epoch, device, args) -> float:
@@ -727,7 +737,8 @@ def accuracy(output, target, topk=(1,)):
         return res
 
 
-def metrics_labels_true_pred(labels_true: np.array, labels_pred: np.array, labels_probs: torch.Tensor) -> ValidationMetrics:
+def metrics_labels_true_pred(labels_true: np.array, labels_pred: np.array,
+                             labels_probs: torch.Tensor) -> ValidationMetrics:
     unique_labels = list({l for l in labels_true})
     f1_per_class = f1_score(labels_true, labels_pred, average=None, labels=unique_labels)
     f1_micro = f1_score(labels_true, labels_pred, average="micro")
