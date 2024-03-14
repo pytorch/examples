@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from datautils import MyTrainDataset
+from icecream import ic
 
 # --- Additional modules required for Distributed Training
 import torch.multiprocessing as mp
@@ -86,6 +87,8 @@ def prepare_dataloader(dataset: Dataset, batch_size: int):
 
 
 def main(rank: int, world_size: int, save_every: int, total_epochs: int, batch_size: int):
+    ic(rank, world_size)
+
     ddp_setup(rank, world_size)
     dataset, model, optimizer = load_train_objs()
     train_data = prepare_dataloader(dataset, batch_size)
