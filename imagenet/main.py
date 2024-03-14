@@ -34,6 +34,112 @@ model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
                      and callable(models.__dict__[name]))
 
+
+# ================
+# Model evaluation
+# ================
+
+class ValidationMetrics(NamedTuple):
+    class_labels: List[int]
+    acc_balanced: float
+    f1_micro: float
+    f1_macro: float
+    prec_micro: float
+    prec_macro: float
+    rec_micro: float
+    rec_macro: float
+    f1_per_class: List[Tuple[int, float]]
+    conf_matrix: np.array
+    labels_true: np.array
+    labels_pred: np.array
+    labels_probs: np.array
+    fig_pr_curve_micro: plt.Figure
+
+
+class EarlyStopping:
+    """
+    Based on:
+    - https://pytorch.org/ignite/_modules/ignite/handlers/early_stopping.html#EarlyStopping
+    - https://github.com/Bjarten/early-stopping-pytorch
+    """
+
+    def __init__(self, patience=3, min_delta=1, min_epochs=50):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.counter = 0
+        self.min_validation_loss = float('inf')
+        self.epoch_min_validation_loss = 0
+        self.should_stop = False
+        self.min_epochs = min_epochs
+
+    def __call__(self, validation_loss, epoch):
+        if validation_loss < self.min_validation_loss:
+            self.min_validation_loss = validation_loss
+            self.epoch_min_validation_loss = epoch
+            self.counter = 0
+        elif validation_loss > (self.min_validation_loss + self.min_delta):
+            self.counter += 1
+            if self.counter >= self.patience and epoch >= self.min_epochs:
+                self.should_stop = True
+
+
+# ================
+# Custom model & data
+# ================
+def safe_import(module_name):
+    import importlib
+    import sys
+
+    if module_name in sys.modules:
+        return sys.modules[module_name]
+
+    try:
+        module = importlib.import_module(module_name)
+        return module
+    except ImportError as e:
+        print(f'Error importing module {module_name}. Make sure the module exists and can be imported.')
+        raise e
+
+
+def get_module_method(module_name, method_name, expected_type_hint):
+    if hasattr(module_name, method_name) and callable(getattr(module_name, method_name)):
+        method = getattr(module_name, method_name)
+        if not get_type_hints(method)['return'] == expected_type_hint:
+            raise Exception(
+                f'The provided method {module_name}.{method_name} does not respect the '
+                f'expected type hint {expected_type_hint}')
+        return method()
+    else:
+        raise Exception(f'The provided module {module_name} does not have method {method_name}')
+
+
+def get_run_name(model, train_dataset, val_dataset, args):
+    today = datetime.datetime.now().strftime('%m%d-%H%M')
+
+    model_info = model.__class__.__name__
+    dataset_info = train_dataset.__class__.__name__
+    if args.use_module_definitions:
+        module = safe_import(args.use_module_definitions.replace('.py', ''))
+        try:
+            model_info = get_module_method(module, 'get_model_info', str)
+        except:
+            pass
+        try:
+            dataset_info = get_module_method(module, 'get_dataset_info', str)
+        except:
+            pass
+
+    train_dataset_size = len(train_dataset)
+    val_dataset_size = len(val_dataset)
+
+    return (f"{today}_{model_info}"
+            f"_{dataset_info}-train-{train_dataset_size}-val-{val_dataset_size}")
+
+
+# ================
+# Arguments
+# ================
+
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR', nargs='?', default='imagenet',
                     help='path to dataset (default: imagenet)')
@@ -99,7 +205,9 @@ parser.add_argument('--multiprocessing-distributed', action='store_true',
                          'multi node data parallel training')
 parser.add_argument('--dummy', action='store_true', help="use fake data to benchmark")
 
+log = print
 best_acc1 = 0
+best_metrics = ValidationMetrics([], 0, 0, 0, 0, 0, 0, 0, [], [], [], [], [], None)
 
 
 def main():
@@ -145,70 +253,20 @@ def main():
         main_worker(args.gpu, ngpus_per_node, args)
 
 
-def safe_import(module_name):
-    import importlib
-    import sys
-
-    if module_name in sys.modules:
-        return sys.modules[module_name]
-
-    try:
-        module = importlib.import_module(module_name)
-        return module
-    except ImportError as e:
-        print(f'Error importing module {module_name}. Make sure the module exists and can be imported.')
-        raise e
-
-
-def get_module_method(module_name, method_name, expected_type_hint):
-    if hasattr(module_name, method_name) and callable(getattr(module_name, method_name)):
-        method = getattr(module_name, method_name)
-        if not get_type_hints(method)['return'] == expected_type_hint:
-            raise Exception(
-                f'The provided method {module_name}.{method_name} does not respect the '
-                f'expected type hint {expected_type_hint}')
-        return method()
-    else:
-        raise Exception(f'The provided module {module_name} does not have method {method_name}')
-
-
-def get_run_name(model, train_dataset, val_dataset, args):
-    today = datetime.datetime.now().strftime('%m%d-%H%M')
-
-    model_info = model.__class__.__name__
-    dataset_info = train_dataset.__class__.__name__
-    if args.use_module_definitions:
-        module = safe_import(args.use_module_definitions.replace('.py', ''))
-        try:
-            model_info = get_module_method(module, 'get_model_info', str)
-        except:
-            pass
-        try:
-            dataset_info = get_module_method(module, 'get_dataset_info', str)
-        except:
-            pass
-
-    train_dataset_size = len(train_dataset)
-    val_dataset_size = len(val_dataset)
-
-    return (f"{today}_{model_info}"
-            f"_{dataset_info}-train-{train_dataset_size}-val-{val_dataset_size}")
-
-
 def main_worker(gpu, ngpus_per_node, args):
-    global best_acc1
+    global best_acc1, best_metrics, log
     args.gpu = gpu
 
     if args.use_module_definitions:
         module = safe_import(args.use_module_definitions.replace('.py', ''))
         try:
             logger = get_module_method(module, 'get_logger', logging.Logger)
-            print = logger.info
+            log = logger.info
         except:
             pass
 
     if args.gpu is not None:
-        print("Use GPU: {} for training".format(args.gpu))
+        log("Use GPU: {} for training".format(args.gpu))
 
     if args.distributed:
         if args.dist_url == "env://" and args.rank == -1:
@@ -221,18 +279,18 @@ def main_worker(gpu, ngpus_per_node, args):
                                 world_size=args.world_size, rank=args.rank)
     # create model
     if args.pretrained:
-        print("=> using pre-trained model '{}'".format(args.arch))
+        log("=> using pre-trained model '{}'".format(args.arch))
         model = models.__dict__[args.arch](pretrained=True)
     else:
         if not args.use_module_definitions:
-            print("=> creating model '{}'".format(args.arch))
+            log("=> creating model '{}'".format(args.arch))
             model = models.__dict__[args.arch]()
         else:
             module = safe_import(args.use_module_definitions.replace('.py', ''))
             model = get_module_method(module, 'get_model', nn.Module)
 
     if not torch.cuda.is_available() and not torch.backends.mps.is_available():
-        print('using CPU, this will be slow')
+        log('using CPU, this will be slow')
     elif args.distributed:
         # For multiprocessing distributed, DistributedDataParallel constructor
         # should always set the single device scope, otherwise,
@@ -288,7 +346,7 @@ def main_worker(gpu, ngpus_per_node, args):
     # optionally resume from a checkpoint
     if args.resume:
         if os.path.isfile(args.resume):
-            print("=> loading checkpoint '{}'".format(args.resume))
+            log("=> loading checkpoint '{}'".format(args.resume))
             if args.gpu is None:
                 checkpoint = torch.load(args.resume)
             elif torch.cuda.is_available():
@@ -303,14 +361,14 @@ def main_worker(gpu, ngpus_per_node, args):
             model.load_state_dict(checkpoint['state_dict'])
             optimizer.load_state_dict(checkpoint['optimizer'])
             scheduler.load_state_dict(checkpoint['scheduler'])
-            print("=> loaded checkpoint '{}' (epoch {})"
-                  .format(args.resume, checkpoint['epoch']))
+            log("=> loaded checkpoint '{}' (epoch {})"
+                .format(args.resume, checkpoint['epoch']))
         else:
-            print("=> no checkpoint found at '{}'".format(args.resume))
+            log("=> no checkpoint found at '{}'".format(args.resume))
 
     # Data loading code
     if args.dummy:
-        print("=> Dummy data is used!")
+        log("=> Dummy data is used!")
         train_dataset = datasets.FakeData(1281167, (3, 224, 224), 1000, transforms.ToTensor())
         val_dataset = datasets.FakeData(50000, (3, 224, 224), 1000, transforms.ToTensor())
     else:
@@ -367,9 +425,9 @@ def main_worker(gpu, ngpus_per_node, args):
         try:
             module = safe_import(args.use_module_definitions.replace('.py', ''))
             target_class_translations = get_module_method(module, 'target_class_translations', Dict[int, str])
-            print(f'Loaded target_class_translations from {args.use_module_definitions}')
+            log(f'Loaded target_class_translations from {args.use_module_definitions}')
         except Exception as e:
-            print(f'Error getting target_class_translations from {args.use_module_definitions}: {e}')
+            log(f'Error getting target_class_translations from {args.use_module_definitions}: {e}')
 
     def get_target_class(cl: int) -> str:
         if target_class_translations:
@@ -385,7 +443,7 @@ def main_worker(gpu, ngpus_per_node, args):
     if args.tb_summary_writer_dir:
         tb_log_dir_path = os.path.join(args.tb_summary_writer_dir, run_name)
         tensorboard_writer = SummaryWriter(tb_log_dir_path)
-        print(f'TensorBoard summary writer is created at {tb_log_dir_path}')
+        log(f'TensorBoard summary writer is created at {tb_log_dir_path}')
 
         try:
             model.eval()
@@ -397,8 +455,9 @@ def main_worker(gpu, ngpus_per_node, args):
                     images = images.to('mps')
                 tensorboard_writer.add_graph(model, images)
         except Exception as e:
-            print(f"Failed to add graph to tensorboard.")
+            log(f"Failed to add graph to tensorboard.")
 
+    early_stopping = EarlyStopping(patience=5, min_delta=5, min_epochs=50)
     try:
         for epoch in range(args.start_epoch, args.epochs):
             if args.distributed:
@@ -408,14 +467,14 @@ def main_worker(gpu, ngpus_per_node, args):
             train_loss = train(train_loader, model, criterion, optimizer, epoch, device, args)
 
             # evaluate on validation set
-            acc1, metrics = validate(val_loader, model, criterion, args)
-            m = metrics
-
+            acc1, val_loss, metrics = validate(val_loader, model, criterion, args)
             scheduler.step()
+            early_stopping(val_loss, epoch)
 
             # remember best acc@1 and save checkpoint
             is_best = acc1 > best_acc1
             best_acc1 = max(acc1, best_acc1)
+            best_metrics = metrics if metrics.f1_micro > best_metrics.f1_micro else best_metrics
 
             if not args.multiprocessing_distributed or \
                     (args.multiprocessing_distributed and args.rank % ngpus_per_node == 0) or \
@@ -430,36 +489,41 @@ def main_worker(gpu, ngpus_per_node, args):
                 }, is_best, run_name, args.checkpoints)
 
             if tensorboard_writer:
-                tensorboard_writer.add_scalars('Loss', dict(train=train_loss), epoch + 1)
-                tensorboard_writer.add_scalars('Metrics/Accuracy', dict(acc=acc1 / 100.0, balanced_acc=m.acc_balanced),
+                tensorboard_writer.add_scalars('Loss', dict(train=train_loss, val=val_loss), epoch + 1)
+                tensorboard_writer.add_scalars('Metrics/Accuracy',
+                                               dict(acc=acc1 / 100.0, balanced_acc=metrics.acc_balanced), epoch + 1)
+                tensorboard_writer.add_scalars('Metrics/F1', dict(micro=metrics.f1_micro, macro=metrics.f1_macro),
                                                epoch + 1)
-                tensorboard_writer.add_scalars('Metrics/F1', dict(micro=m.f1_micro, macro=m.f1_macro), epoch + 1)
-                tensorboard_writer.add_scalars('Metrics/Precision', dict(micro=m.prec_micro, macro=m.prec_macro),
+                tensorboard_writer.add_scalars('Metrics/Precision',
+                                               dict(micro=metrics.prec_micro, macro=metrics.prec_macro), epoch + 1)
+                tensorboard_writer.add_scalars('Metrics/Recall', dict(micro=metrics.rec_micro, macro=metrics.rec_macro),
                                                epoch + 1)
-                tensorboard_writer.add_scalars('Metrics/Recall', dict(micro=m.rec_micro, macro=m.rec_macro), epoch + 1)
                 tensorboard_writer.add_scalars('Metrics/F1/class',
-                                               {get_target_class(cl): f1 for cl, f1 in m.f1_per_class},
-                                               epoch + 1)
+                                               {get_target_class(cl): f1 for cl, f1 in metrics.f1_per_class}, epoch + 1)
 
                 if epoch < 10 or epoch % 5 == 0 or epoch == args.epochs - 1:
-                    class_names = [get_target_class(cl) for cl in list({l for l in m.class_labels})]
-                    fig_abs, _ = plot_confusion_matrix(m.conf_matrix, class_names=class_names, normalize=False)
-                    fig_rel, _ = plot_confusion_matrix(m.conf_matrix, class_names=class_names, normalize=True)
+                    class_names = [get_target_class(cl) for cl in list({l for l in metrics.class_labels})]
+                    fig_abs, _ = plot_confusion_matrix(metrics.conf_matrix, class_names=class_names, normalize=False)
+                    fig_rel, _ = plot_confusion_matrix(metrics.conf_matrix, class_names=class_names, normalize=True)
                     tensorboard_writer.add_figure('Confusion matrix', fig_abs, epoch + 1)
                     tensorboard_writer.add_figure('Confusion matrix/normalized', fig_rel, epoch + 1)
 
-                    for cl in m.class_labels:
+                    for cl in metrics.class_labels:
                         class_index = int(cl)
-                        labels_true = m.labels_true == class_index
-                        pred_probs = m.labels_probs[:, class_index]
+                        labels_true = metrics.labels_true == class_index
+                        pred_probs = metrics.labels_probs[:, class_index]
                         tensorboard_writer.add_pr_curve(f'PR curve/{get_target_class(class_index)}',
                                                         labels_true, pred_probs, epoch + 1)
 
-                    tensorboard_writer.add_figure('PR curve', m.fig_pr_curve_micro, epoch + 1)
+                    tensorboard_writer.add_figure('PR curve', metrics.fig_pr_curve_micro, epoch + 1)
+
+            if early_stopping.should_stop:
+                log(f"Early stopping at epoch {epoch + 1}")
+                break
 
 
     except KeyboardInterrupt:
-        print('Training interrupted, saving hparams to TensorBoard...')
+        log('Training interrupted, saving hparams to TensorBoard...')
     finally:
         if args.use_module_definitions:
             module = safe_import(args.use_module_definitions.replace('.py', ''))
@@ -467,12 +531,12 @@ def main_worker(gpu, ngpus_per_node, args):
             if tensorboard_writer and hparams:
                 tensorboard_writer.add_hparams(hparams, {
                     'hparams/Accuracy': best_acc1 / 100.0,
-                    'hparams/F1-micro': m.f1_micro,
-                    'hparams/F1-macro': m.f1_macro,
-                    'hparams/P-micro': m.prec_micro,
-                    'hparams/P-macro': m.prec_macro,
-                    'hparams/R-micro': m.rec_micro,
-                    'hparams/R-macro': m.rec_macro,
+                    'hparams/F1-micro': best_metrics.f1_micro,
+                    'hparams/F1-macro': best_metrics.f1_macro,
+                    'hparams/P-micro': best_metrics.prec_micro,
+                    'hparams/P-macro': best_metrics.prec_macro,
+                    'hparams/R-micro': best_metrics.rec_micro,
+                    'hparams/R-macro': best_metrics.rec_macro,
                 })
 
 
@@ -525,7 +589,7 @@ def train(train_loader, model, criterion, optimizer, epoch, device, args) -> flo
     return loss.item()
 
 
-def validate(val_loader, model, criterion, args) -> Tuple[float, "ValidationMetrics"]:
+def validate(val_loader, model, criterion, args) -> Tuple[float, float, "ValidationMetrics"]:
     def run_validate(loader, base_progress=0) -> ValidationMetrics:
         labels_true = np.array([], dtype=np.int64)
         labels_pred = np.array([], dtype=np.int64)
@@ -590,6 +654,7 @@ def validate(val_loader, model, criterion, args) -> Tuple[float, "ValidationMetr
     if args.distributed:
         acc_top1.all_reduce()
         acc_top5.all_reduce()
+        losses.all_reduce()
 
     if args.distributed and (len(val_loader.sampler) * args.world_size < len(val_loader.dataset)):
         aux_val_dataset = Subset(val_loader.dataset,
@@ -601,13 +666,13 @@ def validate(val_loader, model, criterion, args) -> Tuple[float, "ValidationMetr
 
     progress.display_summary()
 
-    return acc_top1.avg, metrics
+    return acc_top1.avg, losses.avg, metrics
 
 
 def save_checkpoint(state, is_best, run_info: str = "", dir="./"):
     filename = f'{run_info}_checkpoint.pth.tar'
     filepath = os.path.join(dir, filename)
-    print(f'Saving checkpoint to {filename} at {filepath}')
+    log(f'Saving checkpoint to {filename} at {filepath}')
     torch.save(state, filepath)
     if is_best:
         shutil.copyfile(filepath, filepath.replace("checkpoint", "model_best"))
@@ -687,12 +752,12 @@ class ProgressMeter(object):
     def display(self, batch):
         entries = [self.prefix + self.batch_fmtstr.format(batch)]
         entries += [str(meter) for meter in self.meters]
-        print('\t'.join(entries))
+        log('\t'.join(entries))
 
     def display_summary(self):
         entries = [" *"]
         entries += [meter.summary() for meter in self.meters]
-        print(' '.join(entries))
+        log(' '.join(entries))
 
     def _get_batch_fmtstr(self, num_batches):
         num_digits = len(str(num_batches // 1))
@@ -703,22 +768,6 @@ class ProgressMeter(object):
 # =================
 # Metrics
 # =================
-
-class ValidationMetrics(NamedTuple):
-    class_labels: List[int]
-    acc_balanced: float
-    f1_micro: float
-    f1_macro: float
-    prec_micro: float
-    prec_macro: float
-    rec_micro: float
-    rec_macro: float
-    f1_per_class: List[Tuple[int, float]]
-    conf_matrix: np.array
-    labels_true: np.array
-    labels_pred: np.array
-    labels_probs: np.array
-    fig_pr_curve_micro: plt.Figure
 
 
 def accuracy(output, target, topk=(1,)):
