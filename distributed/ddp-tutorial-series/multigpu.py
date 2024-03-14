@@ -3,11 +3,13 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from datautils import MyTrainDataset
 
+# --- Additional modules required for Distributed Training
 import torch.multiprocessing as mp
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 import os
+# ---
 
 
 def ddp_setup(rank, world_size):
@@ -46,7 +48,7 @@ class Trainer:
 
     def _run_epoch(self, epoch):
         b_sz = len(next(iter(self.train_data))[0])
-        print(f"[GPU{self.gpu_id}] Epoch {epoch} | Batchsize: {b_sz} | Steps: {len(self.train_data)}")
+        print(f"[GPU{self.gpu_id}] Epoch {epoch} | Batch size: {b_sz} | Steps: {len(self.train_data)}")
         self.train_data.sampler.set_epoch(epoch)
         for source, targets in self.train_data:
             source = source.to(self.gpu_id)
