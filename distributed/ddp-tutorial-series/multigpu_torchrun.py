@@ -3,16 +3,20 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from datautils import MyTrainDataset
 
-import torch.multiprocessing as mp
+# --- Additional modules required for Distributed Training
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 import os
+# ---
+
+from utils import print_nodes_info
 
 
 def ddp_setup():
     init_process_group(backend="nccl")
     torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
+
 
 class Trainer:
     def __init__(
@@ -52,7 +56,7 @@ class Trainer:
 
     def _run_epoch(self, epoch):
         b_sz = len(next(iter(self.train_data))[0])
-        print(f"[GPU{self.gpu_id}] Epoch {epoch} | Batchsize: {b_sz} | Steps: {len(self.train_data)}")
+        print(f"[GPU{self.gpu_id}] Epoch {epoch} | Batch size: {b_sz} | Steps: {len(self.train_data)}")
         self.train_data.sampler.set_epoch(epoch)
         for source, targets in self.train_data:
             source = source.to(self.gpu_id)
@@ -107,5 +111,9 @@ if __name__ == "__main__":
     parser.add_argument('save_every', type=int, help='How often to save a snapshot')
     parser.add_argument('--batch_size', default=32, type=int, help='Input batch size on each device (default: 32)')
     args = parser.parse_args()
-    
+
+    # --- Print the environment variables
+    print_nodes_info()
+    # ---
+
     main(args.save_every, args.total_epochs, args.batch_size)
