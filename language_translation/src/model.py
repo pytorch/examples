@@ -56,6 +56,13 @@ class Translator(nn.Module):
 
         self.ff = nn.Linear(embed_size, tgt_vocab_size)
 
+        self._init_weights()
+
+    def _init_weights(self):
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
+
     def forward(self, src, trg, src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, memory_key_padding_mask):
 
         src_emb = self.pos_enc(self.src_embedding(src))
