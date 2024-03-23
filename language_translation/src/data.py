@@ -91,7 +91,7 @@ def get_data(opts):
     train_dataloader = DataLoader(train_iterator, batch_size=opts.batch, collate_fn=_collate_fn)
     valid_dataloader = DataLoader(valid_iterator, batch_size=opts.batch, collate_fn=_collate_fn)
 
-    return train_dataloader, valid_dataloader, src_vocab, tgt_vocab, special_symbols
+    return train_dataloader, valid_dataloader, src_vocab, tgt_vocab, src_lang_transform, tgt_lang_transform, special_symbols
 
 def generate_square_subsequent_mask(size, device):
     mask = (torch.triu(torch.ones((size, size), device=device)) == 1).transpose(0, 1)
