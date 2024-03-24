@@ -105,8 +105,8 @@ def inference(opts):
 
         print(translation)
 
-# Train teh model for 1 epoch
-def train(model, train_dl, loss_fn, optim, special_symbols):
+# Train the model for 1 epoch
+def train(model, train_dl, loss_fn, optim, special_symbols, opts):
 
     # Object for accumulating losses
     losses = 0
@@ -142,6 +142,9 @@ def train(model, train_dl, loss_fn, optim, special_symbols):
 
         # Accumulate a running loss for reporting
         losses += loss.item()
+
+        if opts.dry_run:
+            break
 
     # Return the average loss
     return losses / len(list(train_dl))
@@ -230,7 +233,7 @@ def main(opts):
     for idx, epoch in enumerate(range(1, opts.epochs+1)):
 
         start_time = time()
-        train_loss = train(model, train_dl, loss_fn, optim, special_symbols)
+        train_loss = train(model, train_dl, loss_fn, optim, special_symbols, opts)
         epoch_time = time() - start_time
         val_loss   = validate(model, valid_dl, loss_fn, special_symbols)
 
@@ -287,6 +290,9 @@ if __name__ == "__main__":
     # Logging settings
     parser.add_argument("--logging_dir", type=str, default="./" + str(date.today()) + "/",
                         help="Where the output of this program should be placed")
+
+    # Just for continuous integration
+    parser.add_argument("--dry_run", action="store_true")
 
     args = parser.parse_args()
 
