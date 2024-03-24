@@ -85,14 +85,14 @@ class Translator(nn.Module):
 
         embed = self.src_embedding(src)
 
-        pos_enc = self.pos_enc(embed, src_mask)
+        pos_enc = self.pos_enc(embed)
 
-        return self.transformer.encoder(pos_enc)
+        return self.transformer.encoder(pos_enc, src_mask)
 
     def decode(self, tgt, memory, tgt_mask):
         
         embed = self.tgt_embedding(tgt)
 
-        pos_enc = self.pos_enc(embed, memory, tgt_mask)
+        pos_enc = self.pos_enc(embed)
 
-        return self.transformer.decoder(pos_enc)
+        return self.transformer.decoder(pos_enc, memory, tgt_mask)

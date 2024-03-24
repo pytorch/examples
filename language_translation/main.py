@@ -1,15 +1,16 @@
-from time import time
-import os
-import logging
-from datetime import date
+from time import time # Track how long an epoch takes
+import os # Creating and finding files/directories
+import logging # Logging tools
+from datetime import date # Logging the date for model versioning
 
-import torch
-from tqdm import tqdm
+import torch # For ML
+from tqdm import tqdm # For fancy progress bars
 
-from src.model import Translator
-from src.data import get_data, create_mask, generate_square_subsequent_mask
-from argparse import ArgumentParser
+from src.model import Translator # Our model
+from src.data import get_data, create_mask, generate_square_subsequent_mask # Loading data and data preprocessing
+from argparse import ArgumentParser # For args
 
+# Train on the GPU if possible
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Function to generate output sequence using greedy algorithm
@@ -37,7 +38,7 @@ def greedy_decode(model, src, src_mask, max_len, start_symbol, end_symbol):
         out = out.transpose(0, 1)
 
         # Covert to probabilities and take the max of these probabilities
-        prob = model.generator(out[:, -1])
+        prob = model.ff(out[:, -1])
         _, next_word = torch.max(prob, dim=1)
         next_word = next_word.item()
 
@@ -48,7 +49,7 @@ def greedy_decode(model, src, src_mask, max_len, start_symbol, end_symbol):
 
     return ys
 
-# Opens an interface where users can translate an arbitrary sentence
+# Opens an user interface where users can translate an arbitrary sentence
 def inference(opts):
 
     # Get training data, tokenizer and vocab
@@ -71,7 +72,7 @@ def inference(opts):
     ).to(DEVICE)
 
     # Load in weights
-    model.load_state_dict(torch.load(opts.logging_dir + "best.pt"))
+    model.load_state_dict(torch.load(opts.model_path))
 
     # Set to inference
     model.eval()
@@ -81,15 +82,19 @@ def inference(opts):
         print("> ", end="")
 
         sentence = input()
+
+        # Convert to tokens
         src = src_transform(sentence).view(-1, 1)
         num_tokens = src.shape[0]
 
         src_mask = (torch.zeros(num_tokens, num_tokens)).type(torch.bool)
 
+        # Decode
         tgt_tokens = greedy_decode(
             model, src, src_mask, max_len=num_tokens+5, start_symbol=special_symbols["<bos>"], end_symbol=special_symbols["<eos>"]
         ).flatten()
 
+        # Convert to list of tokens
         output_as_list = list(tgt_tokens.cpu().numpy())
 
         # Convert tokens to words
@@ -100,9 +105,7 @@ def inference(opts):
 
         print(translation)
 
-
-
-
+# Train teh model for 1 epoch
 def train(model, train_dl, loss_fn, optim, special_symbols):
 
     # Object for accumulating losses
@@ -143,6 +146,7 @@ def train(model, train_dl, loss_fn, optim, special_symbols):
     # Return the average loss
     return losses / len(list(train_dl))
 
+# Check the model accuracy on the validation dataset
 def validate(model, valid_dl, loss_fn, special_symbols):
     
     # Object for accumulating losses
@@ -173,12 +177,18 @@ def validate(model, valid_dl, loss_fn, special_symbols):
     # Return the average loss
     return losses / len(list(valid_dl))
 
+# Train the model
 def main(opts):
 
     # Set up logging
     os.makedirs(opts.logging_dir, exist_ok=True)
     logger = logging.getLogger(__name__)
     logging.basicConfig(filename=opts.logging_dir + "log.txt", level=logging.INFO)
+
+    # This prints it to the screen as well
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    logging.getLogger().addHandler(console)
 
     logging.info(f"Translation task: {opts.src} -> {opts.tgt}")
     logging.info(f"Using device: {DEVICE}")
@@ -211,7 +221,9 @@ def main(opts):
 
     # Set up our learning tools
     loss_fn = torch.nn.CrossEntropyLoss(ignore_index=special_symbols["<pad>"])
-    optim = torch.optim.Adam(model.parameters(), lr=opts.lr)
+
+    # These special values are from the "Attention is all you need" paper
+    optim = torch.optim.Adam(model.parameters(), lr=opts.lr, betas=(0.9, 0.98), eps=1e-9)
 
     best_val_loss = 1e6
     
@@ -224,45 +236,46 @@ def main(opts):
 
         # Once training is done, we want to save out the model
         if val_loss < best_val_loss:
+            best_val_loss = val_loss
             logging.info("New best model, saving...")
             torch.save(model.state_dict(), opts.logging_dir + "best.pt")
 
         torch.save(model.state_dict(), opts.logging_dir + "last.pt")
 
-        logger.info(f"Epoch: {epoch}\n\tTrain loss: {train_loss:.3f}\n\tVal loss: {val_loss:.3f}\n\tEpoch time = {epoch_time:.3f}s\n\tETA = {epoch_time*(opts.epochs+1-idx)}")
+        logger.info(f"Epoch: {epoch}\n\tTrain loss: {train_loss:.3f}\n\tVal loss: {val_loss:.3f}\n\tEpoch time = {epoch_time:.1f} seconds\n\tETA = {epoch_time*(opts.epochs-idx-1):.1f} seconds")
 
 if __name__ == "__main__":
 
     parser = ArgumentParser(
-        prog="Machine Translator training program",
+        prog="Machine Translator training and inference",
     )
 
     # Inference mode
-    parser.add_argument("--inference", type=bool, default=False,
+    parser.add_argument("--inference", action="store_true",
                         help="Set true to run inference")
     parser.add_argument("--model_path", type=str,
                         help="Path to the model to run inference on")
 
     # Translation settings
-    parser.add_argument("--src", type=str, default="en",
+    parser.add_argument("--src", type=str, default="de",
                         help="Source language (translating FROM this language)")
-    parser.add_argument("--tgt", type=str, default="de",
+    parser.add_argument("--tgt", type=str, default="en",
                         help="Target language (translating TO this language)")
 
     # Training settings 
-    parser.add_argument("-e", "--epochs", type=int, default=10,
+    parser.add_argument("-e", "--epochs", type=int, default=30,
                         help="Epochs")
-    parser.add_argument("--lr", type=float, default=1e-3,
+    parser.add_argument("--lr", type=float, default=1e-4,
                         help="Default learning rate")
-    parser.add_argument("--batch", type=int, default=32,
+    parser.add_argument("--batch", type=int, default=128,
                         help="Batch size")
     
     # Transformer settings
-    parser.add_argument("--attn_heads", type=int, default=4,
+    parser.add_argument("--attn_heads", type=int, default=8,
                         help="Number of attention heads")
-    parser.add_argument("--enc_layers", type=int, default=1,
+    parser.add_argument("--enc_layers", type=int, default=5,
                         help="Number of encoder layers")
-    parser.add_argument("--dec_layers", type=int, default=1,
+    parser.add_argument("--dec_layers", type=int, default=5,
                         help="Number of decoder layers")
     parser.add_argument("--embed_size", type=int, default=512,
                         help="Size of the language embedding")

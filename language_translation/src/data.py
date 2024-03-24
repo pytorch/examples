@@ -5,6 +5,7 @@ from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import build_vocab_from_iterator
 from torchtext.datasets import Multi30k, multi30k
 
+# Turns an iterable into a generator
 def _yield_tokens(iterable_data, tokenizer, src):
 
     # Iterable data stores the samples as (src, tgt) so this will help us select just one language or the other
@@ -13,6 +14,8 @@ def _yield_tokens(iterable_data, tokenizer, src):
     for data in iterable_data:
         yield tokenizer(data[index])
 
+# Get data, tokenizer, text transform, vocab objs, etc. Everything we
+# need to start training the model
 def get_data(opts):
 
     src_lang = opts.src
@@ -54,7 +57,6 @@ def get_data(opts):
 
     src_vocab.set_default_index(special_symbols["<unk>"])
     tgt_vocab.set_default_index(special_symbols["<unk>"])
-
 
     # Helper function to sequentially apply transformations
     def _seq_transform(*transforms):
@@ -113,18 +115,19 @@ def create_mask(src, tgt, pad_idx, device):
     src_padding_mask = (src == pad_idx).transpose(0, 1)
     tgt_padding_mask = (tgt == pad_idx).transpose(0, 1)
     return src_mask, tgt_mask, src_padding_mask, tgt_padding_mask
-    
 
+# A small test to make sure our data loasd in correctly
 if __name__=="__main__":
 
     class Opts:
         def __init__(self):
             self.src = "en",
             self.tgt = "de"
+            self.batch = 128
 
     opts = Opts()
     
-    train_dl, valid_dl, src_vocab, tgt_vocab, special_symbols = get_data(opts)
+    train_dl, valid_dl, src_vocab, tgt_vocab, src_lang_transform, tgt_lang_transform, special_symbols = get_data(opts)
 
     print(f"{opts.src} vocab size: {len(src_vocab)}")
     print(f"{opts.src} vocab size: {len(tgt_vocab)}")
