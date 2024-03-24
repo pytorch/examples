@@ -1,0 +1,4 @@
+torch
+torchtext
+torchdata
+spacy

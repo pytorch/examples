@@ -29,7 +29,8 @@ https://pytorch.org/examples/
 - [PyTorch Module Transformations using fx](./fx/README.md)
 - Distributed PyTorch examples with [Distributed Data Parallel](./distributed/ddp/README.md) and [RPC](./distributed/rpc)
 - [Several examples illustrating the C++ Frontend](cpp)
-- [Image Classification Using Forward-Forward ](./mnist_forward_forward/README.md)
+- [Image Classification Using Forward-Forward](./mnist_forward_forward/README.md)
+- [Language Translation using Transformers](./language_translation/README.md)
 
 
 
