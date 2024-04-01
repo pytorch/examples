@@ -272,6 +272,8 @@ if __name__ == "__main__":
                         help="Default learning rate")
     parser.add_argument("--batch", type=int, default=128,
                         help="Batch size")
+    parser.add_argument("--backend", type=str, default="cpu",
+                        help="Batch size")
     
     # Transformer settings
     parser.add_argument("--attn_heads", type=int, default=8,
@@ -295,6 +297,8 @@ if __name__ == "__main__":
     parser.add_argument("--dry_run", action="store_true")
 
     args = parser.parse_args()
+
+    DEVICE = torch.device("cuda" if args.backend == "gpu" and torch.cuda.is_available() else "cpu")
 
     if args.inference:
         inference(args)

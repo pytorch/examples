@@ -100,7 +100,7 @@ function language_translation() {
   start
   python -m spacy download en || error "couldn't download en package from spacy"
   python -m spacy download de || error "couldn't download de package from spacy"
-  python main.py -e 1 --logging_dir output/ --dry_run || error "language translation example failed"
+  python main.py -e 1 --enc_layers 1 --dec_layers 1 --backend cpu --logging_dir output/ --dry_run || error "language translation example failed"
 }
 
 function mnist() {
