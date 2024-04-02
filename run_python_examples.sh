@@ -13,6 +13,11 @@
 BASE_DIR=`pwd`"/"`dirname $0`
 EXAMPLES=`echo $1 | sed -e 's/ //g'`
 
+# Redirect 'python' calls to 'python3'
+python() {
+    command python3 "$@"
+}
+
 USE_CUDA=$(python -c "import torchvision, torch; print(torch.cuda.is_available())")
 case $USE_CUDA in
   "True")
@@ -89,6 +94,13 @@ function imagenet() {
     cp sample/train/n/* sample/val/n/
   fi
   python main.py --epochs 1 sample/ || error "imagenet example failed"
+}
+
+function language_translation() {
+  start
+  python -m spacy download en || error "couldn't download en package from spacy"
+  python -m spacy download de || error "couldn't download de package from spacy"
+  python main.py -e 1 --enc_layers 1 --dec_layers 1 --backend cpu --logging_dir output/ --dry_run || error "language translation example failed"
 }
 
 function mnist() {
@@ -195,6 +207,7 @@ function clean() {
     imagenet/lsun/ \
     imagenet/model_best.pth.tar \
     imagenet/sample/ \
+	language_translation/output/ \
     snli/.data/ \
     snli/.vector_cache/ \
     snli/results/ \
@@ -215,6 +228,7 @@ function run_all() {
   distributed
   fast_neural_style
   imagenet
+  language_translation
   mnist
   mnist_forward_forward
   mnist_hogwild

@@ -1,0 +1,5 @@
+torch
+torchtext
+torchdata
+spacy
+portalocker
