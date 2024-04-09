@@ -39,6 +39,17 @@ model_names = sorted(name for name in models.__dict__
 # Model evaluation
 # ================
 
+class TrainMetrics(NamedTuple):
+    class_labels: List[int]
+    acc_balanced: float
+    f1_micro: float
+    f1_macro: float
+    prec_micro: float
+    prec_macro: float
+    rec_micro: float
+    rec_macro: float
+
+
 class ValidationMetrics(NamedTuple):
     class_labels: List[int]
     acc_balanced: float
@@ -63,7 +74,7 @@ class EarlyStopping:
     - https://github.com/Bjarten/early-stopping-pytorch
     """
 
-    def __init__(self, patience=3, min_delta=1, min_epochs=50):
+    def __init__(self, patience: int = 3, min_delta: float = 1, min_epochs: int = 50):
         self.patience = patience
         self.min_delta = min_delta
         self.counter = 0
@@ -457,24 +468,25 @@ def main_worker(gpu, ngpus_per_node, args):
         except Exception as e:
             log(f"Failed to add graph to tensorboard.")
 
-    early_stopping = EarlyStopping(patience=5, min_delta=5, min_epochs=50)
+    early_stopping = EarlyStopping(patience=5, min_delta=0.5, min_epochs=50)
     try:
         for epoch in range(args.start_epoch, args.epochs):
             if args.distributed:
                 train_sampler.set_epoch(epoch)
 
             # train for one epoch
-            train_loss = train(train_loader, model, criterion, optimizer, epoch, device, args)
+            train_acc1, train_loss, train_metrics = train(train_loader, model, criterion, optimizer, epoch, device,
+                                                          args)
 
             # evaluate on validation set
-            acc1, val_loss, metrics = validate(val_loader, model, criterion, args)
+            val_acc1, val_loss, val_metrics = validate(val_loader, model, criterion, args)
             scheduler.step()
             early_stopping(val_loss, epoch)
 
             # remember best acc@1 and save checkpoint
-            is_best = acc1 > best_acc1
-            best_acc1 = max(acc1, best_acc1)
-            best_metrics = metrics if metrics.f1_micro > best_metrics.f1_micro else best_metrics
+            is_best = val_acc1 > best_acc1
+            best_acc1 = max(val_acc1, best_acc1)
+            best_metrics = val_metrics if val_metrics.f1_micro > best_metrics.f1_micro else best_metrics
 
             if not args.multiprocessing_distributed or \
                     (args.multiprocessing_distributed and args.rank % ngpus_per_node == 0) or \
@@ -491,31 +503,49 @@ def main_worker(gpu, ngpus_per_node, args):
             if tensorboard_writer:
                 tensorboard_writer.add_scalars('Loss', dict(train=train_loss, val=val_loss), epoch + 1)
                 tensorboard_writer.add_scalars('Metrics/Accuracy',
-                                               dict(acc=acc1 / 100.0, balanced_acc=metrics.acc_balanced), epoch + 1)
-                tensorboard_writer.add_scalars('Metrics/F1', dict(micro=metrics.f1_micro, macro=metrics.f1_macro),
+                                               dict(val_acc=val_acc1 / 100.0,
+                                                    val_bacc=val_metrics.acc_balanced,
+                                                    train_acc=train_acc1 / 100.0,
+                                                    train_bacc=train_metrics.acc_balanced),
+                                               epoch + 1)
+                tensorboard_writer.add_scalars('Metrics/F1',
+                                               dict(val_micro=val_metrics.f1_micro,
+                                                    val_macro=val_metrics.f1_macro,
+                                                    train_micro=train_metrics.f1_micro,
+                                                    train_macro=train_metrics.f1_macro),
                                                epoch + 1)
                 tensorboard_writer.add_scalars('Metrics/Precision',
-                                               dict(micro=metrics.prec_micro, macro=metrics.prec_macro), epoch + 1)
-                tensorboard_writer.add_scalars('Metrics/Recall', dict(micro=metrics.rec_micro, macro=metrics.rec_macro),
+                                               dict(val_micro=val_metrics.prec_micro,
+                                                    val_macro=val_metrics.prec_macro,
+                                                    train_micro=train_metrics.prec_micro,
+                                                    train_macro=train_metrics.prec_macro),
+                                               epoch + 1)
+                tensorboard_writer.add_scalars('Metrics/Recall',
+                                               dict(val_micro=val_metrics.rec_micro,
+                                                    val_macro=val_metrics.rec_macro,
+                                                    train_micro=train_metrics.rec_micro,
+                                                    train_macro=train_metrics.rec_macro),
                                                epoch + 1)
                 tensorboard_writer.add_scalars('Metrics/F1/class',
-                                               {get_target_class(cl): f1 for cl, f1 in metrics.f1_per_class}, epoch + 1)
+                                               {get_target_class(cl): f1 for cl, f1 in val_metrics.f1_per_class},
+                                               epoch + 1)
 
                 if epoch < 10 or epoch % 5 == 0 or epoch == args.epochs - 1:
-                    class_names = [get_target_class(cl) for cl in list({l for l in metrics.class_labels})]
-                    fig_abs, _ = plot_confusion_matrix(metrics.conf_matrix, class_names=class_names, normalize=False)
-                    fig_rel, _ = plot_confusion_matrix(metrics.conf_matrix, class_names=class_names, normalize=True)
+                    class_names = [get_target_class(cl) for cl in list({l for l in val_metrics.class_labels})]
+                    fig_abs, _ = plot_confusion_matrix(val_metrics.conf_matrix, class_names=class_names,
+                                                       normalize=False)
+                    fig_rel, _ = plot_confusion_matrix(val_metrics.conf_matrix, class_names=class_names, normalize=True)
                     tensorboard_writer.add_figure('Confusion matrix', fig_abs, epoch + 1)
                     tensorboard_writer.add_figure('Confusion matrix/normalized', fig_rel, epoch + 1)
 
-                    for cl in metrics.class_labels:
+                    for cl in val_metrics.class_labels:
                         class_index = int(cl)
-                        labels_true = metrics.labels_true == class_index
-                        pred_probs = metrics.labels_probs[:, class_index]
+                        labels_true = val_metrics.labels_true == class_index
+                        pred_probs = val_metrics.labels_probs[:, class_index]
                         tensorboard_writer.add_pr_curve(f'PR curve/{get_target_class(class_index)}',
                                                         labels_true, pred_probs, epoch + 1)
 
-                    tensorboard_writer.add_figure('PR curve', metrics.fig_pr_curve_micro, epoch + 1)
+                    tensorboard_writer.add_figure('PR curve', val_metrics.fig_pr_curve_micro, epoch + 1)
 
             if early_stopping.should_stop:
                 log(f"Early stopping at epoch {epoch + 1}")
@@ -540,7 +570,7 @@ def main_worker(gpu, ngpus_per_node, args):
                 })
 
 
-def train(train_loader, model, criterion, optimizer, epoch, device, args) -> float:
+def train(train_loader, model, criterion, optimizer, epoch, device, args) -> Tuple[float, float, TrainMetrics]:
     batch_time = AverageMeter('Time', ':6.3f')
     data_time = AverageMeter('Data', ':6.3f')
     losses = AverageMeter('Loss', ':.4e')
@@ -554,6 +584,11 @@ def train(train_loader, model, criterion, optimizer, epoch, device, args) -> flo
 
     # switch to train mode
     model.train()
+
+    # for train metrics
+    labels_true = np.array([], dtype=np.int64)
+    labels_pred = np.array([], dtype=np.int64)
+    labels_probs = []
 
     end = time.time()
     for i, (images, target) in enumerate(train_loader):
@@ -579,6 +614,14 @@ def train(train_loader, model, criterion, optimizer, epoch, device, args) -> flo
         loss.backward()
         optimizer.step()
 
+        with torch.no_grad():
+            predicted_values, predicted_indices = torch.max(output.data, 1)
+            labels_true = np.append(labels_true, target.cpu().numpy())
+            labels_pred = np.append(labels_pred, predicted_indices.cpu().numpy())
+
+            class_probs_batch = [F.softmax(el, dim=0) for el in output]
+            labels_probs.append(class_probs_batch)
+
         # measure elapsed time
         batch_time.update(time.time() - end)
         end = time.time()
@@ -586,7 +629,14 @@ def train(train_loader, model, criterion, optimizer, epoch, device, args) -> flo
         if i % args.print_freq == 0:
             progress.display(i + 1)
 
-    return loss.item()
+    if args.distributed:
+        acc_top1.all_reduce()
+        acc_top5.all_reduce()
+
+    labels_probs = torch.cat([torch.stack(batch) for batch in labels_probs]).cpu()
+    metrics = calculate_train_metrics(labels_true, labels_pred, labels_probs)
+
+    return acc_top1.avg, loss.item(), metrics
 
 
 def validate(val_loader, model, criterion, args) -> Tuple[float, float, "ValidationMetrics"]:
@@ -635,7 +685,7 @@ def validate(val_loader, model, criterion, args) -> Tuple[float, float, "Validat
 
         labels_probs = torch.cat([torch.stack(batch) for batch in labels_probs]).cpu()
 
-        return metrics_labels_true_pred(labels_true, labels_pred, labels_probs)
+        return calculate_validation_metrics(labels_true, labels_pred, labels_probs)
 
     batch_time = AverageMeter('Time', ':6.3f', Summary.NONE)
     losses = AverageMeter('Loss', ':.4e', Summary.NONE)
@@ -786,8 +836,29 @@ def accuracy(output, target, topk=(1,)):
         return res
 
 
-def metrics_labels_true_pred(labels_true: np.array, labels_pred: np.array,
-                             labels_probs: torch.Tensor) -> ValidationMetrics:
+def calculate_train_metrics(labels_true: np.array, labels_pred: np.array,
+                            labels_probs: torch.Tensor) -> TrainMetrics:
+    unique_labels = list({l for l in labels_true})
+    f1_micro = f1_score(labels_true, labels_pred, average="micro")
+    f1_macro = f1_score(labels_true, labels_pred, average="macro")
+
+    acc_balanced = balanced_accuracy_score(labels_true, labels_pred)
+    prec_micro = precision_score(labels_true, labels_pred, average="micro")
+    prec_macro = precision_score(labels_true, labels_pred, average="macro")
+    rec_micro = recall_score(labels_true, labels_pred, average="micro")
+    rec_macro = recall_score(labels_true, labels_pred, average="macro")
+
+    return TrainMetrics(
+        unique_labels,
+        acc_balanced,
+        f1_micro, f1_macro,
+        prec_micro, prec_macro,
+        rec_micro, rec_macro
+    )
+
+
+def calculate_validation_metrics(labels_true: np.array, labels_pred: np.array,
+                                 labels_probs: torch.Tensor) -> ValidationMetrics:
     unique_labels = list({l for l in labels_true})
     f1_per_class = f1_score(labels_true, labels_pred, average=None, labels=unique_labels)
     f1_micro = f1_score(labels_true, labels_pred, average="micro")
