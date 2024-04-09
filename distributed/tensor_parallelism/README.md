@@ -1,14 +1,14 @@
-# PyTorch Tensor Parallelism for distributed training
+# PyTorch native Tensor Parallel for distributed training
 
-This example demonstrates SPMD Megatron-LM style tensor parallel by using
-PyTorch native Tensor Parallelism APIs, which include:
+This example demonstrates SPMD Megatron-LM style Tensor Parallel by using
+PyTorch native Tensor Parallel APIs, which include:
 
-1. High-level APIs for module-level parallelism with a dummy MLP model.
-2. Model agnostic ops for `DistributedTensor`, such as `Linear` and `RELU`.
-3. A E2E demo of tensor parallel for a given toy model (Forward/backward + optimization).
+1. Simple module-level Tensor Parallelism on a dummy MLP model.
+2. Simple module-level Tensor Parallelism with Sequence Parallel inputs/outputs on a dummy MLP model.
+3. A E2E demo of Fully Sharded Data Parallel + Tensor Parallel (with Sequence Parallel) on a example Llama2 model.
 
-More details about the design can be found:
-https://github.com/pytorch/pytorch/issues/89884
+More details about the PyTorch native Tensor Parallel APIs, please see PyTorch docs:
+https://pytorch.org/docs/stable/distributed.tensor.parallel.html
 
 ```
 pip install -r requirements.txt
