@@ -17,7 +17,7 @@ This repository provides a clean and short implementation of the official GAT mo
 
 ## Key Features
 
-- **GAT Model**: Implementation of the Graph Attention Network model with multi-head attention based on on the paper "Graph Attention Network" by Velickovic et al.
+- **GAT Model**: Implementation of the Graph Attention Network model with multi-head attention based on the paper "Graph Attention Network" by Velickovic et al.
 - **Graph Attention Layers**: Implementation of graph convolutional layers that aggregate information from neighboring nodes using a self-attention mechanisms to learn node importance weights.
 - **Training and Evaluation**: Code for training GAT models on graph-structured data and evaluating their performance on node classification tasks on the *Cora* benchmark dataset.
 
@@ -45,7 +45,7 @@ Following the official implementation, the first GAT layer consists of **K = 8 a
  
 
 # Usage
-Training and evaluating the GAT model on the Cora dataset can be done through running the the `main.py` script as follows:
+Training and evaluating the GAT model on the Cora dataset can be done through running the `main.py` script as follows:
 
 1. Clone the PyTorch examples repository:
 
@@ -60,7 +60,7 @@ cd examples/gat
 pip install -r requirements.txt
 ```
 
-3. Train the GAT model by running the the `main.py` script as follows:: (Example using the default parameters)
+3. Train the GAT model by running the `main.py` script as follows:: (Example using the default parameters)
 
 ```bash
 python main.py --epochs 300 --lr 0.005 --l2 5e-4 --dropout-p 0.6 --num-heads 8 --hidden-dim 64 --val-every 20
