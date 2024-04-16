@@ -10440,7 +10440,6 @@ h1 {
   font-size: 2rem;
   letter-spacing: 1.78px;
   line-height: 2.5rem;
-  text-transform: uppercase;
   margin: 1.375rem 0;
 }
 
@@ -10494,7 +10493,9 @@ article.pytorch-article ol ul,
 article.pytorch-article ol ol {
   margin: 0;
 }
-article.pytorch-article h1,
+article.pytorch-article h1 {
+  font-weight: 600;
+}
 article.pytorch-article h2,
 article.pytorch-article h3,
 article.pytorch-article h4,
