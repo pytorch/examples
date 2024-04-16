@@ -1,17 +1,20 @@
 name: Doc Build
 
-on:
+on:  
   push:
     branches:
       - main
-
+  workflow_dispatch:
 
 jobs:
   build_docs_job:
     runs-on: ubuntu-latest
+    # Grant write permission here so that the doc can be pushed to gh-pages branch
+    permissions:
+      contents: write
     strategy:
       matrix:
-        python-version: [3.6]
+        python-version: [3.9]
     steps:
     - name: Checkout
       uses: actions/checkout@v2
