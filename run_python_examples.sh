@@ -66,9 +66,9 @@ function dcgan() {
 
 function distributed() {
     start
-    bash tensor_parallelism/run_example.sh tensor_parallel_example.py 4 || error "tensor parallel example failed"
-    bash tensor_parallelism/run_example.sh sequence_parallel_example.py 4 || error "sequence parallel example failed"
-    bash tensor_parallelism/run_example.sh fsdp_tp_example.py 4 || error "2D parallel example failed"
+    bash tensor_parallelism/run_example.sh tensor_parallelism/tensor_parallel_example.py 4 || error "tensor parallel example failed"
+    bash tensor_parallelism/run_example.sh tensor_parallelism/sequence_parallel_example.py 4 || error "sequence parallel example failed"
+    bash tensor_parallelism/run_example.sh tensor_parallelism/fsdp_tp_example.py 4 || error "2D parallel example failed"
     python ddp/main.py || error "ddp example failed"
 }
 
