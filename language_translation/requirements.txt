@@ -3,3 +3,4 @@ torchtext
 torchdata
 spacy
 portalocker
+dill
