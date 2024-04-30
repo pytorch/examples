@@ -157,7 +157,8 @@ function run_all() {
   autograd
   custom-dataset
   dcgan
-  mnist
+  # dataset 503 error
+  # mnist
   regression
 }
 
