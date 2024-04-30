@@ -1,4 +1,4 @@
-name: Run Examples
+name: Run Python Examples
 
 on:
   push:
