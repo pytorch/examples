@@ -27,7 +27,7 @@ case $USE_CUDA in
     ;;
 esac
 
-ERRORS=""
+ERRORS=${ERRORS-""}
 
 function error() {
   ERR=$1
