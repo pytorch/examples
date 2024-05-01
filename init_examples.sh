@@ -2,7 +2,6 @@
 # This script contains utility functions and initialize exmaple scripts.
 # Eg: run_python_examples.sh, run_distributed_examples.sh
 
-BASE_DIR="$(pwd)/$(dirname $0)"
 EXAMPLES=$(echo $1 | sed -e 's/ //g')
 
 # Redirect 'python' calls to 'python3'

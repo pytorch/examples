@@ -10,7 +10,8 @@
 # to pip install dependencies (other than pytorch), run all examples, and remove temporary/changed data files.
 # Expects pytorch, torchvision to be installed.
 
-source ./init_examples.sh
+BASE_DIR="$(pwd)/$(dirname $0)"
+source $BASE_DIR/init_examples.sh
 
 function distributed() {
     start
