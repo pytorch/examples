@@ -17,10 +17,6 @@ function dcgan() {
   python main.py --dataset fake $CUDA_FLAG --mps --dry-run || error "dcgan failed"
 }
 
-function distributed() {
-  bash $BASE_DIR/run_distributed_examples.sh || error "distributed examples failed"
-}
-
 function fast_neural_style() {
   start
   if [ ! -d "saved_models" ]; then
@@ -172,27 +168,27 @@ function clean() {
 }
 
 function run_all() {
-  # cpp
+  # cpp moved to `run_cpp_examples.sh```
   dcgan
-  distributed
-  # fast_neural_style
-  # imagenet
-  # language_translation
-  # mnist
-  # mnist_forward_forward
-  # mnist_hogwild
-  # mnist_rnn
-  # regression
-  # reinforcement_learning
-  # siamese_network
-  # super_resolution
-  # time_sequence_prediction
-  # vae
-  # vision_transformer
-  # word_language_model
-  # fx
-  # gcn
-  # gat
+  # distributed moved to `run_distributed_examples.sh`
+  fast_neural_style
+  imagenet
+  language_translation
+  mnist
+  mnist_forward_forward
+  mnist_hogwild
+  mnist_rnn
+  regression
+  reinforcement_learning
+  siamese_network
+  super_resolution
+  time_sequence_prediction
+  vae
+  vision_transformer
+  word_language_model
+  fx
+  gcn
+  gat
 }
 
 # by default, run all examples
