@@ -61,7 +61,10 @@ function start() {
 
 function distributed() {
     start
-    torchrun --standalone --nnodes=1 --nproc_per_node=4 tensor_parallelism/fsdp_tp_example.py
+    bash tensor_parallelism/run_example.sh tensor_parallelism/tensor_parallel_example.py || error "tensor parallel example failed"
+    bash tensor_parallelism/run_example.sh tensor_parallelism/sequence_parallel_example.py || error "sequence parallel example failed"
+    bash tensor_parallelism/run_example.sh tensor_parallelism/fsdp_tp_example.py || error "2D parallel example failed"
+    python ddp/main.py || error "ddp example failed"
 }
 
 function clean() {
