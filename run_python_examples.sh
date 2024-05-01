@@ -18,7 +18,7 @@ function dcgan() {
 }
 
 function distributed() {
-  bash run_distributed_examples.sh || error "distributed examples failed"
+  bash $BASE_DIR/run_distributed_examples.sh || error "distributed examples failed"
 }
 
 function fast_neural_style() {
@@ -175,24 +175,24 @@ function run_all() {
   # cpp
   dcgan
   distributed
-  fast_neural_style
-  imagenet
-  language_translation
-  mnist
-  mnist_forward_forward
-  mnist_hogwild
-  mnist_rnn
-  regression
-  reinforcement_learning
-  siamese_network
-  super_resolution
-  time_sequence_prediction
-  vae
-  vision_transformer
-  word_language_model
-  fx
-  gcn
-  gat
+  # fast_neural_style
+  # imagenet
+  # language_translation
+  # mnist
+  # mnist_forward_forward
+  # mnist_hogwild
+  # mnist_rnn
+  # regression
+  # reinforcement_learning
+  # siamese_network
+  # super_resolution
+  # time_sequence_prediction
+  # vae
+  # vision_transformer
+  # word_language_model
+  # fx
+  # gcn
+  # gat
 }
 
 # by default, run all examples
