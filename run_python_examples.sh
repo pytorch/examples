@@ -10,54 +10,7 @@
 # to pip install dependencies (other than pytorch), run all examples, and remove temporary/changed data files.
 # Expects pytorch, torchvision to be installed.
 
-BASE_DIR=`pwd`"/"`dirname $0`
-EXAMPLES=`echo $1 | sed -e 's/ //g'`
-
-# Redirect 'python' calls to 'python3'
-python() {
-    command python3 "$@"
-}
-
-USE_CUDA=$(python -c "import torchvision, torch; print(torch.cuda.is_available())")
-case $USE_CUDA in
-  "True")
-    echo "using cuda"
-    CUDA=1
-    CUDA_FLAG="--cuda"
-    ;;
-  "False")
-    echo "not using cuda"
-    CUDA=0
-    CUDA_FLAG=""
-    ;;
-  "")
-    exit 1;
-    ;;
-esac
-
-ERRORS=""
-
-function error() {
-  ERR=$1
-  ERRORS="$ERRORS\n$ERR"
-  echo $ERR
-}
-
-function install_deps() {
-  echo "installing requirements"
-  cat $BASE_DIR/*/requirements.txt | \
-    sort -u | \
-    # testing the installed version of torch, so don't pip install it.
-    grep -vE '^torch$' | \
-    pip install -r /dev/stdin || \
-    { error "failed to install dependencies"; exit 1; }
-}
-
-function start() {
-  EXAMPLE=${FUNCNAME[1]}
-  cd $BASE_DIR/$EXAMPLE
-  echo "Running example: $EXAMPLE"
-}
+source ./init_examples.sh
 
 function dcgan() {
   start
@@ -65,11 +18,7 @@ function dcgan() {
 }
 
 function distributed() {
-    start
-    bash tensor_parallelism/run_example.sh tensor_parallelism/tensor_parallel_example.py || error "tensor parallel example failed"
-    bash tensor_parallelism/run_example.sh tensor_parallelism/sequence_parallel_example.py || error "sequence parallel example failed"
-    bash tensor_parallelism/run_example.sh tensor_parallelism/fsdp_tp_example.py || error "2D parallel example failed"
-    python ddp/main.py || error "ddp example failed"
+  bash run_distributed_examples.sh || error "distributed examples failed"
 }
 
 function fast_neural_style() {
@@ -261,8 +210,8 @@ fi
 if [ "" == "$ERRORS" ]; then
   echo "Completed successfully with status $?"
 else
-  echo "Some examples failed:"
-  printf "$ERRORS"
+  echo "Some python examples failed:"
+  printf "$ERRORS\n"
   #Exit with error (0-255) in case of failure in one of the tests.
   exit 1
 
