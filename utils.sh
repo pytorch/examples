@@ -2,29 +2,13 @@
 # This script contains utility functions and initialize exmaple scripts.
 # Eg: run_python_examples.sh, run_distributed_examples.sh
 
+BASE_DIR="$(pwd)/$(dirname $0)"
 EXAMPLES=$(echo $1 | sed -e 's/ //g')
 
 # Redirect 'python' calls to 'python3'
 python() {
     command python3 "$@"
 }
-
-USE_CUDA=$(python -c "import torchvision, torch; print(torch.cuda.is_available())")
-case $USE_CUDA in
-  "True")
-    echo "using cuda"
-    CUDA=1
-    CUDA_FLAG="--cuda"
-    ;;
-  "False")
-    echo "not using cuda"
-    CUDA=0
-    CUDA_FLAG=""
-    ;;
-  "")
-    exit 1;
-    ;;
-esac
 
 ERRORS=${ERRORS-""}
 

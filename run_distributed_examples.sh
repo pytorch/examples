@@ -11,7 +11,24 @@
 # Expects pytorch, torchvision to be installed.
 
 BASE_DIR="$(pwd)/$(dirname $0)"
-source $BASE_DIR/init_examples.sh
+source $BASE_DIR/utils.sh
+
+USE_CUDA=$(python -c "import torch; print(torch.cuda.is_available())")
+case $USE_CUDA in
+  "True")
+    echo "using cuda"
+    CUDA=1
+    CUDA_FLAG="--cuda"
+    ;;
+  "False")
+    echo "not using cuda"
+    CUDA=0
+    CUDA_FLAG=""
+    ;;
+  "")
+    exit 1;
+    ;;
+esac
 
 function distributed() {
     start
