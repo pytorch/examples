@@ -156,10 +156,12 @@ function clean() {
 function run_all() {
   autograd
   custom-dataset
-  dcgan
-  # dataset 503 error
-  # mnist
   regression
+  
+  # dataset 503 error on yanns site
+  # dcgan
+  # mnist
+  
 }
 
 # by default, run all examples
