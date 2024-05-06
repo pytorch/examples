@@ -18,7 +18,7 @@ job_id=2024
 srun torchrun \
 --nnodes 4 \
 --nproc_per_node 1 \
---rdzv_id ${jobid} \
+--rdzv_id ${job_id} \
 --rdzv_backend c10d \
 --rdzv_endpoint $head_node_ip:29500 \
 /shared/examples/multinode_torchrun.py 50 10
