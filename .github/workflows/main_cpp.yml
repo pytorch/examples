@@ -1,4 +1,4 @@
-name: Run Examples
+name: Run CPP Examples
 
 on:
   push:

@@ -10,13 +10,8 @@
 # to pip install dependencies (other than pytorch), run all examples, and remove temporary/changed data files.
 # Expects pytorch, torchvision to be installed.
 
-BASE_DIR=`pwd`"/"`dirname $0`
-EXAMPLES=`echo $1 | sed -e 's/ //g'`
-
-# Redirect 'python' calls to 'python3'
-python() {
-    command python3 "$@"
-}
+BASE_DIR="$(pwd)/$(dirname $0)"
+source $BASE_DIR/utils.sh
 
 USE_CUDA=$(python -c "import torch; print(torch.cuda.is_available())")
 case $USE_CUDA in
@@ -35,33 +30,12 @@ case $USE_CUDA in
     ;;
 esac
 
-ERRORS=""
-
-function error() {
-  ERR=$1
-  ERRORS="$ERRORS\n$ERR"
-  echo $ERR
-}
-
-function install_deps() {
-  echo "installing requirements"
-  cat $BASE_DIR/*/requirements.txt | \
-    sort -u | \
-    # testing the installed version of torch, so don't pip install it.
-    grep -vE '^torch$' | \
-    pip install -r /dev/stdin || \
-    { error "failed to install dependencies"; exit 1; }
-}
-
-function start() {
-  EXAMPLE=${FUNCNAME[1]}
-  cd $BASE_DIR/$EXAMPLE
-  echo "Running example: $EXAMPLE"
-}
-
 function distributed() {
     start
-    torchrun --standalone --nnodes=1 --nproc_per_node=4 tensor_parallelism/fsdp_tp_example.py
+    bash tensor_parallelism/run_example.sh tensor_parallelism/tensor_parallel_example.py || error "tensor parallel example failed"
+    bash tensor_parallelism/run_example.sh tensor_parallelism/sequence_parallel_example.py || error "sequence parallel example failed"
+    bash tensor_parallelism/run_example.sh tensor_parallelism/fsdp_tp_example.py || error "2D parallel example failed"
+    python ddp/main.py || error "ddp example failed"
 }
 
 function clean() {
@@ -88,8 +62,8 @@ fi
 if [ "" == "$ERRORS" ]; then
   echo "Completed successfully with status $?"
 else
-  echo "Some examples failed:"
-  printf "$ERRORS"
+  echo "Some distributed examples failed:"
+  printf "$ERRORS\n"
   #Exit with error (0-255) in case of failure in one of the tests.
   exit 1
 
