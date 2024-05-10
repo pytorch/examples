@@ -78,7 +78,7 @@ def main():
         for resource in RESOURCES:
             path = os.path.join(options.destination, resource)
             # url = 'http://yann.lecun.com/exdb/mnist/{}'.format(resource)
-            url = 'https://ossci-datasets.s3.amazonaws.com/mnist/'.format(resource)
+            url = 'https://ossci-datasets.s3.amazonaws.com/mnist/{}'.format(resource)
             download(path, url, options.quiet)
             unzip(path, options.quiet)
     except KeyboardInterrupt:
