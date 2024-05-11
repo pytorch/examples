@@ -9702,7 +9702,7 @@ pre {
   background-color: #ffffff;
   border-bottom: 1px solid #e2e2e2;
 }
-@media screen and (min-width: 1100px) {
+@media screen and (min-width: 1200px) {
   .header-holder {
     height: 90px;
   }
@@ -9727,7 +9727,7 @@ pre {
 .header-container {
   *zoom: 1;
 }
-@media screen and (min-width: 1100px) {
+@media screen and (min-width: 1200px) {
   .header-container {
     display: block;
   }
@@ -9743,7 +9743,7 @@ pre {
   float: left;
   z-index: 10;
 }
-@media screen and (min-width: 1100px) {
+@media screen and (min-width: 1200px) {
   .header-logo {
     background-size: 108px 27px;
     position: absolute;
@@ -9765,7 +9765,7 @@ pre {
   right: 0;
   top: 4px;
 }
-@media screen and (min-width: 1100px) {
+@media screen and (min-width: 1200px) {
   .main-menu-open-button {
     display: none;
   }
@@ -9774,7 +9774,7 @@ pre {
 .header-holder .main-menu {
   display: none;
 }
-@media screen and (min-width: 1100px) {
+@media screen and (min-width: 1200px) {
   .header-holder .main-menu {
     display: -webkit-box;
     display: -ms-flexbox;
@@ -9798,21 +9798,29 @@ pre {
 }
 .header-holder .main-menu ul li {
   display: inline-block;
-  margin-right: 40px;
+  margin-right: 34px;
   position: relative;
+  color: #262626;
 }
+
+.header-holder .main-menu ul li a:hover {
+  color: #262626;
+}
+
 .header-holder .main-menu ul li.active:after {
   content: "•";
   bottom: -24px;
-  color: #e44c2c;
+  color: #262626;
   font-size: 1.375rem;
   left: 0;
   position: absolute;
   right: 0;
   text-align: center;
 }
+
+
 .header-holder .main-menu ul li.active a {
-  color: #e44c2c;
+  color: #262626;
 }
 .header-holder .main-menu ul li.docs-active:after {
   content: "•";
@@ -9829,13 +9837,13 @@ pre {
 }
 .header-holder .main-menu ul li a {
   color: #ffffff;
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   letter-spacing: 0;
   line-height: 2.125rem;
   text-align: center;
   text-decoration: none;
 }
-@media screen and (min-width: 1100px) {
+@media screen and (min-width: 1200px) {
   .header-holder .main-menu ul li a:hover {
     color: #e44c2c;
   }
@@ -9930,6 +9938,11 @@ pre {
 
 .mobile-main-menu-links-container ul.resources-mobile-menu-items li {
   padding-left: 15px;
+}
+
+.mobile-main-menu-links-container ul.resources-mobile-menu-items li a {
+  font-size: 18px;
+  line-height: 34px;    
 }
 
 .site-footer {
@@ -10363,7 +10376,7 @@ ul.pytorch-breadcrumbs a {
   -webkit-transform: rotate(180deg);
           transform: rotate(180deg);
 }
-@media screen and (min-width: 1100px) {
+@media screen and (min-width: 1200px) {
   .table-of-contents-link-wrapper {
     display: none;
   }
@@ -10387,6 +10400,24 @@ ul.pytorch-breadcrumbs a {
 .tutorials-header .main-menu ul li a {
   color: #262626;
 }
+
+.tutorials-header .main-menu ul li a:hover {
+  color: #262626;
+}
+
+.tutorials-header .main-menu .no-dropdown {
+  display: block;
+}
+
+.tutorials-header .main-menu .no-dropdown a {
+  color: #262626;
+}
+
+.tutorials-header .main-menu .no-dropdown a:hover {
+  color: #262626 !important;
+  border-bottom: 2px solid #262626;
+}
+
 .tutorials-header .main-menu-open-button {
   background-image: url("../images/icon-menu-dots-dark.svg");
 }
@@ -10527,7 +10558,7 @@ article.pytorch-article .sphx-glr-thumbcontainer {
   text-align: center;
   margin-bottom: 5%;
 }
-@media screen and (max-width: 1100px) {
+@media screen and (max-width: 1200px) {
   article.pytorch-article .sphx-glr-thumbcontainer:nth-child(odd) {
     margin-left: 0;
     margin-right: 2.5%;
@@ -10540,7 +10571,7 @@ article.pytorch-article .sphx-glr-thumbcontainer {
     width: 40%;
   }
 }
-@media screen and (min-width: 1101px) {
+@media screen and (min-width: 1201px) {
   article.pytorch-article .sphx-glr-thumbcontainer {
     margin-right: 3%;
     margin-bottom: 3%;
@@ -11206,7 +11237,7 @@ article.pytorch-article .math img {
 .pytorch-breadcrumbs-wrapper {
   width: 100%;
 }
-@media screen and (min-width: 1101px) {
+@media screen and (min-width: 1201px) {
   .pytorch-breadcrumbs-wrapper {
     float: left;
     margin-left: 3%;
@@ -11276,7 +11307,7 @@ a:hover {
 .header-holder .main-menu ul li.active a {
   color: #ee4c2c;
 }
-@media screen and (min-width: 1100px) {
+@media screen and (min-width: 1200px) {
   .header-holder .main-menu ul li a:hover {
     color: #ee4c2c;
   }
@@ -11306,7 +11337,7 @@ a:hover {
     padding-top: 0;
   }
 }
-@media (min-width: 1100px) and (max-width: 1239px) {
+@media (min-width: 1200px) and (max-width: 1239px) {
   .pytorch-call-to-action-links {
     padding-top: 2.5rem;
   }
@@ -11636,12 +11667,12 @@ article.pytorch-article .tutorials-callout-container .btn.callout-button a {
   width: auto;
   position: relative;
 }
-@media screen and (min-width: 1100px) {
+@media screen and (min-width: 1201px) {
   .pytorch-container {
     padding: 0;
   }
 }
-@media screen and (min-width: 1101px) {
+@media screen and (min-width: 1200px) {
   .pytorch-container {
     margin-left: 25%;
   }
@@ -11680,7 +11711,7 @@ article.pytorch-article .tutorials-callout-container .btn.callout-button a {
 .pytorch-content-wrap {
   *zoom: 1;
 }
-@media screen and (min-width: 1101px) {
+@media screen and (min-width: 1201px) {
   .pytorch-content-wrap {
     padding-top: 45px;
     float: left;
@@ -11706,7 +11737,7 @@ article.pytorch-article .tutorials-callout-container .btn.callout-button a {
   margin-top: 2.5rem;
   width: 100%;
 }
-@media screen and (min-width: 1101px) {
+@media screen and (min-width: 1201px) {
   .pytorch-content-left {
     margin-top: 0;
     margin-left: 3%;
@@ -11736,7 +11767,7 @@ article.pytorch-article .tutorials-callout-container .btn.callout-button a {
   overflow-x: hidden;
   overflow-y: hidden;
 }
-@media screen and (min-width: 1101px) {
+@media screen and (min-width: 1201px) {
   .pytorch-content-right {
     display: block;
     margin-left: 0;
@@ -11751,11 +11782,11 @@ article.pytorch-article .tutorials-callout-container .btn.callout-button a {
   }
 }
 
-@media screen and (min-width: 1101px) {
+@media screen and (min-width: 1201px) {
   .pytorch-side-scroll {
     position: relative;
     overflow-x: hidden;
-    overflow-y: scroll;
+    overflow-n: scroll;
     height: 100%;
   }
 }
@@ -11763,7 +11794,7 @@ article.pytorch-article .tutorials-callout-container .btn.callout-button a {
 .pytorch-menu-vertical {
   padding: 1.25rem 1.875rem 2.5rem 1.875rem;
 }
-@media screen and (min-width: 1101px) {
+@media screen and (min-width: 1201px) {
   .pytorch-menu-vertical {
     display: block;
     padding-top: 0;
@@ -11784,7 +11815,7 @@ article.pytorch-article .tutorials-callout-container .btn.callout-button a {
   color: #262626;
   overflow: scroll;
 }
-@media screen and (min-width: 1101px) {
+@media screen and (min-width: 1201px) {
   .pytorch-left-menu {
     display: block;
     overflow-x: hidden;
@@ -11837,7 +11868,7 @@ article.pytorch-article .tutorials-callout-container .btn.callout-button a {
 .pytorch-left-menu-search {
   margin-bottom: 2.5rem;
 }
-@media screen and (min-width: 1101px) {
+@media screen and (min-width: 1201px) {
   .pytorch-left-menu-search {
     margin: 1.25rem 0.625rem 1.875rem 0;
   }
@@ -11895,7 +11926,7 @@ article.pytorch-article .tutorials-callout-container .btn.callout-button a {
   outline: 0;
 }
 
-@media screen and (min-width: 1101px) {
+@media screen and (min-width: 1201px) {
   .pytorch-left-menu .pytorch-side-scroll {
     width: 120%;
   }
@@ -11915,7 +11946,7 @@ article.pytorch-article .tutorials-callout-container .btn.callout-button a {
   padding-top: 0;
   position: relative;
 }
-@media screen and (min-width: 1101px) {
+@media screen and (min-width: 1201px) {
   .pytorch-right-menu {
     width: 100%;
   }
@@ -12020,7 +12051,7 @@ article.pytorch-article .tutorials-callout-container .btn.callout-button a {
   font-size: 1.375rem;
   color: #ee4c2c;
 }
-@media screen and (min-width: 1101px) {
+@media screen and (min-width: 1201px) {
   .pytorch-left-menu li.toctree-l1.current > a:before,
   .pytorch-right-menu li.toctree-l1.current > a:before {
     left: -20px;
@@ -12146,7 +12177,7 @@ article.pytorch-article .tutorials-callout-container .btn.callout-button a {
 .pytorch-right-menu .pytorch-side-scroll {
   padding-top: 20px;
 }
-@media screen and (min-width: 1101px) {
+@media screen and (min-width: 1201px) {
   .pytorch-right-menu .pytorch-side-scroll {
     width: 120%;
   }
@@ -12182,7 +12213,7 @@ article.pytorch-article .tutorials-callout-container .btn.callout-button a {
   max-width: none;
   margin-top: 4px;
 }
-@media screen and (min-width: 1101px) {
+@media screen and (min-width: 1201px) {
   .header-container {
     margin-top: 0;
   }
@@ -12203,7 +12234,7 @@ article.pytorch-article .tutorials-callout-container .btn.callout-button a {
   padding-right: 1.875rem;
   padding-left: 1.875rem;
 }
-@media screen and (min-width: 1101px) {
+@media screen and (min-width: 1201px) {
   .header-holder .container {
     padding-right: 1.875rem;
     padding-left: 1.875rem;
@@ -12216,7 +12247,65 @@ article.pytorch-article .tutorials-callout-container .btn.callout-button a {
           justify-content: unset;
   position: relative;
 }
-@media screen and (min-width: 1101px) {
+
+.header-holder .main-menu .github-icon {
+  background-image: url("../images/pytorch-github.svg");
+  color: white;
+  display: block;
+  width: 33px;
+  height: 33px;
+  position: relative;
+  background-size: 23px 23px;
+  background-position: 5px 4px;
+  background-repeat: no-repeat;
+  border-radius: 25px;
+}
+
+.header-holder .main-menu .github-icon:hover {
+    background-color:#88888833;
+}
+
+@media screen (min-width: 1201px) {
+  .header-holder .main-menu .github-icon {
+    background-image: url("../images/pytorch-github.svg");
+    color: white;
+    display: block;
+    width: 33px;
+    height: 33px;
+    position: relative;
+    background-size: 23px 23px;
+    background-position: 5px 4px;
+    background-repeat: no-repeat;
+    border-radius: 25px;
+  }
+}
+
+@media screen (min-width: 1201px) {
+  .header-holder .main-menu .github-icon:hover {
+    background-color:#88888833;
+  }
+}
+
+.header-holder .main-menu .search-icon {
+  background-image: url("../images/search-icon-black.svg");
+  color: transparent;
+  display: block;
+  width: 33px;
+  height: 33px;
+  position: relative;
+  background-size: 21px 21px;
+  background-position: 6px 5px;
+  background-repeat: no-repeat;
+  border-radius: 25px;
+  cursor pointer
+}
+
+.header-holder .main-menu .search-icon:hover {
+    background-color:#88888833;
+}
+
+
+@media screen and (min-width: 1201px) {
   .header-holder .main-menu ul {
     padding-left: 0;
     margin-left: 26%;
@@ -12239,7 +12328,7 @@ article.pytorch-article .tutorials-callout-container .btn.callout-button a {
   width: 100%;
   z-index: 201;
 }
-@media screen and (min-width: 1101px) {
+@media screen and (min-width: 1201px) {
   .pytorch-page-level-bar {
     left: 0;
     display: -webkit-box;
@@ -12280,7 +12369,7 @@ article.pytorch-article .tutorials-callout-container .btn.callout-button a {
 .pytorch-shortcuts-wrapper {
   display: none;
 }
-@media screen and (min-width: 1101px) {
+@media screen and (min-width: 1201px) {
   .pytorch-shortcuts-wrapper {
     font-size: 0.875rem;
     float: left;
@@ -12358,7 +12447,7 @@ article.pytorch-article .tutorials-callout-container .btn.callout-button a {
 }
 
 .main-menu ul li .resources-dropdown a {
-  cursor: pointer;
+  cursor: default;
 }
 .main-menu ul li .dropdown-menu {
   border-radius: 0;
@@ -12387,7 +12476,7 @@ article.pytorch-article .tutorials-callout-container .btn.callout-button a {
 
 .resources-dropdown-menu {
   left: -75px;
-  width: 226px;
+  width: 300px;
   display: none;
   position: absolute;
   z-index: 1000;
@@ -12418,7 +12507,7 @@ article.pytorch-article .tutorials-callout-container .btn.callout-button a {
 }
 
 .main-menu ul li .resources-dropdown-menu .dropdown-item {
-  color: #6c6c6d;
+  color: #262626;
   border-bottom: 1px solid #e2e2e2;
 }
 
@@ -12438,9 +12527,19 @@ article.pytorch-article .tutorials-callout-container .btn.callout-button a {
   background-size: 14px 18px;
   background-position: top 7px right 10px;
   background-repeat: no-repeat;
+
 }
+
+
+.with-down-arrow a {
+  color: #262626;
+}
+
+.main-menu ul li a.with-down-arrow:hover {
+  color: #262626;
+}
+
 .with-down-arrow:hover {
-  background-image: url("../images/chevron-down-orange.svg");
   background-repeat: no-repeat;
 }
 
@@ -12456,11 +12555,17 @@ article.pytorch-article .tutorials-callout-container .btn.callout-button a {
   padding: 0.25rem 1.5rem;
   clear: both;
   font-weight: 400;
-  color: #979797;
-  text-align: center;
+  color: #757575;
+  text-align: left;
   background-color: transparent;
   border-bottom: 1px solid #e2e2e2;
+  cursor: pointer;
 }
+
+.header-holder .main-menu ul li a.nav-dropdown-item p {
+  margin-bottom: .5rem;
+}
+
 .header-holder .main-menu ul li a.nav-dropdown-item:last-of-type {
   border-bottom-color: transparent;
 }
@@ -12470,7 +12575,7 @@ article.pytorch-article .tutorials-callout-container .btn.callout-button a {
 }
 .header-holder .main-menu ul li a.nav-dropdown-item .dropdown-title {
   font-size: 1.125rem;
-  color: #6c6c6d;
+  color: #212529;
   letter-spacing: 0;
   line-height: 34px;
 }
