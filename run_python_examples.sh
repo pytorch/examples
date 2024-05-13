@@ -202,7 +202,7 @@ function run_all() {
   super_resolution
   time_sequence_prediction
   vae
-  vision_transformer
+  # vision_transformer
   word_language_model
   fx
   gcn
