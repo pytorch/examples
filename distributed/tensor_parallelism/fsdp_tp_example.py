@@ -107,17 +107,13 @@ model = parallelize_module(
     {
         "tok_embeddings": RowwiseParallel(
             input_layouts=Replicate(),
+            output_layouts=Shard(1),
         ),
         "output": ColwiseParallel(
             input_layouts=Shard(1),
             output_layouts=Replicate()
         ),
         "norm": SequenceParallel(),
-        "layers.0": PrepareModuleInput(
-            input_layouts=(Replicate(), None),
-            desired_input_layouts=(Shard(1), None),
-            use_local_output=True,
-        ),
     }
 )
 
