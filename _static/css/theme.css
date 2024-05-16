@@ -10237,7 +10237,6 @@ article.pytorch-article dl dt,
 article.pytorch-article dl dd,
 article.pytorch-article blockquote {
   font-size: 1rem;
-  line-height: 1.375rem;
   color: #262626;
   letter-spacing: 0.01px;
   font-weight: 500;
@@ -10526,6 +10525,7 @@ article.pytorch-article ol ol {
 }
 article.pytorch-article h1 {
   font-weight: 600;
+  word-wrap: break-word;
 }
 article.pytorch-article h2,
 article.pytorch-article h3,
@@ -10687,10 +10687,16 @@ article.pytorch-article .function dt {
   padding-right: -20px;
   border-left: none;
   border-top: none;
-  padding-left: 0.0rem;
+  padding-left: 0.2rem;
   padding-top: 0.0rem;
   padding-bottom: 0.0rem;
   font-weight: 700;
+}
+
+article.pytorch-article .class dl.py.property dt.sig {
+  border-left: 3px solid #ee4c2c;
+  border-top: none;
+  padding-left: 0.2rem;
 }
 
 article.pytorch-article .function dt em.property, article.pytorch-article .attribute dt em.property, article.pytorch-article .class dt em.property {
