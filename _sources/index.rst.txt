@@ -6,16 +6,6 @@ experiment with PyTorch.
 
 .. panels::
 
-    Image Classification using Vision Transformer
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
- 
-    This example shows how to train a `Vision Transformer <https://en.wikipedia.org/wiki/Vision_transformer>`__ 
-    from scratch on the `CIFAR10 <https://en.wikipedia.org/wiki/CIFAR-10>`__ database.
-
-    `GO TO EXAMPLE <https://github.com/pytorch/examples/blob/main/vision_transformer>`__ :opticon:`link-external` 
-
-    ---
-
     Image Classification Using ConvNets
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
  
