@@ -87,7 +87,7 @@ tp_mesh = device_mesh["tp"]
 dp_mesh = device_mesh["dp"]
 
 # For TP, input needs to be same across all TP ranks.
-# while for SP, input can be different across all ranks.
+# while for DP, input can be different across all ranks.
 # We will use dp_rank for setting the random seed
 # to mimic the behavior of the dataloader.
 dp_rank = dp_mesh.get_local_rank()
