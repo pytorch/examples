@@ -35,7 +35,7 @@ parser.add_argument('-a', '--arch', metavar='ARCH', default='resnet18',
                         ' (default: resnet18)')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
-parser.add_argument('--epochs', default=90, type=int, metavar='N',
+parser.add_argument('--epochs', default=1, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
@@ -65,7 +65,7 @@ parser.add_argument('--rank', default=-1, type=int,
                     help='node rank for distributed training')
 parser.add_argument('--dist-url', default='tcp://224.66.41.62:23456', type=str,
                     help='url used to set up distributed training')
-parser.add_argument('--dist-backend', default='nccl', type=str,
+parser.add_argument('--dist-backend', default='gloo', type=str,
                     help='distributed backend')
 parser.add_argument('--seed', default=None, type=int,
                     help='seed for initializing training. ')
@@ -314,9 +314,14 @@ def train(train_loader, model, criterion, optimizer, epoch, device, args):
 
     # switch to train mode
     model.train()
+    max_step = 10
+    cur_step = 0
 
     end = time.time()
     for i, (images, target) in enumerate(train_loader):
+        cur_step += 1
+        if cur_step > max_step:
+            break
         # measure data loading time
         data_time.update(time.time() - end)
 
@@ -350,9 +355,14 @@ def train(train_loader, model, criterion, optimizer, epoch, device, args):
 def validate(val_loader, model, criterion, args):
 
     def run_validate(loader, base_progress=0):
+        max_step = 10
+        cur_step = 0
         with torch.no_grad():
             end = time.time()
             for i, (images, target) in enumerate(loader):
+                cur_step += 1
+                if cur_step > max_step:
+                    break
                 i = base_progress + i
                 if args.gpu is not None and torch.cuda.is_available():
                     images = images.cuda(args.gpu, non_blocking=True)
