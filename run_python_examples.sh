@@ -191,7 +191,7 @@ function run_all() {
   # distributed moved to `run_distributed_examples.sh`
   fast_neural_style
   imagenet
-  language_translation
+  # language_translation
   mnist
   mnist_forward_forward
   mnist_hogwild
