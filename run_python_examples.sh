@@ -192,10 +192,13 @@ function run_all() {
   fast_neural_style
   imagenet
   language_translation
-  mnist
-  mnist_forward_forward
-  mnist_hogwild
-  mnist_rnn
+
+  # 403 error on lecun's website http://yann.lecun.com/exdb/mnist/t10k-labels-idx1-ubyte.gz
+  # mnist
+  # mnist_forward_forward
+  # mnist_hogwild
+  # mnist_rnn
+  
   regression
   reinforcement_learning
   siamese_network
