@@ -111,7 +111,7 @@ def train(model, train_dl, loss_fn, optim, special_symbols, opts):
     # Object for accumulating losses
     losses = 0
 
-    # Put model into inference mode
+    # Put model into training mode
     model.train()
     for src, tgt in tqdm(train_dl, ascii=True):
 
