@@ -121,6 +121,7 @@ def fsdp_main(args):
         device_id=torch.cuda.current_device(),
         limit_all_gathers=fsdp_config.limit_all_gathers)
     
+    # Enabling this causes https://github.com/pytorch/examples/issues/1210
     if fsdp_config.fsdp_activation_checkpointing:
         policies.apply_fsdp_checkpointing(model)
 
