@@ -11,8 +11,8 @@ import os
 
 
 def ddp_setup():
-    init_process_group(backend="nccl")
     torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
+    init_process_group(backend="nccl")
 
 class Trainer:
     def __init__(
@@ -107,5 +107,5 @@ if __name__ == "__main__":
     parser.add_argument('save_every', type=int, help='How often to save a snapshot')
     parser.add_argument('--batch_size', default=32, type=int, help='Input batch size on each device (default: 32)')
     args = parser.parse_args()
-    
+
     main(args.save_every, args.total_epochs, args.batch_size)
