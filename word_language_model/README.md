@@ -37,6 +37,7 @@ optional arguments:
   --seed SEED           random seed
   --cuda                use CUDA
   --mps                 enable GPU on macOS
+  --device DEVICE       backend device
   --log-interval N      report interval
   --save SAVE           path to save the final model
   --onnx-export ONNX_EXPORT
@@ -53,4 +54,10 @@ python main.py --cuda --emsize 650 --nhid 650 --dropout 0.5 --epochs 40
 python main.py --cuda --emsize 650 --nhid 650 --dropout 0.5 --epochs 40 --tied
 python main.py --cuda --emsize 1500 --nhid 1500 --dropout 0.65 --epochs 40
 python main.py --cuda --emsize 1500 --nhid 1500 --dropout 0.65 --epochs 40 --tied
+```
+
+You can also use non-cuda devices like this:
+
+```bash
+python main.py --device npu --emsize 650 --nhid 650 --dropout 0.5 --epochs 40
 ```
