@@ -109,6 +109,9 @@ if __name__ == "__main__":
         "--no_mps", action="store_true", default=False, help="disables MPS training"
     )
     parser.add_argument(
+        '--device', type=str, default='cpu', help='backend device'
+    )
+    parser.add_argument(
         "--seed", type=int, default=1, metavar="S", help="random seed (default: 1)"
     )
     parser.add_argument(
@@ -145,7 +148,7 @@ if __name__ == "__main__":
     elif use_mps:
         device = torch.device("mps")
     else:
-        device = torch.device("cpu")
+        device = torch.device(args.device)
 
     train_kwargs = {"batch_size": args.train_size}
     test_kwargs = {"batch_size": args.test_size}
