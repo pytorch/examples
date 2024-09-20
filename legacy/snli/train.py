@@ -20,7 +20,7 @@ if torch.cuda.is_available():
 elif torch.backends.mps.is_available():
     device = torch.device('mps')
 else:
-    device = torch.device('cpu')
+    device = torch.device(args.device)
 
 inputs = data.Field(lower=args.lower, tokenize='spacy')
 answers = data.Field(sequential=False)

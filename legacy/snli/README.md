@@ -25,7 +25,7 @@ spacy
 Start the training process with:
 
 ```bash
-python train.py --lower --word-vectors [PATH_TO_WORD_VECTORS] --vector-cache [PATH_TO_VECTOR_CACHE] --epochs [NUMBER_OF_EPOCHS] --batch-size [BATCH_SIZE] --save-path [PATH_TO_SAVE_MODEL] --gpu [GPU_NUMBER]
+python train.py --lower --word-vectors [PATH_TO_WORD_VECTORS] --vector-cache [PATH_TO_VECTOR_CACHE] --epochs [NUMBER_OF_EPOCHS] --batch-size [BATCH_SIZE] --save-path [PATH_TO_SAVE_MODEL] --gpu [GPU_NUMBER] --device [BACKEND_DEVICE]
 ```
 
 ## 🏋️‍♀️ Training

@@ -20,6 +20,8 @@ def makedirs(name):
 
 def get_args():
     parser = ArgumentParser(description='PyTorch/torchtext SNLI example')
+    parser.add_argument('--device', type=str, default='cpu',
+                        help='backend device')
     parser.add_argument('--epochs', type=int, default=50,
                         help='the number of total epochs to run.')
     parser.add_argument('--batch_size', type=int, default=128,
