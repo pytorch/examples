@@ -34,6 +34,7 @@ parser.add_argument('--outf', default='.', help='folder to output images and mod
 parser.add_argument('--manualSeed', type=int, help='manual seed')
 parser.add_argument('--classes', default='bedroom', help='comma separated list of classes for the lsun data set')
 parser.add_argument('--mps', action='store_true', default=False, help='enables macOS GPU training')
+parser.add_argument('--device', type=str, default='cpu', help='backend device')
 
 opt = parser.parse_args()
 print(opt)
@@ -112,7 +113,7 @@ if opt.cuda:
 elif use_mps:
     device = torch.device("mps")
 else:
-    device = torch.device("cpu")
+    device = torch.device(opt.device)
 
 ngpu = int(opt.ngpu)
 nz = int(opt.nz)
