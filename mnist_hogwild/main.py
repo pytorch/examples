@@ -31,6 +31,8 @@ parser.add_argument('--cuda', action='store_true', default=False,
                     help='enables CUDA training')
 parser.add_argument('--mps', action='store_true', default=False,
                     help='enables macOS GPU training')
+parser.add_argument('--device', type=str, default='cpu',
+                    help='backend device')
 parser.add_argument('--save_model', action='store_true', default=False,
                     help='save the trained model to state_dict')
 parser.add_argument('--dry-run', action='store_true', default=False,
@@ -65,7 +67,7 @@ if __name__ == '__main__':
     elif use_mps:
         device = torch.device("mps")
     else:
-        device = torch.device("cpu")
+        device = torch.device(args.device)
 
     transform=transforms.Compose([
         transforms.ToTensor(),
