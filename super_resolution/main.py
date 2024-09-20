@@ -18,6 +18,7 @@ parser.add_argument('--nEpochs', type=int, default=2, help='number of epochs to 
 parser.add_argument('--lr', type=float, default=0.01, help='Learning Rate. Default=0.01')
 parser.add_argument('--cuda', action='store_true', help='use cuda?')
 parser.add_argument('--mps', action='store_true', default=False, help='enables macOS GPU training')
+parser.add_argument('--device', type=str, default='cpu', help='backend device')
 parser.add_argument('--threads', type=int, default=4, help='number of threads for data loader to use')
 parser.add_argument('--seed', type=int, default=123, help='random seed to use. Default=123')
 opt = parser.parse_args()
@@ -37,7 +38,7 @@ if opt.cuda:
 elif use_mps:
     device = torch.device("mps")
 else:
-    device = torch.device("cpu")
+    device = torch.device(opt.device)
 
 print('===> Loading datasets')
 train_set = get_training_set(opt.upscale_factor)

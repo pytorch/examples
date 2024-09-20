@@ -12,6 +12,7 @@ parser.add_argument('--input_image', type=str, required=True, help='input image 
 parser.add_argument('--model', type=str, required=True, help='model file to use')
 parser.add_argument('--output_filename', type=str, help='where to save the output image')
 parser.add_argument('--cuda', action='store_true', help='use cuda')
+parser.add_argument('--device', type=str, default='cpu', help='backend device')
 opt = parser.parse_args()
 
 print(opt)
@@ -25,6 +26,9 @@ input = img_to_tensor(y).view(1, -1, y.size[1], y.size[0])
 if opt.cuda:
     model = model.cuda()
     input = input.cuda()
+elif opt.device:
+    model = model.to(opt.device)
+    input = input.to(opt.device)
 
 out = model(input)
 out = out.cpu()
