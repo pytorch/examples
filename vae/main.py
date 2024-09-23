@@ -17,6 +17,8 @@ parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='disables CUDA training')
 parser.add_argument('--no-mps', action='store_true', default=False,
                         help='disables macOS GPU training')
+parser.add_argument('--device', type=str, default='cpu',
+                    help='backend device')
 parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
 parser.add_argument('--log-interval', type=int, default=10, metavar='N',
@@ -32,7 +34,7 @@ if args.cuda:
 elif use_mps:
     device = torch.device("mps")
 else:
-    device = torch.device("cpu")
+    device = torch.device(args.device)
 
 kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
 train_loader = torch.utils.data.DataLoader(

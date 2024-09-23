@@ -69,7 +69,7 @@ python main.py --epochs 300 --lr 0.005 --l2 5e-4 --dropout-p 0.6 --num-heads 8 -
 In more detail, the `main.py` script recieves following arguments:
 ```
 usage: main.py [-h] [--epochs EPOCHS] [--lr LR] [--l2 L2] [--dropout-p DROPOUT_P] [--hidden-dim HIDDEN_DIM] [--num-heads NUM_HEADS] [--concat-heads] [--val-every VAL_EVERY]
-               [--no-cuda] [--no-mps] [--dry-run] [--seed S]
+               [--no-cuda] [--no-mps] [--dry-run] [--seed S] [--device DEVICE]
 
 PyTorch Graph Attention Network
 
@@ -89,6 +89,7 @@ options:
                         epochs to wait for print training and validation evaluation (default: 20)
   --no-cuda             disables CUDA training
   --no-mps              disables macOS GPU training
+  --device DEVICE       backend device
   --dry-run             quickly check a single pass
   --seed S              random seed (default: 13)
 ```
