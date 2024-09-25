@@ -1,5 +1,15 @@
 # Word-level Language Modeling using RNN and Transformer
 
+## Requirements
+
+Just running the following command to get started. Actually we just need the torch.
+
+```bash
+pip install -r requirements.txt
+```
+
+## Usage
+
 This example trains a multi-layer RNN (Elman, GRU, or LSTM) or Transformer on a language modeling task. By default, the training script uses the Wikitext-2 dataset, provided.
 The trained model can then be used by the generate script to generate new text.
 
@@ -53,4 +63,20 @@ python main.py --cuda --emsize 650 --nhid 650 --dropout 0.5 --epochs 40
 python main.py --cuda --emsize 650 --nhid 650 --dropout 0.5 --epochs 40 --tied
 python main.py --cuda --emsize 1500 --nhid 1500 --dropout 0.65 --epochs 40
 python main.py --cuda --emsize 1500 --nhid 1500 --dropout 0.65 --epochs 40 --tied
+```
+
+To generate samples from the default model checkpoint, just use the the `generate.py` script, which accepts the following arguments:
+
+```bash
+optional arguments:
+  -h, --help            show this help message and exit
+  --data DATA           location of the data corpus
+  --checkpoint MODEL    model checkpoint to use
+  --outf OUTPUT         output file for generated text
+  --words WORDS         number of words to generate
+  --seed SEED           random seed
+  --cuda                use CUDA
+  --mps                 enable GPU on macOS
+  --temperature TEMP    temperature - higher will increase diversity
+  --log-interval N      report interval
 ```
