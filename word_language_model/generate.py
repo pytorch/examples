@@ -24,7 +24,7 @@ parser.add_argument('--seed', type=int, default=1111,
 parser.add_argument('--cuda', action='store_true',
                     help='use CUDA')
 parser.add_argument('--mps', action='store_true', default=False,
-                        help='enables macOS GPU training')
+                    help='enables macOS GPU training')
 parser.add_argument('--temperature', type=float, default=1.0,
                     help='temperature - higher will increase diversity')
 parser.add_argument('--log-interval', type=int, default=100,
@@ -39,7 +39,7 @@ if torch.cuda.is_available():
 if torch.backends.mps.is_available():
     if not args.mps:
         print("WARNING: You have mps device, to enable macOS GPU run with --mps.")
-        
+
 use_mps = args.mps and torch.backends.mps.is_available()
 if args.cuda:
     device = torch.device("cuda")

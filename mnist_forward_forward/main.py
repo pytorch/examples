@@ -92,14 +92,14 @@ if __name__ == "__main__":
         type=int,
         default=1000,
         metavar="N",
-        help="number of epochs to train (default: 1000)",
+        help="number of epochs to train (default: %(default)s)",
     )
     parser.add_argument(
         "--lr",
         type=float,
         default=0.03,
         metavar="LR",
-        help="learning rate (default: 0.03)",
+        help="learning rate (default: %(default)s)",
     )
     parser.add_argument(
         "--no_cuda", action="store_true", default=False, help="disables CUDA training"
@@ -108,7 +108,7 @@ if __name__ == "__main__":
         "--no_mps", action="store_true", default=False, help="disables MPS training"
     )
     parser.add_argument(
-        "--seed", type=int, default=1, metavar="S", help="random seed (default: 1)"
+        "--seed", type=int, default=1, metavar="S", help="random seed (default: %(default)s)"
     )
     parser.add_argument(
         "--save_model",

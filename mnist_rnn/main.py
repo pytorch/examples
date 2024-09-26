@@ -82,15 +82,15 @@ def main():
     # Training settings
     parser = argparse.ArgumentParser(description='PyTorch MNIST Example using RNN')
     parser.add_argument('--batch-size', type=int, default=64, metavar='N',
-                        help='input batch size for training (default: 64)')
+                        help='input batch size for training (default: %(default)s)')
     parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
-                        help='input batch size for testing (default: 1000)')
+                        help='input batch size for testing (default: %(default)s)')
     parser.add_argument('--epochs', type=int, default=14, metavar='N',
-                        help='number of epochs to train (default: 14)')
+                        help='number of epochs to train (default: %(default)s)')
     parser.add_argument('--lr', type=float, default=0.1, metavar='LR',
-                        help='learning rate (default: 0.1)')
+                        help='learning rate (default: %(default)s)')
     parser.add_argument('--gamma', type=float, default=0.7, metavar='M',
-                        help='learning rate step gamma (default: 0.7)')
+                        help='learning rate step gamma (default: %(default)s)')
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
     parser.add_argument('--mps', action="store_true", default=False,
@@ -98,7 +98,7 @@ def main():
     parser.add_argument('--dry-run', action='store_true', default=False,
                         help='quickly check a single pass')
     parser.add_argument('--seed', type=int, default=1, metavar='S',
-                        help='random seed (default: 1)')
+                        help='random seed (default: %(default)s)')
     parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                         help='how many batches to wait before logging training status')
     parser.add_argument('--save-model', action='store_true', default=False,
