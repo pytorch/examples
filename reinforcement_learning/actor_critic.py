@@ -14,13 +14,13 @@ from torch.distributions import Categorical
 
 parser = argparse.ArgumentParser(description='PyTorch actor-critic example')
 parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
-                    help='discount factor (default: 0.99)')
+                    help='discount factor (default: %(default)s)')
 parser.add_argument('--seed', type=int, default=543, metavar='N',
-                    help='random seed (default: 543)')
+                    help='random seed (default: %(default)s)')
 parser.add_argument('--render', action='store_true',
                     help='render the environment')
 parser.add_argument('--log-interval', type=int, default=10, metavar='N',
-                    help='interval between training status logs (default: 10)')
+                    help='interval between training status logs (default: %(default)s)')
 args = parser.parse_args()
 
 

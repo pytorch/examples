@@ -292,21 +292,21 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='PyTorch Graph Attention Network')
     parser.add_argument('--epochs', type=int, default=300,
-                        help='number of epochs to train (default: 300)')
+                        help='number of epochs to train (default: %(default)s)')
     parser.add_argument('--lr', type=float, default=0.005,
-                        help='learning rate (default: 0.005)')
+                        help='learning rate (default: %(default)s)')
     parser.add_argument('--l2', type=float, default=5e-4,
-                        help='weight decay (default: 6e-4)')
+                        help='weight decay (default: %(default)s)')
     parser.add_argument('--dropout-p', type=float, default=0.6,
-                        help='dropout probability (default: 0.6)')
+                        help='dropout probability (default: %(default)s)')
     parser.add_argument('--hidden-dim', type=int, default=64,
-                        help='dimension of the hidden representation (default: 64)')
+                        help='dimension of the hidden representation (default: %(default)s)')
     parser.add_argument('--num-heads', type=int, default=8,
-                        help='number of the attention heads (default: 4)')
+                        help='number of the attention heads (default: %(default)s)')
     parser.add_argument('--concat-heads', action='store_true', default=False,
-                        help='wether to concatinate attention heads, or average over them (default: False)')
+                        help='wether to concatinate attention heads, or average over them (default: %(default)s)')
     parser.add_argument('--val-every', type=int, default=20,
-                        help='epochs to wait for print training and validation evaluation (default: 20)')
+                        help='epochs to wait for print training and validation evaluation (default: %(default)s)')
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
     parser.add_argument('--no-mps', action='store_true', default=False,
@@ -314,7 +314,7 @@ if __name__ == '__main__':
     parser.add_argument('--dry-run', action='store_true', default=False,
                         help='quickly check a single pass')
     parser.add_argument('--seed', type=int, default=13, metavar='S',
-                        help='random seed (default: 13)')
+                        help='random seed (default: %(default)s)')
     args = parser.parse_args()
 
     torch.manual_seed(args.seed)

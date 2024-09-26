@@ -21,11 +21,11 @@ OBSERVER_NAME = "observer{}"
 
 parser = argparse.ArgumentParser(description='PyTorch RPC Batch RL example')
 parser.add_argument('--gamma', type=float, default=1.0, metavar='G',
-                    help='discount factor (default: 1.0)')
+                    help='discount factor (default: %(default)s)')
 parser.add_argument('--seed', type=int, default=543, metavar='N',
-                    help='random seed (default: 543)')
+                    help='random seed (default: %(default)s)')
 parser.add_argument('--num-episode', type=int, default=10, metavar='E',
-                    help='number of episodes (default: 10)')
+                    help='number of episodes (default: %(default)s)')
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
