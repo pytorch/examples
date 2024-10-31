@@ -36,7 +36,7 @@ def train(args, model, rank, world_size, train_loader, optimizer, epoch, sampler
     model.train()
     local_rank = int(os.environ['LOCAL_RANK'])
     fsdp_loss = torch.zeros(2).to(local_rank)
-  
+
     if sampler:
         sampler.set_epoch(epoch)
     if rank==0:
@@ -98,5 +98,5 @@ def validation(model, rank, world_size, val_loader):
 
 def setup_model(model_name):
         model = T5ForConditionalGeneration.from_pretrained(model_name)
-        tokenizer =  T5Tokenizer.from_pretrained(model_name)
+        tokenizer =  T5Tokenizer.from_pretrained(model_name, legacy=False)
         return model, tokenizer

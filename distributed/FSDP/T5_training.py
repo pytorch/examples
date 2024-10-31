@@ -14,6 +14,7 @@ import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data.distributed import DistributedSampler
 from transformers.models.t5.modeling_t5 import T5Block
+from nlp import load_dataset
 
 from torch.distributed.fsdp import (
     FullyShardedDataParallel as FSDP,
@@ -86,11 +87,11 @@ def fsdp_main(args):
     print("Size of train dataset: ", dataset['train'].shape)
     print("Size of Validation dataset: ", dataset['validation'].shape)
 
-   
+
     #wikihow(tokenizer, type_path, num_samples, input_length, output_length, print_text=False)
-    train_dataset = wikihow(tokenizer, 'train', 1500, 512, 150, False) 
+    train_dataset = wikihow(tokenizer, 'train', 1500, 512, 150, False)
     val_dataset = wikihow(tokenizer, 'validation', 300, 512, 150, False)
- 
+
     sampler1 = DistributedSampler(train_dataset, rank=rank, num_replicas=world_size, shuffle=True)
     sampler2 = DistributedSampler(val_dataset, rank=rank, num_replicas=world_size)
 
@@ -107,12 +108,12 @@ def fsdp_main(args):
 
     train_loader = torch.utils.data.DataLoader(train_dataset,**train_kwargs)
     val_loader = torch.utils.data.DataLoader(val_dataset, **test_kwargs)
- 
+
     torch.cuda.set_device(local_rank)
-    
+
     # Set up FSDP parameters
     mixed_precision_policy, t5_auto_wrap_policy = get_policies(train_config, rank)
-    
+
     # Apply FSDP wrapping to the model
     model = FSDP(model,
         auto_wrap_policy=t5_auto_wrap_policy,
@@ -120,7 +121,7 @@ def fsdp_main(args):
         sharding_strategy=fsdp_config.sharding_strategy,
         device_id=torch.cuda.current_device(),
         limit_all_gathers=fsdp_config.limit_all_gathers)
-    
+
     # Enabling this causes https://github.com/pytorch/examples/issues/1210
     if fsdp_config.fsdp_activation_checkpointing:
         policies.apply_fsdp_checkpointing(model)
@@ -150,7 +151,7 @@ def fsdp_main(args):
         if args.run_validation:
             curr_val_loss = validation(model, rank, world_size, val_loader)
         scheduler.step()
-        
+
         if rank == 0:
 
             print(f"--> epoch {epoch} completed...entering save and stats zone")
@@ -170,7 +171,7 @@ def fsdp_main(args):
                 )
 
         if train_config.save_model and curr_val_loss < best_val_loss:
-            
+
             if fsdp_config.checkpoint_type == StateDictType.FULL_STATE_DICT:
                 model_checkpointing.save_model_checkpoint(
                     model, optimizer, rank, fsdp_config, epoch=1
@@ -183,7 +184,7 @@ def fsdp_main(args):
             if fsdp_config.save_optimizer:
                 model_checkpointing.save_optimizer_checkpoint(
                     model, optimizer, rank, fsdp_config, epoch=1
-                )           
+                )
         if curr_val_loss < best_val_loss:
 
             best_val_loss = curr_val_loss
@@ -212,5 +213,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     torch.manual_seed(args.seed)
-    
+
     fsdp_main(args)
