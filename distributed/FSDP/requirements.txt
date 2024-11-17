@@ -3,3 +3,4 @@ datasets
 tqdm
 protobuf
 SentencePiece
+nlp

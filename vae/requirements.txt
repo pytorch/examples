@@ -1,4 +1,4 @@
 torch
-torchvision
+torchvision==0.20.0
 tqdm
 six

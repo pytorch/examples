@@ -1,5 +1,5 @@
 torch
 torchtext
-torchdata
+torchdata==0.9.0
 spacy
 portalocker
