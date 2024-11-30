@@ -24,7 +24,7 @@ usage: main.py [-h] --dataset DATASET --dataroot DATAROOT [--workers WORKERS]
                [--batchSize BATCHSIZE] [--imageSize IMAGESIZE] [--nz NZ]
                [--ngf NGF] [--ndf NDF] [--niter NITER] [--lr LR]
                [--beta1 BETA1] [--cuda] [--ngpu NGPU] [--netG NETG]
-               [--netD NETD] [--mps]
+               [--netD NETD] [--mps] [--device DEVICE]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -41,6 +41,7 @@ optional arguments:
   --beta1 BETA1         beta1 for adam. default=0.5
   --cuda                enables cuda
   --mps                 enables macOS GPU
+  --device              backend device
   --ngpu NGPU           number of GPUs to use
   --netG NETG           path to netG (to continue training)
   --netD NETD           path to netD (to continue training)

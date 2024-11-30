@@ -86,6 +86,8 @@ def main():
                         help='disables CUDA training')
     parser.add_argument('--no-mps', action='store_true', default=False,
                         help='disables macOS GPU training')
+    parser.add_argument('--device', type=str, default='cpu',
+                        help='backend device')
     parser.add_argument('--dry-run', action='store_true', default=False,
                         help='quickly check a single pass')
     parser.add_argument('--seed', type=int, default=1, metavar='S',
@@ -105,7 +107,7 @@ def main():
     elif use_mps:
         device = torch.device("mps")
     else:
-        device = torch.device("cpu")
+        device = torch.device(args.device)
 
     train_kwargs = {'batch_size': args.batch_size}
     test_kwargs = {'batch_size': args.test_batch_size}

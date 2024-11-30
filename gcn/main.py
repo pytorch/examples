@@ -220,6 +220,8 @@ if __name__ == '__main__':
                         help='disables CUDA training')
     parser.add_argument('--no-mps', action='store_true', default=False,
                         help='disables macOS GPU training')
+    parser.add_argument('--device', type=str, default='cpu',
+                        help='backend device')
     parser.add_argument('--dry-run', action='store_true', default=False,
                         help='quickly check a single pass')
     parser.add_argument('--seed', type=int, default=42, metavar='S',
@@ -236,7 +238,7 @@ if __name__ == '__main__':
     elif use_mps:
         device = torch.device('mps')
     else:
-        device = torch.device('cpu')
+        device = torch.device(args.device)
     print(f'Using {device} device')
 
     cora_url = 'https://linqs-data.soe.ucsc.edu/public/lbc/cora.tgz'

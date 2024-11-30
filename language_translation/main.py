@@ -272,9 +272,9 @@ if __name__ == "__main__":
                         help="Default learning rate")
     parser.add_argument("--batch", type=int, default=128,
                         help="Batch size")
-    parser.add_argument("--backend", type=str, default="cpu",
-                        help="Batch size")
-    
+    parser.add_argument("--device", type=str, default="cpu",
+                        help="backend device")
+
     # Transformer settings
     parser.add_argument("--attn_heads", type=int, default=8,
                         help="Number of attention heads")
@@ -298,7 +298,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    DEVICE = torch.device("cuda" if args.backend == "gpu" and torch.cuda.is_available() else "cpu")
+    DEVICE = torch.device("cuda" if args.device == "gpu" and torch.cuda.is_available() else args.device)
 
     if args.inference:
         inference(args)
