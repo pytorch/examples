@@ -86,6 +86,8 @@ def main():
                         help='disables CUDA training')
     parser.add_argument('--no-mps', action='store_true', default=False,
                         help='disables macOS GPU training')
+    parser.add_argument('--no-xpu', action='store_true', default=False,
+                        help='disables Intel GPU training')
     parser.add_argument('--dry-run', action='store_true', default=False,
                         help='quickly check a single pass')
     parser.add_argument('--seed', type=int, default=1, metavar='S',
@@ -97,6 +99,7 @@ def main():
     args = parser.parse_args()
     use_cuda = not args.no_cuda and torch.cuda.is_available()
     use_mps = not args.no_mps and torch.backends.mps.is_available()
+    use_xpu = not args.no_mps and torch.xpu.is_available()
 
     torch.manual_seed(args.seed)
 
@@ -104,6 +107,8 @@ def main():
         device = torch.device("cuda")
     elif use_mps:
         device = torch.device("mps")
+    elif use_xpu:
+        device = torch.device("xpu")
     else:
         device = torch.device("cpu")
 
@@ -115,6 +120,13 @@ def main():
                        'shuffle': True}
         train_kwargs.update(cuda_kwargs)
         test_kwargs.update(cuda_kwargs)
+
+    if use_xpu:
+        xpu_kwargs = {'num_workers': 1,
+                       'pin_memory': True,
+                       'shuffle': True}
+        train_kwargs.update(xpu_kwargs)
+        test_kwargs.update(xpu_kwargs)
 
     transform=transforms.Compose([
         transforms.ToTensor(),

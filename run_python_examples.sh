@@ -30,6 +30,22 @@ case $USE_CUDA in
     ;;
 esac
 
+USE_XPU=$(python -c "import torchvision, torch; print(torch.xpu.is_available())")
+case $USE_XPU in
+  "True")
+    echo "using xpu"
+    XPU=1
+    XPU_FLAG="--xpu"
+    ;;
+  "False")
+    echo "not using xpu"
+    XPU=0
+    XPU_FLAG=""
+    ;;
+  "")
+    exit 1;
+    
+    
 function dcgan() {
   start
   python main.py --dataset fake $CUDA_FLAG --mps --dry-run || error "dcgan failed"
