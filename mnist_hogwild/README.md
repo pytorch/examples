@@ -21,7 +21,6 @@ optional arguments:
   --log_interval        how many batches to wait before logging training status
   --num_process         how many training processes to use (default: 2)
   --cuda                enables CUDA training
-  --xpu                enables CUDA training
   --dry-run             quickly check a single pass
   --save-model          For Saving the current Model
 ```
