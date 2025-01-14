@@ -17,6 +17,7 @@ optional arguments:
   --epochs EPOCHS       number of epochs to train (default: 1000)
   --lr LR               learning rate (default: 0.03)
   --no_cuda             disables CUDA training
+  --no_xpu             disables XPU training
   --no_mps              disables MPS training
   --seed SEED           random seed (default: 1)
   --save_model          For saving the current Model
