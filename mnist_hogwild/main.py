@@ -63,11 +63,14 @@ if __name__ == '__main__':
     use_cuda = args.cuda and torch.cuda.is_available()
     use_xpu = args.xpu and torch.xpu.is_available()
     use_mps = args.mps and torch.backends.mps.is_available()
+
+    print(f"Using device: {'cuda' if use_cuda else 'xpu' if use_xpu else 'mps' if use_mps else 'cpu'}")
+    
     if use_cuda:
         device = torch.device("cuda")
     elif use_mps:
         device = torch.device("mps")
-    elif use_mps:
+    elif use_xpu:
         device = torch.device("xpu")
     else:
         device = torch.device("cpu")
@@ -86,7 +89,7 @@ if __name__ == '__main__':
         kwargs.update({'num_workers': 1,
                        'pin_memory': True,
                       })
-
+        
     torch.manual_seed(args.seed)
     mp.set_start_method('spawn', force=True)
 
