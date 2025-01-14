@@ -29,6 +29,8 @@ parser.add_argument('--num-processes', type=int, default=2, metavar='N',
                     help='how many training processes to use (default: 2)')
 parser.add_argument('--cuda', action='store_true', default=False,
                     help='enables CUDA training')
+parser.add_argument('--xpu', action='store_true', default=False,
+                    help='enables XPU training')
 parser.add_argument('--mps', action='store_true', default=False,
                     help='enables macOS GPU training')
 parser.add_argument('--save_model', action='store_true', default=False,
@@ -59,11 +61,14 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     use_cuda = args.cuda and torch.cuda.is_available()
+    use_xpu = args.xpu and torch.xpu.is_available()
     use_mps = args.mps and torch.backends.mps.is_available()
     if use_cuda:
         device = torch.device("cuda")
     elif use_mps:
         device = torch.device("mps")
+    elif use_mps:
+        device = torch.device("xpu")
     else:
         device = torch.device("cpu")
 
@@ -85,6 +90,7 @@ if __name__ == '__main__':
     torch.manual_seed(args.seed)
     mp.set_start_method('spawn', force=True)
 
+    multiprocessing_context='fork' if torch.backends.xpu.is_available() else None
     model = Net().to(device)
     model.share_memory() # gradients are allocated lazily, so they are not shared here
 
