@@ -93,6 +93,8 @@ def main():
                         help='learning rate step gamma (default: 0.7)')
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
+    parser.add_argument('--xpu', action='store_true', default=False,
+                        help='enables XPU training')
     parser.add_argument('--mps', action="store_true", default=False,
                         help="enables MPS training")
     parser.add_argument('--dry-run', action='store_true', default=False,
@@ -109,6 +111,8 @@ def main():
         device = "cuda"
     elif args.mps and not args.cuda:
         device = "mps"
+    elif args.xpu:
+        device = "xpu"
     else:
         device = "cpu"
 
@@ -117,6 +121,7 @@ def main():
     torch.manual_seed(args.seed)
 
     kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
+
     train_loader = torch.utils.data.DataLoader(
         datasets.MNIST('../data', train=True, download=True,
                        transform=transforms.Compose([

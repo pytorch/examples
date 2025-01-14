@@ -22,5 +22,4 @@ optional arguments:
   --num_process         how many training processes to use (default: 2)
   --cuda                enables CUDA training
   --dry-run             quickly check a single pass
-  --save-model          For Saving the current Model
 ```
