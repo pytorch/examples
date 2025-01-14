@@ -121,13 +121,6 @@ def main():
         train_kwargs.update(cuda_kwargs)
         test_kwargs.update(cuda_kwargs)
 
-    if use_xpu:
-        xpu_kwargs = {'num_workers': 1,
-                       'pin_memory': True,
-                       'shuffle': True}
-        train_kwargs.update(xpu_kwargs)
-        test_kwargs.update(xpu_kwargs)
-
     transform=transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
