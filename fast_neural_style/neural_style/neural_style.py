@@ -34,7 +34,7 @@ def train(args):
     elif args.mps:
         device = torch.device("mps")
     else:
-        device = torch.device("cpu")
+        device = torch.device(args.device)
 
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -125,7 +125,7 @@ def train(args):
 
 
 def stylize(args):
-    device = torch.device("cuda" if args.cuda else "cpu")
+    device = torch.device("cuda" if args.cuda else args.device)
 
     content_image = utils.load_image(args.content_image, scale=args.content_scale)
     content_transform = transforms.Compose([
@@ -205,8 +205,10 @@ def main():
                                   help="size of training images, default is 256 X 256")
     train_arg_parser.add_argument("--style-size", type=int, default=None,
                                   help="size of style-image, default is the original size of style image")
-    train_arg_parser.add_argument("--cuda", type=int, required=True,
+    train_arg_parser.add_argument("--cuda", type=int, required=True, default=0,
                                   help="set it to 1 for running on GPU, 0 for CPU")
+    train_arg_parser.add_argument('--device', type=str, default='cpu',
+                                  help='backend device')
     train_arg_parser.add_argument("--seed", type=int, default=42,
                                   help="random seed for training")
     train_arg_parser.add_argument("--content-weight", type=float, default=1e5,
@@ -234,6 +236,7 @@ def main():
     eval_arg_parser.add_argument("--export_onnx", type=str,
                                  help="export ONNX model to a given file")
     eval_arg_parser.add_argument('--mps', action='store_true', default=False, help='enable macOS GPU training')
+    eval_arg_parser.add_argument('--device', type=str, default='cpu', help='backend device')
 
     args = main_arg_parser.parse_args()
 

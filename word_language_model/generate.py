@@ -23,6 +23,8 @@ parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
 parser.add_argument('--cuda', action='store_true',
                     help='use CUDA')
+parser.add_argument('--device', type=str, default='cpu',
+                    help='backend device')
 parser.add_argument('--mps', action='store_true', default=False,
                         help='enables macOS GPU training')
 parser.add_argument('--temperature', type=float, default=1.0,
@@ -46,7 +48,7 @@ if args.cuda:
 elif use_mps:
     device = torch.device("mps")
 else:
-    device = torch.device("cpu")
+    device = torch.device(args.device)
 
 if args.temperature < 1e-3:
     parser.error("--temperature has to be greater or equal 1e-3.")

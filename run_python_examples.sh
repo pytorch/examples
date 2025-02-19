@@ -13,6 +13,15 @@
 BASE_DIR="$(pwd)/$(dirname $0)"
 source $BASE_DIR/utils.sh
 
+# Run on a specific backend device with 'export BACKEND_DEVICE=cpu'. It will
+# be set to 'cpu' by default and has lower priority than '--cuda' and '--mps'.
+# See https://github.com/pytorch/examples/pull/1288 for more information.
+if [ -n "${BACKEND_DEVICE}" ]; then
+  DEVICE_FLAG="--device ${BACKEND_DEVICE}"
+else
+  DEVICE_FLAG=""
+fi
+
 USE_CUDA=$(python -c "import torchvision, torch; print(torch.cuda.is_available())")
 case $USE_CUDA in
   "True")
@@ -32,7 +41,7 @@ esac
 
 function dcgan() {
   start
-  python main.py --dataset fake $CUDA_FLAG --mps --dry-run || error "dcgan failed"
+  python main.py --dataset fake $CUDA_FLAG --mps $DEVICE_FLAG --dry-run || error "dcgan failed"
 }
 
 function fast_neural_style() {
@@ -44,7 +53,7 @@ function fast_neural_style() {
   test -d "saved_models" || { error "saved models not found"; return; }
 
   echo "running fast neural style model"
-  python neural_style/neural_style.py eval --content-image images/content-images/amber.jpg --model saved_models/candy.pth --output-image images/output-images/amber-candy.jpg --cuda $CUDA --mps || error "neural_style.py failed"
+  python neural_style/neural_style.py eval --content-image images/content-images/amber.jpg --model saved_models/candy.pth --output-image images/output-images/amber-candy.jpg --cuda $CUDA --mps $DEVICE_FLAG || error "neural_style.py failed"
 }
 
 function imagenet() {
@@ -63,36 +72,36 @@ function language_translation() {
   start
   python -m spacy download en || error "couldn't download en package from spacy"
   python -m spacy download de || error "couldn't download de package from spacy"
-  python main.py -e 1 --enc_layers 1 --dec_layers 1 --backend cpu --logging_dir output/ --dry_run || error "language translation example failed"
+  python main.py -e 1 --enc_layers 1 --dec_layers 1 $DEVICE_FLAG --logging_dir output/ --dry_run || error "language translation example failed"
 }
 
 function mnist() {
   start
-  python main.py --epochs 1 --dry-run || error "mnist example failed"
+  python main.py --epochs 1 --dry-run $DEVICE_FLAG || error "mnist example failed"
 }
 function mnist_forward_forward() {
   start
-  python main.py --epochs 1 --no_mps --no_cuda || error "mnist forward forward failed"
+  python main.py --epochs 1 --no_mps --no_cuda $DEVICE_FLAG || error "mnist forward forward failed"
 
 }
 function mnist_hogwild() {
   start
-  python main.py --epochs 1 --dry-run $CUDA_FLAG || error "mnist hogwild failed"
+  python main.py --epochs 1 --dry-run $CUDA_FLAG $DEVICE_FLAG || error "mnist hogwild failed"
 }
 
 function mnist_rnn() {
   start
-  python main.py --epochs 1 --dry-run || error "mnist rnn example failed"
+  python main.py --epochs 1 --dry-run $DEVICE_FLAG || error "mnist rnn example failed"
 }
 
 function regression() {
   start
-  python main.py --epochs 1 $CUDA_FLAG || error "regression failed"
+  python main.py --epochs 1 $CUDA_FLAG $DEVICE_FLAG || error "regression failed"
 }
 
 function siamese_network() {
   start
-  python main.py --epochs 1 --dry-run || error "siamese network example failed"
+  python main.py --epochs 1 --dry-run $DEVICE_FLAG || error "siamese network example failed"
 }
 
 function reinforcement_learning() {
@@ -123,7 +132,7 @@ function fx() {
 
 function super_resolution() {
   start
-  python main.py --upscale_factor 3 --batchSize 4 --testBatchSize 100 --nEpochs 1 --lr 0.001 --mps || error "super resolution failed"
+  python main.py --upscale_factor 3 --batchSize 4 --testBatchSize 100 --nEpochs 1 --lr 0.001 --mps $DEVICE_FLAG || error "super resolution failed"
 }
 
 function time_sequence_prediction() {
@@ -134,7 +143,7 @@ function time_sequence_prediction() {
 
 function vae() {
   start
-  python main.py --epochs 1 || error "vae failed"
+  python main.py --epochs 1 $DEVICE_FLAG || error "vae failed"
 }
 
 function vision_transformer() {
@@ -144,17 +153,17 @@ function vision_transformer() {
 
 function word_language_model() {
   start
-  python main.py --epochs 1 --dry-run $CUDA_FLAG --mps || error "word_language_model failed"
+  python main.py --epochs 1 --dry-run $CUDA_FLAG --mps $DEVICE_FLAG || error "word_language_model failed"
 }
 
 function gcn() {
   start
-  python main.py --epochs 1 --dry-run || error "graph convolutional network failed"
+  python main.py --epochs 1 --dry-run $DEVICE_FLAG || error "graph convolutional network failed"
 }
 
 function gat() {
   start
-  python main.py --epochs 1 --dry-run || error "graph attention network failed"
+  python main.py --epochs 1 --dry-run $DEVICE_FLAG || error "graph attention network failed"
 }
 
 function clean() {
