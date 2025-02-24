@@ -93,15 +93,17 @@ def main():
                         help='learning rate step gamma (default: 0.7)')
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
-    parser.add_argument('--mps', action="store_true", default=False,
+    parser.add_argument('--mps', action="store_true", 
                         help="enables MPS training")
-    parser.add_argument('--dry-run', action='store_true', default=False,
+    parser.add_argument('--xpu', action='store_true',
+                        help='enables XPU training')
+    parser.add_argument('--dry-run', action='store_true',
                         help='quickly check a single pass')
     parser.add_argument('--seed', type=int, default=1, metavar='S',
                         help='random seed (default: 1)')
     parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                         help='how many batches to wait before logging training status')
-    parser.add_argument('--save-model', action='store_true', default=False,
+    parser.add_argument('--save-model', action='store_true',
                         help='for Saving the current Model')
     args = parser.parse_args()
 
@@ -109,6 +111,8 @@ def main():
         device = "cuda"
     elif args.mps and not args.cuda:
         device = "mps"
+    elif args.xpu:
+        device = "xpu"
     else:
         device = "cpu"
 

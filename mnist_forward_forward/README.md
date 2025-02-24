@@ -18,6 +18,7 @@ optional arguments:
   --lr LR               learning rate (default: 0.03)
   --no_cuda             disables CUDA training
   --no_mps              disables MPS training
+  --no_xpu              disables XPU training
   --seed SEED           random seed (default: 1)
   --save_model          For saving the current Model
   --train_size TRAIN_SIZE

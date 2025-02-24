@@ -102,10 +102,13 @@ if __name__ == "__main__":
         help="learning rate (default: 0.03)",
     )
     parser.add_argument(
-        "--no_cuda", action="store_true", default=False, help="disables CUDA training"
+        "--no_cuda", action="store_true", help="disables CUDA training"
     )
     parser.add_argument(
-        "--no_mps", action="store_true", default=False, help="disables MPS training"
+        "--no_mps", action="store_true", help="disables MPS training"
+    )
+    parser.add_argument(
+        "--no_xpu", action="store_true", help="disables XPU training"
     )
     parser.add_argument(
         "--seed", type=int, default=1, metavar="S", help="random seed (default: 1)"
@@ -113,7 +116,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--save_model",
         action="store_true",
-        default=False,
         help="For saving the current Model",
     )
     parser.add_argument(
@@ -126,7 +128,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--save-model",
         action="store_true",
-        default=False,
         help="For Saving the current Model",
     )
     parser.add_argument(
@@ -139,10 +140,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
     use_cuda = not args.no_cuda and torch.cuda.is_available()
     use_mps = not args.no_mps and torch.backends.mps.is_available()
+    use_xpu = not args.no_xpu and torch.xpu.is_available()
     if use_cuda:
         device = torch.device("cuda")
     elif use_mps:
         device = torch.device("mps")
+    elif use_xpu:
+        device = torch.device("xpu")
     else:
         device = torch.device("cpu")
 
