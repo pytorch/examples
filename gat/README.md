@@ -89,6 +89,7 @@ options:
                         epochs to wait for print training and validation evaluation (default: 20)
   --no-cuda             disables CUDA training
   --no-mps              disables macOS GPU training
+  --no-xpu              disables XPU training
   --dry-run             quickly check a single pass
   --seed S              random seed (default: 13)
 ```
