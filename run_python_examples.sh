@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+set -eo pipefail
+DEBUG=${DEBUG:-false}
+[[ $DEBUG == true ]] && set -x
 #
 # This script runs through the code in each of the python examples.
 # The purpose is just as an integration test, not to actually train models in any meaningful way.
