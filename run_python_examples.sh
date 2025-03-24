@@ -16,6 +16,27 @@ DEBUG=${DEBUG:-false}
 BASE_DIR="$(pwd)/$(dirname $0)"
 source $BASE_DIR/utils.sh
 
+echo "] Running Python examples"
+# Check if required packages are installed
+echo "Checking for required packages..."
+if ! pip list | grep -q "^torch "; then
+  echo "torch is not installed. Please install PyTorch."
+  exit 1
+fi
+
+if ! pip list | grep -q "^torchvision "; then
+  echo "torchvision is not installed. Please install torchvision."
+  exit 1
+fi
+
+if ! pip list | grep -q "^Pillow "; then
+  echo "Pillow is not installed. Please install Pillow."
+  exit 1
+fi
+
+echo "All required packages are installed!"
+
+echo "Checking CUDA availability"
 USE_CUDA=$(python -c "import torchvision, torch; print(torch.cuda.is_available())")
 case $USE_CUDA in
   "True")
