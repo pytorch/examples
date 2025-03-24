@@ -23,7 +23,7 @@ function error() {
 
 function install_deps() {
   echo "installing requirements"
-  cat $BASE_DIR/*/requirements.txt | \
+  cat requirements.txt | \
     sort -u | \
     # testing the installed version of torch, so don't pip install it.
     grep -vE '^torch$' | \
@@ -34,5 +34,6 @@ function install_deps() {
 function start() {
   EXAMPLE=${FUNCNAME[1]}
   cd $BASE_DIR/$EXAMPLE
+  install_deps
   echo "Running example: $EXAMPLE"
 }

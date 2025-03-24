@@ -30,7 +30,7 @@ jobs:
         # pip install --pre torch torchvision -f https://download.pytorch.org/whl/nightly/cu102/torch_nightly.html
     - name: Run Tests
       run: |
-        ./run_python_examples.sh "install_deps,run_all,clean"
+        ./run_python_examples.sh "run_all,clean"
     - name: Open issue on failure
       if: ${{ failure() && github.event_name  == 'schedule' }}
       uses: rishabhgupta/git-action-issue@v2
