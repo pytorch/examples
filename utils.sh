@@ -22,7 +22,8 @@ function error() {
 }
 
 function install_deps() {
-  echo "] installing requirements"
+  EXAMPLE_NAME=$1
+  echo "] $EXAMPLE_NAME: installing requirements"
   [[ -f requirements.txt ]] || { error "requirements.txt not found; skipping"; return; }
   cat requirements.txt | \
     sort -u | \
@@ -33,8 +34,8 @@ function install_deps() {
 }
 
 function start() {
-  EXAMPLE=${FUNCNAME[1]}
-  cd $BASE_DIR/$EXAMPLE
-  install_deps
-  echo "] Running example: $EXAMPLE"
+  EXAMPLE_NAME=${FUNCNAME[1]}
+  cd $BASE_DIR/$EXAMPLE_NAME
+  install_deps $EXAMPLE_NAME
+  echo "] $EXAMPLE_NAME: running"
 }
