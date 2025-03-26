@@ -22,7 +22,8 @@ function error() {
 }
 
 function install_deps() {
-  echo "installing requirements"
+  echo "] installing requirements"
+  [[ -f requirements.txt ]] || { error "requirements.txt not found; skipping"; return; }
   cat requirements.txt | \
     sort -u | \
     # testing the installed version of torch, so don't pip install it.
@@ -35,5 +36,5 @@ function start() {
   EXAMPLE=${FUNCNAME[1]}
   cd $BASE_DIR/$EXAMPLE
   install_deps
-  echo "Running example: $EXAMPLE"
+  echo "] Running example: $EXAMPLE"
 }

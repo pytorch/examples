@@ -239,9 +239,11 @@ if [ "" == "$EXAMPLES" ]; then
 else
   for i in $(echo $EXAMPLES | sed "s/,/ /g")
   do
+    echo "==============="
     echo "Starting $i"
     $i
     echo "Finished $i, status $?"
+    echo "==============="
   done
 fi
 
