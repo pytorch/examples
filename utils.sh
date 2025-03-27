@@ -25,12 +25,12 @@ function install_deps() {
   EXAMPLE_NAME=$1
   echo "] $EXAMPLE_NAME: installing requirements"
   [[ -f requirements.txt ]] || { error "requirements.txt not found; skipping"; return; }
-  cat requirements.txt | \
-    sort -u | \
+  for req in $(cat requirements.txt); do
     # testing the installed version of torch, so don't pip install it.
-    grep -vE '^torch$' | \
-    pip install -r /dev/stdin || \
-    { error "failed to install dependencies"; exit 1; }
+    if [[ "$req" != "torch" ]]; then
+      pip install "$req" || { error "failed to install $req"; exit 1; }
+    fi
+  done
 }
 
 function start() {
