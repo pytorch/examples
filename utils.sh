@@ -24,7 +24,7 @@ function error() {
 function install_deps() {
   EXAMPLE_NAME=$1
   echo "] $EXAMPLE_NAME: installing requirements"
-  [[ -f requirements.txt ]] || { error "requirements.txt not found; skipping"; return; }
+  [[ -f requirements.txt ]] || return
   for req in $(cat requirements.txt); do
     # testing the installed version of torch, so don't pip install it.
     if [[ "$req" != "torch" ]]; then
