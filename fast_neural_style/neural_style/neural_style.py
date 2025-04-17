@@ -29,16 +29,12 @@ def check_paths(args):
 
 
 def train(args):
-    if args.cuda:
-        device = torch.device("cuda")
-    elif args.mps:
-        device = torch.device("mps")
-    elif args.xpu:
-        device = torch.device("xpu")
+    if args.accel:
+        device = torch.accelerator.current_accelerator()
     else:
         device = torch.device("cpu")
 
-    print("Device to use: ", device)
+    print(f"Using device: {device}")
 
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -129,10 +125,12 @@ def train(args):
 
 
 def stylize(args):
-    device = torch.device("cuda" if args.cuda else "cpu")
-    device = torch.device("xpu" if args.xpu else "cpu")
+    if args.accel:
+        device = torch.accelerator.current_accelerator()
+    else:
+        device = torch.device("cpu")
     
-    print("Device to use: ", device)
+    print(f"Using device: {device}")
 
     content_image = utils.load_image(args.content_image, scale=args.content_scale)
     content_transform = transforms.Compose([
@@ -212,8 +210,8 @@ def main():
                                   help="size of training images, default is 256 X 256")
     train_arg_parser.add_argument("--style-size", type=int, default=None,
                                   help="size of style-image, default is the original size of style image")
-    train_arg_parser.add_argument("--cuda", type=int, required=True,
-                                  help="set it to 1 for running on GPU, 0 for CPU")
+    train_arg_parser.add_argument('--accel', action='store_true',
+                                  help='use accelerator')
     train_arg_parser.add_argument("--seed", type=int, default=42,
                                   help="random seed for training")
     train_arg_parser.add_argument("--content-weight", type=float, default=1e5,
@@ -226,10 +224,6 @@ def main():
                                   help="number of images after which the training loss is logged, default is 500")
     train_arg_parser.add_argument("--checkpoint-interval", type=int, default=2000,
                                   help="number of batches after which a checkpoint of the trained model will be created")
-    train_arg_parser.add_argument('--mps', action='store_true',
-                                  help='enable macOS GPU training')
-    train_arg_parser.add_argument('--xpu', action='store_true',
-                                  help='enable Intel XPU training')
 
     eval_arg_parser = subparsers.add_parser("eval", help="parser for evaluation/stylizing arguments")
     eval_arg_parser.add_argument("--content-image", type=str, required=True,
@@ -240,28 +234,21 @@ def main():
                                  help="path for saving the output image")
     eval_arg_parser.add_argument("--model", type=str, required=True,
                                  help="saved model to be used for stylizing the image. If file ends in .pth - PyTorch path is used, if in .onnx - Caffe2 path")
-    eval_arg_parser.add_argument("--cuda", type=int, default=False,
-                                 help="set it to 1 for running on cuda, 0 for CPU")
     eval_arg_parser.add_argument("--export_onnx", type=str,
                                  help="export ONNX model to a given file")
-    eval_arg_parser.add_argument('--mps', action='store_true',
-                                 help='enable macOS GPU evaluation')
-    eval_arg_parser.add_argument('--xpu', action='store_true',
-                                 help='enable Intel XPU evaluation')
-
+    eval_arg_parser.add_argument('--accel', action='store_true',
+                                 help='use accelerator')
 
     args = main_arg_parser.parse_args()
 
     if args.subcommand is None:
         print("ERROR: specify either train or eval")
         sys.exit(1)
-    if args.cuda and not torch.cuda.is_available():
-        print("ERROR: cuda is not available, try running on CPU")
+    if args.accel and not torch.accelerator.is_available():
+        print("ERROR: accelerator is not available, try running on CPU")
         sys.exit(1)
-    if not args.mps and torch.backends.mps.is_available():
-        print("WARNING: mps is available, run with --mps to enable macOS GPU")
-    if not args.xpu and torch.xpu.is_available():
-        print("WARNING: XPU is available, run with --xpu to enable Intel XPU")
+    if not args.accel and torch.accelerator.is_available():
+        print("WARNING: accelerator is available, run with --accel to enable it")
 
     if args.subcommand == "train":
         check_paths(args)

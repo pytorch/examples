@@ -19,11 +19,13 @@ case $USE_CUDA in
     echo "using cuda"
     CUDA=1
     CUDA_FLAG="--cuda"
+    ACCEL_FLAG="--accel"
     ;;
   "False")
     echo "not using cuda"
     CUDA=0
     CUDA_FLAG=""
+    ACCEL_FLAG=""
     ;;
   "")
     exit 1;
@@ -44,7 +46,7 @@ function fast_neural_style() {
   test -d "saved_models" || { error "saved models not found"; return; }
 
   echo "running fast neural style model"
-  python neural_style/neural_style.py eval --content-image images/content-images/amber.jpg --model saved_models/candy.pth --output-image images/output-images/amber-candy.jpg --cuda $CUDA --mps || error "neural_style.py failed"
+  python neural_style/neural_style.py eval --content-image images/content-images/amber.jpg --model saved_models/candy.pth --output-image images/output-images/amber-candy.jpg $ACCEL_FLAG || error "neural_style.py failed"
 }
 
 function imagenet() {
