@@ -13,6 +13,12 @@
 # To test examples on CUDA accelerator, run as:
 #   USE_CUDA=True ./run_python_examples.sh
 #
+# To test examples on hardware accelerator (CUDA, MPS, XPU, etc.), run as:
+#   USE_ACCEL=True ./run_python_examples.sh
+# NOTE: USE_ACCEL relies on torch.accelerator API and not all examples are converted
+# to use it at the moment. Thus, expect failures using this flag on non-CUDA accelerators
+# and consider to run examples one by one.
+#
 # Script requires uv to be installed. When executed, script will install prerequisites from
 # `requirements.txt` for each example. If ran within activated virtual environment (uv venv,
 # python -m venv, conda) this might reinstall some of the packages. To change pip installation
@@ -27,17 +33,24 @@
 BASE_DIR="$(pwd)/$(dirname $0)"
 source $BASE_DIR/utils.sh
 
+# TODO: Leave only USE_ACCEL and drop USE_CUDA once all examples will be converted
+# to torch.accelerator API. For now, just add USE_ACCEL as an alias for USE_CUDA.
+if [ -n "$USE_ACCEL" ]; then
+  USE_CUDA=$USE_ACCEL
+fi
 USE_CUDA=${USE_CUDA:-False}
 case $USE_CUDA in
   "True")
     echo "using cuda"
     CUDA=1
     CUDA_FLAG="--cuda"
+    ACCEL_FLAG="--accel"
     ;;
   "False")
     echo "not using cuda"
     CUDA=0
     CUDA_FLAG=""
+    ACCEL_FLAG=""
     ;;
   "")
     exit 1;
@@ -56,7 +69,7 @@ function fast_neural_style() {
   test -d "saved_models" || { error "saved models not found"; return; }
 
   echo "running fast neural style model"
-  uv run neural_style/neural_style.py eval --content-image images/content-images/amber.jpg --model saved_models/candy.pth --output-image images/output-images/amber-candy.jpg --cuda $CUDA --mps || error "neural_style.py failed"
+  uv run neural_style/neural_style.py eval --content-image images/content-images/amber.jpg --model saved_models/candy.pth --output-image images/output-images/amber-candy.jpg $ACCEL_FLAG || error "neural_style.py failed"
 }
 
 function imagenet() {
