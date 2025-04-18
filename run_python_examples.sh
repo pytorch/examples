@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+set -eo pipefail
+DEBUG=${DEBUG:-false}
+[[ $DEBUG == true ]] && set -x
 #
 # This script runs through the code in each of the python examples.
 # The purpose is just as an integration test, not to actually train models in any meaningful way.
@@ -6,13 +9,34 @@
 #
 # Optionally specify a comma separated list of examples to run.
 # can be run as:
-# ./run_python_examples.sh "install_deps,run_all,clean"
-# to pip install dependencies (other than pytorch), run all examples, and remove temporary/changed data files.
+# ./run_python_examples.sh "run_all,clean"
+# run all examples, and remove temporary/changed data files.
 # Expects pytorch, torchvision to be installed.
 
 BASE_DIR="$(pwd)/$(dirname $0)"
 source $BASE_DIR/utils.sh
 
+echo "] Running Python examples"
+# Check if required packages are installed
+echo "Checking for required packages..."
+if ! pip show torch; then
+  echo "torch is not installed. Please install PyTorch."
+  exit 1
+fi
+
+if ! pip show torchvision; then
+  echo "torchvision is not installed. Please install torchvision."
+  exit 1
+fi
+
+if ! pip show pillow; then
+  echo "Pillow is not installed. Please install Pillow."
+  exit 1
+fi
+
+echo "All required packages are installed!"
+
+echo "Checking CUDA availability"
 USE_CUDA=$(python -c "import torchvision, torch; print(torch.cuda.is_available())")
 case $USE_CUDA in
   "True")
@@ -215,9 +239,11 @@ if [ "" == "$EXAMPLES" ]; then
 else
   for i in $(echo $EXAMPLES | sed "s/,/ /g")
   do
+    echo "==============="
     echo "Starting $i"
     $i
     echo "Finished $i, status $?"
+    echo "==============="
   done
 fi
 

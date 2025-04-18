@@ -38,12 +38,11 @@ If you're new, we encourage you to take a look at issues tagged with [good first
 ## For bug fixes
 
 1. Fork the repo and create your branch from `main`.
-2. Make sure you have a GPU-enabled machine, either locally or in the cloud. `g4dn.4xlarge` is a good starting point on AWS.
-3. Make your code change.
-4. First, install all dependencies with `./run_python_examples.sh "install_deps"`.
-5. Then, make sure that `./run_python_examples.sh` passes locally by running the script end to end.
-6. If you haven't already, complete the Contributor License Agreement ("CLA").
-7. Address any feedback in code review promptly.
+1. Make sure you have a GPU-enabled machine, either locally or in the cloud. `g4dn.4xlarge` is a good starting point on AWS.
+1. Make your code change.
+1. Then, make sure that `./run_python_examples.sh` passes locally by running the script end to end.
+1. If you haven't already, complete the Contributor License Agreement ("CLA").
+1. Address any feedback in code review promptly.
 
 ## Contributor License Agreement ("CLA")
 

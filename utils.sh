@@ -22,17 +22,20 @@ function error() {
 }
 
 function install_deps() {
-  echo "installing requirements"
-  cat $BASE_DIR/*/requirements.txt | \
-    sort -u | \
+  EXAMPLE_NAME=$1
+  echo "] $EXAMPLE_NAME: installing requirements"
+  [[ -f requirements.txt ]] || return
+  for req in $(cat requirements.txt); do
     # testing the installed version of torch, so don't pip install it.
-    grep -vE '^torch$' | \
-    pip install -r /dev/stdin || \
-    { error "failed to install dependencies"; exit 1; }
+    if [[ "$req" != "torch" ]]; then
+      pip install "$req" || { error "failed to install $req"; exit 1; }
+    fi
+  done
 }
 
 function start() {
-  EXAMPLE=${FUNCNAME[1]}
-  cd $BASE_DIR/$EXAMPLE
-  echo "Running example: $EXAMPLE"
+  EXAMPLE_NAME=${FUNCNAME[1]}
+  cd $BASE_DIR/$EXAMPLE_NAME
+  install_deps $EXAMPLE_NAME
+  echo "] $EXAMPLE_NAME: running"
 }

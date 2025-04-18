@@ -6,8 +6,8 @@
 #
 # Optionally specify a comma separated list of examples to run.
 # can be run as:
-# ./run_python_examples.sh "install_deps,run_all,clean"
-# to pip install dependencies (other than pytorch), run all examples, and remove temporary/changed data files.
+# ./run_python_examples.sh "run_all,clean"
+# run all examples, and remove temporary/changed data files.
 # Expects pytorch, torchvision to be installed.
 
 BASE_DIR="$(pwd)/$(dirname $0)"
