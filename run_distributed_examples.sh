@@ -4,16 +4,30 @@
 # The purpose is just as an integration test, not to actually train models in any meaningful way.
 # For that reason, most of these set epochs = 1 and --dry-run.
 #
-# Optionally specify a comma separated list of examples to run.
-# can be run as:
-# ./run_python_examples.sh "install_deps,run_all,clean"
-# to pip install dependencies (other than pytorch), run all examples, and remove temporary/changed data files.
-# Expects pytorch, torchvision to be installed.
+# Optionally specify a comma separated list of examples to run. Can be run as:
+# * To run all examples:
+#   ./run_distributed_examples.sh
+# * To run specific example:
+#   ./run_distributed_examples.sh "distributed/tensor_parallelism,distributed/ddp"
+#
+# To test examples on CUDA accelerator, run as:
+#   USE_CUDA=True ./run_distributed_examples.sh
+#
+# Script requires uv to be installed. When executed, script will install prerequisites from
+# `requirements.txt` for each example. If ran within activated virtual environment (uv venv,
+# python -m venv, conda) this might reinstall some of the packages. To change pip installation
+# index or to pass additional pip install options, run as:
+#   PIP_INSTALL_ARGS="--pre -f https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html" \
+#     ./run_python_examples.sh
+#
+# To force script to create virtual environment for each example, run as:
+#   VIRTUAL_ENV=".venv" ./run_distributed_examples.sh
+# Script will remove environments it creates in a teardown step after execution of each example.
 
 BASE_DIR="$(pwd)/$(dirname $0)"
 source $BASE_DIR/utils.sh
 
-USE_CUDA=$(python -c "import torch; print(torch.cuda.is_available())")
+USE_CUDA=${USE_CUDA:-False}
 case $USE_CUDA in
   "True")
     echo "using cuda"
@@ -30,21 +44,19 @@ case $USE_CUDA in
     ;;
 esac
 
-function distributed() {
-    start
-    bash tensor_parallelism/run_example.sh tensor_parallelism/tensor_parallel_example.py || error "tensor parallel example failed"
-    bash tensor_parallelism/run_example.sh tensor_parallelism/sequence_parallel_example.py || error "sequence parallel example failed"
-    bash tensor_parallelism/run_example.sh tensor_parallelism/fsdp_tp_example.py || error "2D parallel example failed"
-    python ddp/main.py || error "ddp example failed"
+function distributed_tensor_parallelism() {
+    uv run bash run_example.sh tensor_parallel_example.py || error "tensor parallel example failed"
+    uv run bash run_example.sh sequence_parallel_example.py || error "sequence parallel example failed"
+    uv run bash run_example.sh fsdp_tp_example.py || error "2D parallel example failed"
 }
 
-function clean() {
-  cd $BASE_DIR
-  echo "running clean to remove cruft"
+function distributed_ddp() {
+    uv run main.py || error "ddp example failed"
 }
 
 function run_all() {
-  distributed
+  run distributed/tensor_parallelism
+  run distributed/ddp
 }
 
 # by default, run all examples
@@ -54,7 +66,7 @@ else
   for i in $(echo $EXAMPLES | sed "s/,/ /g")
   do
     echo "Starting $i"
-    $i
+    run $i
     echo "Finished $i, status $?"
   done
 fi
