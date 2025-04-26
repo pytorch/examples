@@ -21,16 +21,14 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
-    - name: Install PyTorch
-      run: |
-        python -m pip install --upgrade pip
-        # Install CPU-based pytorch
-        pip install --pre torch torchvision -f https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html
-        # Maybe use the CUDA 10.2 version instead?
-        # pip install --pre torch torchvision -f https://download.pytorch.org/whl/nightly/cu102/torch_nightly.html
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
     - name: Run Tests
+      env:
+        VIRTUAL_ENV: '.venv'
+        PIP_INSTAL_ARGS: '--pre -f https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html'
       run: |
-        ./run_python_examples.sh "install_deps,run_all,clean"
+        ./run_python_examples.sh
     - name: Open issue on failure
       if: ${{ failure() && github.event_name  == 'schedule' }}
       uses: rishabhgupta/git-action-issue@v2
