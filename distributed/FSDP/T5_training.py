@@ -199,13 +199,13 @@ if __name__ == '__main__':
     # Training settings
     parser = argparse.ArgumentParser(description='PyTorch T5 FSDP Example')
     parser.add_argument('--batch-size', type=int, default=4, metavar='N',
-                        help='input batch size for training (default: 64)')
+                        help='input batch size for training (default: %(default)s)')
     parser.add_argument('--test-batch-size', type=int, default=4, metavar='N',
-                        help='input batch size for testing (default: 1000)')
+                        help='input batch size for testing (default: %(default)s)')
     parser.add_argument('--epochs', type=int, default=2, metavar='N',
-                        help='number of epochs to train (default: 3)')
+                        help='number of epochs to train (default: %(default)s)')
     parser.add_argument('--seed', type=int, default=1, metavar='S',
-                        help='random seed (default: 1)')
+                        help='random seed (default: %(default)s)')
     parser.add_argument('--track_memory', action='store_false', default=True,
                         help='track the gpu memory')
     parser.add_argument('--run_validation', action='store_false', default=True,
