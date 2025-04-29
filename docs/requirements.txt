@@ -1,5 +1,5 @@
-sphinx
-# torch
-# PyTorch Theme
+
+sphinx==5.3.0
+#Pinned versions: 5.3.0
 -e git+https://github.com/pytorch/pytorch_sphinx_theme.git#egg=pytorch_sphinx_theme
 sphinx-panels
