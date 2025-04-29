@@ -1,0 +1,94 @@
+.octicon {
+    display: inline-block;
+    vertical-align: text-top;
+    fill: currentColor;
+}
+details.dropdown .summary-title {
+    -webkit-user-select: none;
+       -moz-user-select: none;
+        -ms-user-select: none;
+            user-select: none;
+    /* don't overlap the chevron */
+    padding-right: 3em!important;
+  }
+details.dropdown:hover {
+    cursor: pointer;
+}
+details.dropdown .summary-content {
+    cursor: default;
+}
+details.dropdown summary {
+    padding: 1em;
+    /* hide the default triangle marker */
+    list-style: none;
+}
+/* chrome doesn't yet support list-style */
+details.dropdown summary::-webkit-details-marker {
+    display: none;
+}
+details.dropdown summary:focus {
+    outline: none;
+}
+details.dropdown summary:hover .summary-up svg,
+details.dropdown summary:hover .summary-down svg {
+    opacity: 1;
+}
+details.dropdown .summary-up svg,
+details.dropdown .summary-down svg {
+    opacity: 0.6;
+}
+details.dropdown .summary-up,
+details.dropdown .summary-down {
+    pointer-events: none;
+    position: absolute;
+    top: 0.75em;
+    right: 1em;
+}
+details.dropdown .summary-up svg,
+details.dropdown .summary-down svg {
+    display: block;
+}
+details.dropdown[open] .summary-down{
+    visibility: hidden;
+    /* z-index: -1; */
+}
+details.dropdown:not([open]) .summary-up{
+    visibility: hidden;
+    /* z-index: -1; */
+}
+
+/* Ellipsis added when no title */
+details.dropdown summary .octicon.no-title {
+    vertical-align: middle;
+}
+details.dropdown[open] summary .octicon.no-title{
+    visibility: hidden;
+}
+
+/* Transition animation */
+details.dropdown.fade-in[open] summary ~ * {
+    animation: fade-in .5s ease-in-out;
+    -moz-animation: fade-in .5s ease-in-out ;
+    -webkit-animation: fade-in .5s ease-in-out
+}
+details.dropdown.fade-in-slide-down[open] summary ~ * {
+    animation: fade-in .5s ease-in-out, slide-down .5s ease-in-out;
+    -moz-animation: fade-in .5s ease-in-out, slide-down .5s ease-in-out ;
+    -webkit-animation: fade-in .5s ease-in-out, slide-down .5s ease-in-out
+}
+@keyframes fade-in {
+    0%    {
+        opacity: 0;
+    }
+    100%  {
+        opacity: 1;
+    }
+}
+@keyframes slide-down {
+    0%    {
+        transform: translate(0px, -10px)
+    }
+    100%  {
+        transform: translate(0px, 0px)
+    }
+}
