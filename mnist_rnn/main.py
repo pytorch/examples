@@ -91,32 +91,26 @@ def main():
                         help='learning rate (default: 0.1)')
     parser.add_argument('--gamma', type=float, default=0.7, metavar='M',
                         help='learning rate step gamma (default: 0.7)')
-    parser.add_argument('--cuda', action='store_true', default=False,
-                        help='enables CUDA training')
-    parser.add_argument('--mps', action="store_true", default=False,
-                        help="enables MPS training")
-    parser.add_argument('--dry-run', action='store_true', default=False,
+    parser.add_argument('--accel', action='store_true',
+                        help='enables accelerator')
+    parser.add_argument('--dry-run', action='store_true',
                         help='quickly check a single pass')
     parser.add_argument('--seed', type=int, default=1, metavar='S',
                         help='random seed (default: 1)')
     parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                         help='how many batches to wait before logging training status')
-    parser.add_argument('--save-model', action='store_true', default=False,
+    parser.add_argument('--save-model', action='store_true',
                         help='for Saving the current Model')
     args = parser.parse_args()
 
-    if args.cuda and not args.mps:
-        device = "cuda"
-    elif args.mps and not args.cuda:
-        device = "mps"
+    if args.accel:
+        device = torch.accelerator.current_accelerator()
     else:
-        device = "cpu"
-
-    device = torch.device(device)
+        device = torch.device("cpu")
 
     torch.manual_seed(args.seed)
 
-    kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
+    kwargs = {'num_workers': 1, 'pin_memory': True} if args.accel else {}
     train_loader = torch.utils.data.DataLoader(
         datasets.MNIST('../data', train=True, download=True,
                        transform=transforms.Compose([

@@ -93,7 +93,7 @@ function mnist() {
   uv run main.py --epochs 1 --dry-run || error "mnist example failed"
 }
 function mnist_forward_forward() {
-  uv run main.py --epochs 1 --no_mps --no_cuda || error "mnist forward forward failed"
+  uv run main.py --epochs 1 --no_accel || error "mnist forward forward failed"
 
 }
 function mnist_hogwild() {
