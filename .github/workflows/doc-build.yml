@@ -22,7 +22,7 @@ jobs:
       run: |
         export DEBIAN_FRONTEND=noninteractive
         sudo apt-get update
-        sudo apt install -y git python3-venv make
+        sudo apt install -y git python3-venv make python3-setuptools
         echo `python3 --version`
         python3 -m venv venv 
         source venv/bin/activate 
@@ -30,6 +30,7 @@ jobs:
       id: build
     - name: Build the docset
       run: | 
+        source ../venv/bin/activate 
         cd docs
         pip install -r requirements.txt
         make html 

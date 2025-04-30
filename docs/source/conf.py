@@ -41,8 +41,7 @@ release = "1.11"
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ["sphinx.ext.napoleon", "sphinx.ext.autodoc", 'sphinx_panels']
-panels_add_bootstrap_css = False
+extensions = ["sphinx.ext.napoleon", "sphinx.ext.autodoc", "sphinx_panels"]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -66,6 +65,7 @@ html_theme_path = [pytorch_sphinx_theme.get_html_theme_path()]
 # so a file named "default.css" will overwrite the builtin "default.css".
 
 html_static_path = ["_static"]
+html_css_files = [] # avoid undefined errors
 panels_add_fontawesome_latex = True
 
 html_theme_options = {
