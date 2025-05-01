@@ -105,7 +105,7 @@ class APP_MATCHER(Dataset):
         """
 
         # get the targets from MNIST dataset
-        np_arr = np.array(self.dataset.targets.clone())
+        np_arr = np.array(self.dataset.targets.clone(), dtype=None, copy=None)
         
         # group examples based on class
         self.grouped_examples = {}
@@ -247,10 +247,8 @@ def main():
                         help='learning rate (default: 1.0)')
     parser.add_argument('--gamma', type=float, default=0.7, metavar='M',
                         help='Learning rate step gamma (default: 0.7)')
-    parser.add_argument('--no-cuda', action='store_true', default=False,
-                        help='disables CUDA training')
-    parser.add_argument('--no-mps', action='store_true', default=False,
-                        help='disables macOS GPU training')
+    parser.add_argument('--accel', action='store_true', 
+                    help='use accelerator')
     parser.add_argument('--dry-run', action='store_true', default=False,
                         help='quickly check a single pass')
     parser.add_argument('--seed', type=int, default=1, metavar='S',
@@ -260,22 +258,25 @@ def main():
     parser.add_argument('--save-model', action='store_true', default=False,
                         help='For Saving the current Model')
     args = parser.parse_args()
-    
-    use_cuda = not args.no_cuda and torch.cuda.is_available()
-    use_mps = not args.no_mps and torch.backends.mps.is_available()
 
     torch.manual_seed(args.seed)
 
-    if use_cuda:
-        device = torch.device("cuda")
-    elif use_mps:
-        device = torch.device("mps")
+    if args.accel and not torch.accelerator.is_available():
+        print("ERROR: accelerator is not available, try running on CPU")
+        sys.exit(1)
+    if not args.accel and torch.accelerator.is_available():
+        print("WARNING: accelerator is available, run with --accel to enable it")
+
+    if args.accel:
+        device = torch.accelerator.current_accelerator()
     else:
         device = torch.device("cpu")
+    
+    print(f"Using device: {device}")
 
     train_kwargs = {'batch_size': args.batch_size}
     test_kwargs = {'batch_size': args.test_batch_size}
-    if use_cuda:
+    if device=="cuda":
         cuda_kwargs = {'num_workers': 1,
                        'pin_memory': True,
                        'shuffle': True}
