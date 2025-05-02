@@ -21,7 +21,6 @@ jobs:
       id: build
     - name: Build the docset
       run: | 
-        source ../venv/bin/activate 
         cd docs
         pip install -r requirements.txt
         make html 
