@@ -65,7 +65,7 @@ html_theme_path = [pytorch_sphinx_theme.get_html_theme_path()]
 # so a file named "default.css" will overwrite the builtin "default.css".
 
 html_static_path = ["_static"]
-html_css_files = [] # avoid undefined errors
+
 panels_add_fontawesome_latex = True
 
 html_theme_options = {
