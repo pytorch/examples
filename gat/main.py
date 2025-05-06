@@ -303,29 +303,25 @@ if __name__ == '__main__':
                         help='dimension of the hidden representation (default: 64)')
     parser.add_argument('--num-heads', type=int, default=8,
                         help='number of the attention heads (default: 4)')
-    parser.add_argument('--concat-heads', action='store_true', default=False,
+    parser.add_argument('--concat-heads', action='store_true',
                         help='wether to concatinate attention heads, or average over them (default: False)')
     parser.add_argument('--val-every', type=int, default=20,
                         help='epochs to wait for print training and validation evaluation (default: 20)')
-    parser.add_argument('--no-cuda', action='store_true', default=False,
+    parser.add_argument('--no-accel', action='store_true',
                         help='disables CUDA training')
-    parser.add_argument('--no-mps', action='store_true', default=False,
-                        help='disables macOS GPU training')
-    parser.add_argument('--dry-run', action='store_true', default=False,
+    parser.add_argument('--dry-run', action='store_true', 
                         help='quickly check a single pass')
     parser.add_argument('--seed', type=int, default=13, metavar='S',
                         help='random seed (default: 13)')
     args = parser.parse_args()
 
     torch.manual_seed(args.seed)
-    use_cuda = not args.no_cuda and torch.cuda.is_available()
-    use_mps = not args.no_mps and torch.backends.mps.is_available()
+
+    use_accel = not args.no_accel and torch.accelerator.is_available()
 
     # Set the device to run on
-    if use_cuda:
-        device = torch.device('cuda')
-    elif use_mps:
-        device = torch.device('mps')
+    if use_accel:
+        device = torch.accelerator.current_accelerator()
     else:
         device = torch.device('cpu')
     print(f'Using {device} device')

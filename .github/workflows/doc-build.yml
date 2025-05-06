@@ -17,14 +17,16 @@ jobs:
         python-version: [3.9]
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
     - name: Dependencies
       run: |
+        export DEBIAN_FRONTEND=noninteractive
+        sudo apt-get update
+        sudo apt install -y git python3-venv make
         echo `python3 --version`
-        sudo apt-get install -y python-setuptools
-        sudo apt-get install -y python3-sphinx
-        python3 -m pip install --upgrade pip
-        python3 -m pip install setuptools
+        python3 -m venv venv 
+        source venv/bin/activate 
+        pip install --upgrade pip setuptools 
       id: build
     - name: Build the docset
       run: | 
