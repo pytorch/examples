@@ -28,7 +28,7 @@ Optionally, you can add the following arguments to customize your execution.
 --save-model            Saving the current Model
 ```
 
-If an accelerator is detected, the example will be executed on the accelerator by default; otherwise,it will runon the CPU
+If an accelerator is detected, the example will be executed on the accelerator by default; otherwise,it will run on the CPU
 
 To disable the accelerator option, add the --no-accel argument to the command. For example:
 
@@ -36,4 +36,4 @@ To disable the accelerator option, add the --no-accel argument to the command. F
 python main.py --no-accel
 ```
 
-This command will execute the example on the CPU even if your system successfully detects an XPU.
+This command will execute the example on the CPU even if your system successfully detects an accelerator.
