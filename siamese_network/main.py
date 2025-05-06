@@ -263,8 +263,6 @@ def main():
 
     torch.manual_seed(args.seed)
 
-    if args.no_accel and torch.accelerator.is_available():
-        print("WARNING: accelerator is available, remove --no-accel to enable accelerator")
 
     if use_accel:
         device = torch.accelerator.current_accelerator()
