@@ -33,5 +33,3 @@ To run the example, execute:
 ```bash
 python main.py --no-accel
 ```
-
-This command will execute the example on the CPU even if your system successfully detects an accelerator.
