@@ -17,3 +17,11 @@ The main.py script accepts the following optional arguments:
 --seed                  random seed (default: 1)
 --log-interval	        how many batches to wait before logging training status
 ```
+
+If a hardware accelerator device is detected, the example will execute on the accelerator; otherwise, it will run on the CPU.
+
+To force execution on the CPU, use `--no-accel` command line argument:
+
+```bash
+python main.py --no-accel
+```

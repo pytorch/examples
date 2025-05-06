@@ -28,7 +28,9 @@ Optionally, you can add the following arguments to customize your execution.
 --save-model            Saving the current Model
 ```
 
-To run the example, execute:
+If a hardware accelerator device is detected, the example will execute on the accelerator; otherwise, it will run on the CPU.
+
+To force execution on the CPU, use `--no-accel` command line argument:
 
 ```bash
 python main.py --no-accel
