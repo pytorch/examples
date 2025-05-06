@@ -22,12 +22,14 @@ jobs:
       with:
         python-version: 3.8
     - name: Install PyTorch
-      run: |
-        python -m pip install --upgrade pip
-        pip install --pre torch -f https://download.pytorch.org/whl/nightly/cu118/torch_nightly.html
+      uses: astral-sh/setup-uv@v6
     - name: Run Tests
+      env:
+        USE_CUDA: 'True'
+        VIRTUAL_ENV: '.venv'
+        PIP_INSTALL_ARGS: '--pre -f https://download.pytorch.org/whl/nightly/cu118/torch_nightly.html'
       run: |
-        ./run_distributed_examples.sh "run_all,clean"
+        ./run_distributed_examples.sh
     - name: Open issue on failure
       if: ${{ failure() && github.event_name  == 'schedule' }}
       uses: rishabhgupta/git-action-issue@v2
