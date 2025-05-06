@@ -13,7 +13,7 @@ The main.py script accepts the following optional arguments:
 ```bash
 --batch-size            input batch size for training (default: 128)
 --epochs                number of epochs to train (default: 10)
---accel                 use accelerator
+--no-accel              disables accelerator
 --seed                  random seed (default: 1)
 --log-interval	        how many batches to wait before logging training status
 ```

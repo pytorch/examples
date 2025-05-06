@@ -21,17 +21,19 @@ Optionally, you can add the following arguments to customize your execution.
 --epochs                number of epochs to train (default: 14)
 --lr                    learning rate (default: 1.0)
 --gamma                 learning rate step gamma (default: 0.7)
---accel                 use accelerator
+--no-accel              disables accelerator
 --dry-run               quickly check a single pass
 --seed                  random seed (default: 1)
 --log-interval          how many batches to wait before logging training status
 --save-model            Saving the current Model
 ```
 
-To execute in an GPU, add the --accel argument to the command. For example:
+If an accelerator is detected, the example will be executed on the accelerator by default; otherwise,it will runon the CPU
+
+To disable the accelerator option, add the --no-accel argument to the command. For example:
 
 ```bash
-python main.py --accel
+python main.py --no-accel
 ```
 
-This command will execute the example on the detected GPU.
+This command will execute the example on the CPU even if your system successfully detects an XPU.
