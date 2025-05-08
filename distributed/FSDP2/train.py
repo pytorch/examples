@@ -57,8 +57,6 @@ def main(args):
     fully_shard(model, **fsdp_kwargs)
 
     inspect_model(model)
-    if args.mixed_precision:
-        inspect_mixed_precision(model)
 
     if args.explicit_prefetching:
         set_modules_to_forward_prefetch(model, num_to_forward_prefetch=2)
@@ -70,6 +68,9 @@ def main(args):
         model.reset_parameters()
     else:
         checkpointer.load_model(model)
+    
+    if args.mixed_precision:
+        inspect_mixed_precision(model)
 
     optim = torch.optim.Adam(model.parameters(), lr=1e-2)
     if checkpointer.last_training_time is not None:
