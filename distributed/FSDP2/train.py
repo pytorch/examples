@@ -1,10 +1,11 @@
-import os
 import argparse
+import os
+
 import torch
-from torch.distributed.fsdp import fully_shard, MixedPrecisionPolicy
 from checkpoint import Checkpointer
 from model import ModelArgs, Transformer
-from utils import inspect_model, inspect_mixed_precision
+from torch.distributed.fsdp import fully_shard, MixedPrecisionPolicy
+from utils import inspect_mixed_precision, inspect_model
 
 
 def set_modules_to_forward_prefetch(model, num_to_forward_prefetch):
@@ -16,6 +17,7 @@ def set_modules_to_forward_prefetch(model, num_to_forward_prefetch):
         ]
         layer.set_modules_to_forward_prefetch(layers_to_prefetch)
 
+
 def set_modules_to_backward_prefetch(model, num_to_backward_prefetch):
     for i, layer in enumerate(model.layers):
         if i < num_to_backward_prefetch:
@@ -24,6 +26,7 @@ def set_modules_to_backward_prefetch(model, num_to_backward_prefetch):
             model.layers[i - j] for j in range(1, num_to_backward_prefetch + 1)
         ]
         layer.set_modules_to_backward_prefetch(layers_to_prefetch)
+
 
 def main(args):
     rank = int(os.environ["LOCAL_RANK"])
@@ -46,7 +49,7 @@ def main(args):
     fsdp_kwargs = {}
     if args.mixed_precision:
         fsdp_kwargs["mp_policy"] = MixedPrecisionPolicy(
-            param_dtype=torch.bfloat16, 
+            param_dtype=torch.bfloat16,
             reduce_dtype=torch.float32,
         )
     for layer in model.layers:
@@ -60,7 +63,7 @@ def main(args):
     if args.explicit_prefetching:
         set_modules_to_forward_prefetch(model, num_to_forward_prefetch=2)
         set_modules_to_backward_prefetch(model, num_to_backward_prefetch=2)
-    
+
     checkpointer = Checkpointer("checkpoints", dcp_api=args.dcp_api)
     if checkpointer.last_training_time is None:
         model.to_empty(device="cuda")
@@ -68,10 +71,10 @@ def main(args):
     else:
         checkpointer.load_model(model)
 
-    optim = torch.optim.Adam(model.parameters(), lr=1e-2)    
+    optim = torch.optim.Adam(model.parameters(), lr=1e-2)
     if checkpointer.last_training_time is not None:
         checkpointer.load_optim(model, optim)
-        
+
     for _ in range(10):
         if args.explicit_prefetching:
             model.unshard()
@@ -81,15 +84,15 @@ def main(args):
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optim.step()
         optim.zero_grad()
-    
+
     checkpointer.save(model, optim)
     torch.distributed.destroy_process_group()
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='PyTorch FSDP2 example')
-    parser.add_argument('--explicit-prefetching', action='store_true', default=False)
-    parser.add_argument('--mixed-precision', action='store_true', default=False)
-    parser.add_argument('--dcp-api', action="store_true", default=False)
+    parser = argparse.ArgumentParser(description="PyTorch FSDP2 example")
+    parser.add_argument("--explicit-prefetching", action="store_true", default=False)
+    parser.add_argument("--mixed-precision", action="store_true", default=False)
+    parser.add_argument("--dcp-api", action="store_true", default=False)
     args = parser.parse_args()
     main(args)

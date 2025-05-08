@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -48,7 +49,7 @@ class Attention(nn.Module):
         )
         output = output.transpose(1, 2).contiguous().view(bsz, seq_len, -1)
         return self.resid_dropout(self.wo(output))
-    
+
     def reset_parameters(self):
         self.wq.reset_parameters()
         self.wk.reset_parameters()
@@ -66,7 +67,7 @@ class FeedForward(nn.Module):
 
     def forward(self, x):
         return self.resid_dropout(self.w2(self.gelu(self.w1(x))))
-    
+
     def reset_parameters(self):
         self.w1.reset_parameters()
         self.w2.reset_parameters()
@@ -86,7 +87,7 @@ class TransformerBlock(nn.Module):
         h = x + self.attention(self.attention_norm(x))
         out = h + self.feed_forward(self.ffn_norm(h))
         return out
-    
+
     def reset_parameters(self):
         self.attention_norm.reset_parameters()
         self.attention.reset_parameters()
@@ -125,7 +126,7 @@ class Transformer(nn.Module):
         h = self.norm(h)
         output = self.output(h).float()
         return output
-    
+
     def reset_parameters(self):
         self.tok_embeddings.reset_parameters()
         self.pos_embeddings.reset_parameters()

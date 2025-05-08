@@ -1,8 +1,8 @@
 import os
 import time
+
 import torch
 import torch.nn as nn
-from torch.distributed.fsdp import FSDPModule
 from torch.distributed.checkpoint.state_dict import (
     _init_optim_state,
     get_model_state_dict,
@@ -11,11 +11,14 @@ from torch.distributed.checkpoint.state_dict import (
     set_optimizer_state_dict,
     StateDictOptions,
 )
+from torch.distributed.fsdp import FSDPModule
 from torch.distributed.tensor import distribute_tensor, DTensor
 
 
 MODEL_CHECKPOINT = "model_state_dict.pt"
 OPTIM_CHECKPOINT = "optim_state_dict.pt"
+PARAMS = "params"
+
 
 def get_latest_checkpoint_folder(path):
     max_num = None
@@ -37,14 +40,21 @@ class Checkpointer:
     def __init__(self, folder: str, dcp_api: bool):
         self.folder = folder
         self.dcp_api = dcp_api
-        self.last_training_time = get_latest_checkpoint_folder(f"{folder}/{'dcp_api' if dcp_api else 'dtensor_api'}")
-    
+        self.last_training_time = get_latest_checkpoint_folder(
+            f"{folder}/{'dcp_api' if dcp_api else 'dtensor_api'}"
+        )
+
     def is_empty(self):
         return self.last_training_time is None
 
     def load_model(self, model: FSDPModule):
-        last_model_checkpoint = f"{self.folder}/{'dcp_api' if self.dcp_api else 'dtensor_api'}/{self.last_training_time}/{MODEL_CHECKPOINT}"
-        full_sd = torch.load(last_model_checkpoint, mmap=True, weights_only=True, map_location='cpu')
+        last_model_checkpoint = (
+            f"{self.folder}/{'dcp_api' if self.dcp_api else 'dtensor_api'}"
+            f"/{self.last_training_time}/{MODEL_CHECKPOINT}"
+        )
+        full_sd = torch.load(
+            last_model_checkpoint, mmap=True, weights_only=True, map_location="cpu"
+        )
         if self.dcp_api:
             set_model_state_dict(
                 model=model,
@@ -67,22 +77,26 @@ class Checkpointer:
             sharded_sd[param_name] = nn.Parameter(sharded_tensor)
         # choose `assign=True` since we cannot call `copy_` on meta tensor
         model.load_state_dict(sharded_sd, strict=False, assign=True)
-    
+
     def load_optim(self, model: FSDPModule, opt: torch.optim.Optimizer):
-        last_optim_checkpoint = f"{self.folder}/{'dcp_api' if self.dcp_api else 'dtensor_api'}/{self.last_training_time}/{OPTIM_CHECKPOINT}"
-        full_sd = torch.load(last_optim_checkpoint, mmap=True, weights_only=True, map_location='cpu')
+        last_optim_checkpoint = (
+            f"{self.folder}/{'dcp_api' if self.dcp_api else 'dtensor_api'}"
+            f"/{self.last_training_time}/{OPTIM_CHECKPOINT}"
+        )
+        full_sd = torch.load(
+            last_optim_checkpoint, mmap=True, weights_only=True, map_location="cpu"
+        )
         if self.dcp_api:
             set_optimizer_state_dict(
-                model=model, 
-                optimizers=opt, 
-                optim_state_dict=full_sd, 
+                model=model,
+                optimizers=opt,
+                optim_state_dict=full_sd,
                 options=StateDictOptions(
                     full_state_dict=True,
                     broadcast_from_rank0=True,
-                )
+                ),
             )
             return
-        PARAMS = "params" 
         _init_optim_state(opt)
         param_groups = opt.state_dict()["param_groups"]
         state = opt.state_dict()["state"]
@@ -118,15 +132,15 @@ class Checkpointer:
                 "state": state,
             }
         )
-    
+
     def _get_full_model_state_dict(self, model: FSDPModule):
         if self.dcp_api:
             return get_model_state_dict(
-                model=model, 
+                model=model,
                 options=StateDictOptions(
                     full_state_dict=True,
                     cpu_offload=True,
-                )
+                ),
             )
 
         sharded_sd = model.state_dict()
@@ -138,22 +152,22 @@ class Checkpointer:
             else:
                 del full_param
         return cpu_state_dict
-    
+
     def _get_full_optimizer_state_dict(
         self,
-        model: FSDPModule, 
+        model: FSDPModule,
         opt: torch.optim.Optimizer,
     ):
         if self.dcp_api:
             return get_optimizer_state_dict(
-                model=model, 
-                optimizers=opt, 
+                model=model,
+                optimizers=opt,
                 options=StateDictOptions(
                     full_state_dict=True,
                     cpu_offload=True,
-                )
+                ),
             )
-        is_rank_zero = (torch.distributed.get_rank() == 0)
+        is_rank_zero = torch.distributed.get_rank() == 0
         sharded_sd = opt.state_dict()
         sharded_state = sharded_sd["state"]
         full_state = {}
@@ -181,7 +195,7 @@ class Checkpointer:
             }
         else:
             return {}
-    
+
     def save(self, model: FSDPModule, optim: torch.optim.Optimizer):
         model_state_dict = self._get_full_model_state_dict(model)
         optim_state_dict = self._get_full_optimizer_state_dict(model, optim)
