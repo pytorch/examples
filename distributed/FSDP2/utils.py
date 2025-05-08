@@ -1,15 +1,23 @@
-import os
-def get_latest_checkpoint_folder(path):
-    max_num = None
-    if not os.path.exists(path):
-        return max_num
-    for name in os.listdir(path):
-        folder_path = os.path.join(path, name)
-        if os.path.isdir(folder_path):
-            try:
-                num = int(name)
-                if max_num is None or num > max_num:
-                    max_num = num
-            except ValueError:
-                pass  # Skip non-numeric folder names
-    return max_num
+import torch
+from torch.distributed.fsdp import FSDPModule
+from torch.distributed.tensor import Shard
+from model import Transformer
+
+
+def inspect_model(model: FSDPModule):
+    assert isinstance(model, Transformer)
+    assert isinstance(model, FSDPModule)
+
+    if torch.distributed.get_rank() == 0:
+        print(model)
+
+    for param in model.parameters():
+        assert param.placements == (Shard(0),)
+        assert param.dtype  == torch.float32
+        # print(param.get_local_tensor())
+
+def inspect_mixed_precision(model: FSDPModule):
+    model.unshard()
+    for param in model.parameters(recurse=False):
+        assert param.dtype == torch.bfloat16
+    model.reshard()
