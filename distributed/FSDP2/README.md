@@ -13,5 +13,5 @@ see https://pytorch.org/get-started/locally/ to install at least 2.5 and ideally
 Start the training with `torchrun` Torchrun (adjust nproc_per_node to your GPU count):
 
 ```
-torchrun --nnodes 1 --nproc_per_node 2 train.py
+torchrun --nproc_per_node 2 train.py
 ```
