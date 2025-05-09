@@ -17,7 +17,7 @@ To enable mixed precision
 torchrun --nproc_per_node 2 train.py --mixed-precision
 ```
 
-To showcse DCP API
+To showcase DCP API
 ```
 torchrun --nproc_per_node 2 train.py --dcp-api
 ```
