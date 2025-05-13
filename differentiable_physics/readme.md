@@ -31,3 +31,12 @@ First, ensure PyTorch is installed.
 
 ```bash
 python mass_spring.py --mode train
+
+## Visualization
+
+<p align="center">
+  <img src="mass_spring_viz.png" width="400"/>
+</p>
+
+This plot shows the learned alignment of a 2-particle spring system with its target configuration.
+

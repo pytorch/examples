@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import argparse
+import matplotlib.pyplot as plt
+import os
 
 
 class MassSpringSystem(nn.Module):
@@ -13,10 +15,10 @@ class MassSpringSystem(nn.Module):
         self.dt = dt
         self.gravity = gravity
 
-        # 🛑 Particle 0 fixed at origin
+        # Particle 0 is fixed at the origin
         self.initial_position_0 = torch.tensor([0.0, 0.0], device=device)
 
-        # 🛑 Only remaining particles are trainable
+        # Remaining particles are trainable
         self.initial_positions_rest = nn.Parameter(torch.randn(num_particles - 1, 2, device=device))
 
         # Velocities
@@ -41,23 +43,35 @@ class MassSpringSystem(nn.Module):
             # Apply gravity
             forces[:, 1] -= self.gravity * self.mass
 
-            # Integrate (semi-implicit Euler)
+            # Semi-implicit Euler integration
             acceleration = forces / self.mass
             velocities = velocities + acceleration * self.dt
             positions = positions + velocities * self.dt
 
-            # Fix particle 0 after integration
+            # Fix particle 0 at origin
             positions[0] = self.initial_position_0
             velocities[0] = torch.tensor([0.0, 0.0], device=positions.device)
 
         return positions
 
 
+def visualize_positions(initial, final, target, save_path="mass_spring_viz.png"):
+    plt.figure(figsize=(6, 4))
+    plt.scatter(initial[:, 0], initial[:, 1], c='blue', label='Initial', marker='x')
+    plt.scatter(final[:, 0], final[:, 1], c='green', label='Final', marker='o')
+    plt.scatter(target[:, 0], target[:, 1], c='red', label='Target', marker='*')
+    plt.title("Mass-Spring System Positions")
+    plt.xlabel("X")
+    plt.ylabel("Y")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(save_path)
+    print(f"Saved visualization to {os.path.abspath(save_path)}")
+    plt.close()
+
 
 def train(args):
-    """
-    Train the MassSpringSystem to match a target configuration.
-    """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     system = MassSpringSystem(
         num_particles=args.num_particles,
@@ -71,11 +85,11 @@ def train(args):
     optimizer = optim.Adam(system.parameters(), lr=args.lr)
     target_positions = torch.tensor(
         [[0.0, 0.0], [1.0, 0.0]], device=device
-    )  # Target: particle 0 at (0,0), particle 1 at (1,0)
+    )
 
     for epoch in range(args.epochs):
         optimizer.zero_grad()
-        final_positions = system(args.steps)  # <--- final_positions comes from forward()
+        final_positions = system(args.steps)
         loss = (final_positions - target_positions).pow(2).mean()
         loss.backward()
         optimizer.step()
@@ -83,22 +97,23 @@ def train(args):
         if (epoch + 1) % args.log_interval == 0:
             print(f"Epoch {epoch+1}/{args.epochs}, Loss: {loss.item():.6f}")
 
+    # Visualization
+    initial_positions = torch.cat([system.initial_position_0.unsqueeze(0), system.initial_positions_rest.detach()], dim=0).cpu().numpy()
+    visualize_positions(initial_positions, final_positions.detach().cpu().numpy(), target_positions.cpu().numpy())
+
     print("\nTraining completed.")
-    print(f"Final positions:\n{final_positions.detach().cpu().numpy()}")  # <--- print final_positions
+    print(f"Final positions:\n{final_positions.detach().cpu().numpy()}")
     print(f"Target positions:\n{target_positions.cpu().numpy()}")
 
 
 def evaluate(args):
-    """
-    Evaluate the trained MassSpringSystem without optimization.
-    """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     system = MassSpringSystem(
         num_particles=args.num_particles,
         springs=[(0, 1, 1.0, args.stiffness)],
         mass=args.mass,
         dt=args.dt,
-        gravity=args.gravity,  # <-- Gravity passed here too
+        gravity=args.gravity,
         device=device,
     )
 
