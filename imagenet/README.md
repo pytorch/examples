@@ -33,7 +33,9 @@ python main.py -a resnet18 --dummy
 
 ## Multi-processing Distributed Data Parallel Training
 
-You should always use the NCCL backend for multi-processing distributed training since it currently provides the best distributed training performance.
+If running on CUDA, you should always use the NCCL backend for multi-processing distributed training since it currently provides the best distributed training performance.
+
+For XPU multiprocessing is not supported as of PyTorch 2.6.
 
 ### Single node, multiple GPUs:
 
