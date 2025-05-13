@@ -58,7 +58,7 @@ case $USE_CUDA in
 esac
 
 function dcgan() {
-  uv run main.py --dataset fake $CUDA_FLAG --mps --dry-run || error "dcgan failed"
+  uv run main.py --dataset fake $ACCEL_FLAG --dry-run || error "dcgan failed"
 }
 
 function fast_neural_style() {
