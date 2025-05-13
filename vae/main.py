@@ -13,31 +13,27 @@ parser.add_argument('--batch-size', type=int, default=128, metavar='N',
                     help='input batch size for training (default: 128)')
 parser.add_argument('--epochs', type=int, default=10, metavar='N',
                     help='number of epochs to train (default: 10)')
-parser.add_argument('--accel', action='store_true', 
-                    help='use accelerator')
+parser.add_argument('--no-accel', action='store_true', 
+                    help='disables accelerator')
 parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
 parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                     help='how many batches to wait before logging training status')
 args = parser.parse_args()
 
+use_accel = not args.no_accel and torch.accelerator.is_available()
 
 torch.manual_seed(args.seed)
 
-if args.accel and not torch.accelerator.is_available():
-    print("ERROR: accelerator is not available, try running on CPU")
-    sys.exit(1)
-if not args.accel and torch.accelerator.is_available():
-         print("WARNING: accelerator is available, run with --accel to enable it")
 
-if args.accel:
+if use_accel:
     device = torch.accelerator.current_accelerator()
 else:
     device = torch.device("cpu")
 
 print(f"Using device: {device}")
 
-kwargs = {'num_workers': 1, 'pin_memory': True} if device=="cuda" else {}
+kwargs = {'num_workers': 1, 'pin_memory': True} if use_accel else {}
 train_loader = torch.utils.data.DataLoader(
     datasets.MNIST('../data', train=True, download=True,
                    transform=transforms.ToTensor()),
