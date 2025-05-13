@@ -4,19 +4,20 @@
 # The purpose is just as an integration test, not to actually train models in any meaningful way.
 # For that reason, most of these set epochs = 1 and --dry-run.
 #
-# Optionally specify a comma separated list of examples to run. Can be run as:
-# * To run all examples:
+# To run all examples:
 #   ./run_python_examples.sh
-# * To run few specific examples:
+#
+# To run specific examples:
 #   ./run_python_examples.sh "dcgan,fast_neural_style"
 #
-# To test examples on CUDA accelerator, run as:
-#   USE_CUDA=True ./run_python_examples.sh
+# USE_CUDA=True ./run_python_examples.sh  → for CUDA
+# USE_ACCEL=True ./run_python_examples.sh → for any accelerator (CUDA/MPS/XPU)
 #
-# To test examples on hardware accelerator (CUDA, MPS, XPU, etc.), run as:
-#   USE_ACCEL=True ./run_python_examples.sh
+# To use a custom pip install source:
+#   PIP_INSTALL_ARGS="--pre -f https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html" ./run_python_examples.sh
 #
-# Script requires uv to be installed. It installs requirements from requirements.txt per example.
+# To force venv per example:
+#   VIRTUAL_ENV=".venv" ./run_python_examples.sh
 
 BASE_DIR="$(pwd)/$(dirname $0)"
 source $BASE_DIR/utils.sh
@@ -39,12 +40,12 @@ case $USE_CUDA in
     ACCEL_FLAG=""
     ;;
   "")
-    exit 1;
+    exit 1
     ;;
 esac
 
 function dcgan() {
-  uv run main.py --dataset fake $CUDA_FLAG --mps --dry-run || error "dcgan failed"
+  uv run main.py --dataset fake $ACCEL_FLAG --dry-run || error "dcgan failed"
 }
 
 function fast_neural_style() {
@@ -53,7 +54,6 @@ function fast_neural_style() {
     uv run download_saved_models.py
   fi
   test -d "saved_models" || { error "saved models not found"; return; }
-
   echo "running fast neural style model"
   uv run neural_style/neural_style.py eval --content-image images/content-images/amber.jpg --model saved_models/candy.pth --output-image images/output-images/amber-candy.jpg $ACCEL_FLAG || error "neural_style.py failed"
 }
@@ -80,7 +80,7 @@ function mnist() {
 }
 
 function mnist_forward_forward() {
-  uv run main.py --epochs 1 --no_mps --no_cuda || error "mnist forward forward failed"
+  uv run main.py --epochs 1 --no_accel || error "mnist forward forward failed"
 }
 
 function mnist_hogwild() {
@@ -205,7 +205,7 @@ function run_all() {
   run fx
   run gcn
   run gat
-  run differentiable_physics  # ✅ Your example now runs in CI!
+  run differentiable_physics
 }
 
 if [ "" == "$EXAMPLES" ]; then

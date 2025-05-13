@@ -17,14 +17,7 @@ jobs:
         python-version: [3.9]
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
-    - name: Dependencies
-      run: |
-        echo `python3 --version`
-        sudo apt-get install -y python-setuptools
-        sudo apt-get install -y python3-sphinx
-        python3 -m pip install --upgrade pip
-        python3 -m pip install setuptools
+      uses: actions/checkout@v4
       id: build
     - name: Build the docset
       run: | 
