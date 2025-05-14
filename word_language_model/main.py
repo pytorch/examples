@@ -37,10 +37,6 @@ parser.add_argument('--tied', action='store_true',
                     help='tie the word embedding and softmax weights')
 parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
-parser.add_argument('--cuda', action='store_true', default=False,
-                    help='use CUDA')
-parser.add_argument('--mps', action='store_true', default=False,
-                        help='enables macOS GPU training')
 parser.add_argument('--log-interval', type=int, default=200, metavar='N',
                     help='report interval')
 parser.add_argument('--save', type=str, default='model.pt',
@@ -51,24 +47,19 @@ parser.add_argument('--nhead', type=int, default=2,
                     help='the number of heads in the encoder/decoder of the transformer model')
 parser.add_argument('--dry-run', action='store_true',
                     help='verify the code and the model')
+parser.add_argument('--accel', action='store_true',help='Enables accelerated training')
 args = parser.parse_args()
 
 # Set the random seed manually for reproducibility.
 torch.manual_seed(args.seed)
-if torch.cuda.is_available():
-    if not args.cuda:
-        print("WARNING: You have a CUDA device, so you should probably run with --cuda.")
-if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-    if not args.mps:
-        print("WARNING: You have mps device, to enable macOS GPU run with --mps.")
 
-use_mps = args.mps and torch.backends.mps.is_available()
-if args.cuda:
-    device = torch.device("cuda")
-elif use_mps:
-    device = torch.device("mps")
+if args.accel and torch.accelerator.is_available():
+    device = torch.accelerator.current_accelerator()
+
 else:
     device = torch.device("cpu")
+
+print("Using device:", device)
 
 ###############################################################################
 # Load data
@@ -243,11 +234,11 @@ except KeyboardInterrupt:
 
 # Load the best saved model.
 with open(args.save, 'rb') as f:
-    model = torch.load(f)
+    torch.load(f, weights_only=False)
     # after load the rnn params are not a continuous chunk of memory
     # this makes them a continuous chunk, and will speed up forward pass
     # Currently, only rnn model supports flatten_parameters function.
-    if args.model in ['RNN_TANH', 'RNN_RELU', 'LSTM', 'GRU']:
+    if args.model in ['RNN_TANH', 'RNN_RELU', 'LSTM', 'GRU'] and device.type == 'cuda':
         model.rnn.flatten_parameters()
 
 # Run on test data.

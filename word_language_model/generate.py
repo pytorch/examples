@@ -21,30 +21,20 @@ parser.add_argument('--words', type=int, default='1000',
                     help='number of words to generate')
 parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
-parser.add_argument('--cuda', action='store_true',
-                    help='use CUDA')
-parser.add_argument('--mps', action='store_true', default=False,
-                        help='enables macOS GPU training')
 parser.add_argument('--temperature', type=float, default=1.0,
                     help='temperature - higher will increase diversity')
 parser.add_argument('--log-interval', type=int, default=100,
                     help='reporting interval')
+parser.add_argument('--accel', action='store_true', default=False,
+                    help='Enables accelerated inference')
 args = parser.parse_args()
 
 # Set the random seed manually for reproducibility.
 torch.manual_seed(args.seed)
-if torch.cuda.is_available():
-    if not args.cuda:
-        print("WARNING: You have a CUDA device, so you should probably run with --cuda.")
-if torch.backends.mps.is_available():
-    if not args.mps:
-        print("WARNING: You have mps device, to enable macOS GPU run with --mps.")
-        
-use_mps = args.mps and torch.backends.mps.is_available()
-if args.cuda:
-    device = torch.device("cuda")
-elif use_mps:
-    device = torch.device("mps")
+
+if args.accel and torch.accelerator.is_available():
+    device = torch.accelerator.current_accelerator()
+
 else:
     device = torch.device("cpu")
 
@@ -52,7 +42,7 @@ if args.temperature < 1e-3:
     parser.error("--temperature has to be greater or equal 1e-3.")
 
 with open(args.checkpoint, 'rb') as f:
-    model = torch.load(f, map_location=device)
+    model = torch.load(f, map_location=device, weights_only=False)
 model.eval()
 
 corpus = data.Corpus(args.data)
