@@ -153,7 +153,7 @@ function vision_transformer() {
 }
 
 function word_language_model() {
-  uv run main.py --epochs 1 --dry-run $CUDA_FLAG --mps || error "word_language_model failed"
+  uv run main.py --epochs 1 --dry-run $ACCEL_FLAG || error "word_language_model failed"
 }
 
 function gcn() {
