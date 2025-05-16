@@ -164,6 +164,10 @@ function gat() {
   uv run main.py --epochs 1 --dry-run || error "graph attention network failed"
 }
 
+function swin() {
+  uv run swin_transformer.py --epochs 1 --dry-run || error "swin transformer failed"
+}
+
 eval "base_$(declare -f stop)"
 
 function stop() {
@@ -189,6 +193,7 @@ function stop() {
     word_language_model/model.pt \
     gcn/cora/ \
     gat/cora/ || error "couldn't clean up some files"
+    swin_transformer/swin_cifar10.pt || error "couldn't clean up some files"
 
   git checkout fast_neural_style/images/output-images/amber-candy.jpg || error "couldn't clean up fast neural style image"
 
@@ -217,6 +222,7 @@ function run_all() {
   run fx
   run gcn
   run gat
+  run swin
 }
 
 # by default, run all examples
