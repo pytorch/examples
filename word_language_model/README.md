@@ -35,7 +35,7 @@ optional arguments:
   --dropout DROPOUT     dropout applied to layers (0 = no dropout)
   --tied                tie the word embedding and softmax weights
   --seed SEED           random seed
-  --accel               activate support for an accelerator card
+  --accel               use accelerator
   --log-interval N      report interval
   --save SAVE           path to save the final model
   --onnx-export ONNX_EXPORT
