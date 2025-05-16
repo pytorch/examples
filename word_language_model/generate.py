@@ -26,7 +26,7 @@ parser.add_argument('--temperature', type=float, default=1.0,
 parser.add_argument('--log-interval', type=int, default=100,
                     help='reporting interval')
 parser.add_argument('--accel', action='store_true', default=False,
-                    help='Enables accelerated inference')
+                    help='use accelerator')
 args = parser.parse_args()
 
 # Set the random seed manually for reproducibility.
