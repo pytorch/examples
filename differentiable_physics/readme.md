@@ -12,12 +12,14 @@ The system is fully differentiable, allowing the optimization of particle positi
 - `mass_spring.py` — Implements the mass-spring simulation, training loop, and evaluation.
 - `README.md` — Usage instructions and description.
 
+
 ---
 
 ## Requirements
 
 - Python 3.8+
 - PyTorch
+- pip install -r requirements.txt
 
 No external dependencies are required apart from PyTorch.
 
@@ -27,16 +29,15 @@ No external dependencies are required apart from PyTorch.
 
 First, ensure PyTorch is installed.
 
-### Train the system
+#### Train the system
 
 ```bash
 python mass_spring.py --mode train
 
-## Visualization
 
-<p align="center">
-  <img src="mass_spring_viz.png" width="400"/>
-</p>
+##### Visualization
 
-This plot shows the learned alignment of a 2-particle spring system with its target configuration.
+After training, the system's final positions are compared to the target positions. The plot below illustrates this comparison:
+
+![Mass-Spring System Visualization](mass_spring_viz.png)
 
