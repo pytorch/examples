@@ -72,7 +72,9 @@ def visualize_positions(initial, final, target, save_path="mass_spring_viz.png")
 
 
 def train(args):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.accelerator.current_accelerator() if torch.accelerator.is_available() else torch.device("cpu")
+    print(f"Using device: {device}")
     system = MassSpringSystem(
         num_particles=args.num_particles,
         springs=[(0, 1, 1.0, args.stiffness)],
@@ -107,7 +109,9 @@ def train(args):
 
 
 def evaluate(args):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.accelerator.current_accelerator() if torch.accelerator.is_available() else torch.device("cpu")
+    print(f"Using device: {device}")
     system = MassSpringSystem(
         num_particles=args.num_particles,
         springs=[(0, 1, 1.0, args.stiffness)],
