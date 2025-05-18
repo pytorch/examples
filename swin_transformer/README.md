@@ -25,7 +25,7 @@ It includes:
 Install dependencies:
 
 ```bash
-pip install torch torchvision
+pip install -r requirements.txt
 ```
 
 ---
@@ -43,7 +43,7 @@ python swin_transformer.py --epochs 10 --batch-size 64 --lr 0.001
 Testing is done automatically after each epoch. To only test, run with:
 
 ```bash
-python swin_transformer.py --epochs 0
+python swin_transformer.py --epochs 1
 ```
 
 ### Save the model

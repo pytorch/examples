@@ -172,9 +172,10 @@ def main():
     parser.add_argument('--save-model', action='store_true')
     args = parser.parse_args()
 
-    use_cuda = torch.cuda.is_available()
-    device = torch.device("cuda" if use_cuda else "cpu")
-
+    use_accel = torch.accelerator.is_available()
+    device = torch.accelerator.current_accelerator() if use_accel else torch.device("cpu")
+    print(f"Using device: {device}")
+    
     torch.manual_seed(args.seed)
 
     transform = transforms.Compose([
