@@ -1,27 +1,40 @@
 #!/bin/bash
 #
 # This script runs through the code in each of the python examples.
-# The purpose is just as an integration test, not to actually train models in any meaningful way.
+# The purpose is just as an integration test, not to actually train models in any meaningful way.
 # For that reason, most of these set epochs = 1 and --dry-run.
 #
-# To run all examples:
+# Optionally specify a comma separated list of examples to run. Can be run as:
+# * To run all examples:
 #   ./run_python_examples.sh
-#
-# To run specific examples:
+# * To run few specific examples:
 #   ./run_python_examples.sh "dcgan,fast_neural_style"
 #
-# USE_CUDA=True ./run_python_examples.sh  → for CUDA
-# USE_ACCEL=True ./run_python_examples.sh → for any accelerator (CUDA/MPS/XPU)
+# To test examples on CUDA accelerator, run as:
+#   USE_CUDA=True ./run_python_examples.sh
 #
-# To use a custom pip install source:
-#   PIP_INSTALL_ARGS="--pre -f https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html" ./run_python_examples.sh
+# To test examples on hardware accelerator (CUDA, MPS, XPU, etc.), run as:
+#   USE_ACCEL=True ./run_python_examples.sh
+# NOTE: USE_ACCEL relies on torch.accelerator API and not all examples are converted
+# to use it at the moment. Thus, expect failures using this flag on non-CUDA accelerators
+# and consider to run examples one by one.
 #
-# To force venv per example:
+# Script requires uv to be installed. When executed, script will install prerequisites from
+# `requirements.txt` for each example. If ran within activated virtual environment (uv venv,
+# python -m venv, conda) this might reinstall some of the packages. To change pip installation
+# index or to pass additional pip install options, run as:
+#   PIP_INSTALL_ARGS="--pre -f https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html" \
+#     ./run_python_examples.sh
+#
+# To force script to create virtual environment for each example, run as:
 #   VIRTUAL_ENV=".venv" ./run_python_examples.sh
+# Script will remove environments it creates in a teardown step after execution of each example.
 
 BASE_DIR="$(pwd)/$(dirname $0)"
 source $BASE_DIR/utils.sh
 
+# TODO: Leave only USE_ACCEL and drop USE_CUDA once all examples will be converted
+# to torch.accelerator API. For now, just add USE_ACCEL as an alias for USE_CUDA.
 if [ -n "$USE_ACCEL" ]; then
   USE_CUDA=$USE_ACCEL
 fi
@@ -40,7 +53,7 @@ case $USE_CUDA in
     ACCEL_FLAG=""
     ;;
   "")
-    exit 1
+    exit 1;
     ;;
 esac
 
@@ -54,6 +67,7 @@ function fast_neural_style() {
     uv run download_saved_models.py
   fi
   test -d "saved_models" || { error "saved models not found"; return; }
+
   echo "running fast neural style model"
   uv run neural_style/neural_style.py eval --content-image images/content-images/amber.jpg --model saved_models/candy.pth --output-image images/output-images/amber-candy.jpg $ACCEL_FLAG || error "neural_style.py failed"
 }
@@ -78,11 +92,10 @@ function language_translation() {
 function mnist() {
   uv run main.py --epochs 1 --dry-run || error "mnist example failed"
 }
-
 function mnist_forward_forward() {
   uv run main.py --epochs 1 --no_accel || error "mnist forward forward failed"
-}
 
+}
 function mnist_hogwild() {
   uv run main.py --epochs 1 --dry-run $CUDA_FLAG || error "mnist hogwild failed"
 }
@@ -106,12 +119,13 @@ function reinforcement_learning() {
 
 function snli() {
   echo "installing 'en' model if not installed"
-  uv run -m spacy download en || { error "couldn't download 'en' model needed for snli"; return; }
+  uv run -m spacy download en || { error "couldn't download 'en' model needed for snli";  return; }
   echo "training..."
   uv run train.py --epochs 1 --dev_every 1 --no-bidirectional --dry-run || error "couldn't train snli"
 }
 
 function fx() {
+  # uv run custom_tracer.py || error "fx custom tracer has failed" UnboundLocalError: local variable 'tabulate' referenced before assignment
   uv run invert.py || error "fx invert has failed"
   uv run module_tracer.py || error "fx module tracer has failed"
   uv run primitive_library.py || error "fx primitive library has failed"
@@ -126,7 +140,7 @@ function super_resolution() {
 }
 
 function time_sequence_prediction() {
-  uv run generate_sine_wave.py || { error "generate sine wave failed"; return; }
+  uv run generate_sine_wave.py || { error "generate sine wave failed";  return; }
   uv run train.py --steps 2 || error "time sequence prediction training failed"
 }
 
@@ -140,6 +154,9 @@ function vision_transformer() {
 
 function word_language_model() {
   uv run main.py --epochs 1 --dry-run $CUDA_FLAG --mps || error "word_language_model failed"
+  for model in "RNN_TANH" "RNN_RELU" "LSTM" "GRU" "Transformer"; do
+    uv run main.py --model $model --epochs 1 --dry-run $CUDA_FLAG --mps || error "word_language_model failed"
+  done
 }
 
 function gcn() {
@@ -151,10 +168,9 @@ function gat() {
 }
 
 function differentiable_physics() {
-  pushd differentiable_physics
-  python -m uv run mass_spring.py --mode train --epochs 5 --steps 3 || error "differentiable_physics example failed"
-  popd
+  uv run mass_spring.py --mode train --epochs 5 --steps 3 || error "differentiable_physics example failed"
 }
+
 
 eval "base_$(declare -f stop)"
 
@@ -188,9 +204,12 @@ function stop() {
 }
 
 function run_all() {
+  # cpp moved to `run_cpp_examples.sh```
   run dcgan
+  # distributed moved to `run_distributed_examples.sh`
   run fast_neural_style
   run imagenet
+  # language_translation
   run mnist
   run mnist_forward_forward
   run mnist_hogwild
@@ -201,6 +220,7 @@ function run_all() {
   run super_resolution
   run time_sequence_prediction
   run vae
+  # vision_transformer - example broken see https://github.com/pytorch/examples/issues/1184 and https://github.com/pytorch/examples/pull/1258 for more details
   run word_language_model
   run fx
   run gcn
@@ -208,6 +228,7 @@ function run_all() {
   run differentiable_physics
 }
 
+# by default, run all examples
 if [ "" == "$EXAMPLES" ]; then
   run_all
 else
@@ -224,5 +245,7 @@ if [ "" == "$ERRORS" ]; then
 else
   echo "Some python examples failed:"
   printf "$ERRORS\n"
+  #Exit with error (0-255) in case of failure in one of the tests.
   exit 1
+
 fi
