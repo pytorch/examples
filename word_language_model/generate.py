@@ -55,6 +55,7 @@ if args.temperature < 1e-3:
 with open(args.checkpoint, 'rb') as f:
     safe_globals = [
         PositionalEncoding,
+        RNNModel,
         TransformerModel,
         torch.nn.functional.relu,
         torch.nn.modules.activation.MultiheadAttention,
@@ -64,15 +65,11 @@ with open(args.checkpoint, 'rb') as f:
         torch.nn.modules.linear.NonDynamicallyQuantizableLinear,
         torch.nn.modules.normalization.LayerNorm,
         torch.nn.modules.sparse.Embedding,
-        torch.nn.modules.transformer.TransformerEncoder,
-        torch.nn.modules.transformer.TransformerEncoderLayer,
-        RNNModel,
-        torch.nn.modules.dropout.Dropout,
-        torch.nn.modules.linear.Linear,
         torch.nn.modules.rnn.GRU,
         torch.nn.modules.rnn.LSTM,
         torch.nn.modules.rnn.RNN,
-        torch.nn.modules.sparse.Embedding,
+        torch.nn.modules.transformer.TransformerEncoder,
+        torch.nn.modules.transformer.TransformerEncoderLayer,
     ]
     with torch.serialization.safe_globals(safe_globals):
         model = torch.load(f, map_location=device)
