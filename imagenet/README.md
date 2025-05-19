@@ -33,7 +33,9 @@ python main.py -a resnet18 --dummy
 
 ## Multi-processing Distributed Data Parallel Training
 
-You should always use the NCCL backend for multi-processing distributed training since it currently provides the best distributed training performance.
+If running on CUDA, you should always use the NCCL backend for multi-processing distributed training since it currently provides the best distributed training performance.
+
+For XPU multiprocessing is not supported as of PyTorch 2.6.
 
 ### Single node, multiple GPUs:
 
@@ -59,7 +61,7 @@ python main.py -a resnet50 --dist-url 'tcp://IP_OF_NODE0:FREEPORT' --dist-backen
 
 ```bash
 usage: main.py [-h] [-a ARCH] [-j N] [--epochs N] [--start-epoch N] [-b N] [--lr LR] [--momentum M] [--wd W] [-p N] [--resume PATH] [-e] [--pretrained] [--world-size WORLD_SIZE] [--rank RANK]
-               [--dist-url DIST_URL] [--dist-backend DIST_BACKEND] [--seed SEED] [--gpu GPU] [--multiprocessing-distributed] [--dummy]
+               [--dist-url DIST_URL] [--dist-backend DIST_BACKEND] [--seed SEED] [--gpu GPU] [--no-accel][--multiprocessing-distributed] [--dummy]
                [DIR]
 
 PyTorch ImageNet Training
@@ -96,6 +98,7 @@ optional arguments:
                         distributed backend
   --seed SEED           seed for initializing training.
   --gpu GPU             GPU id to use.
+  --no-accel            disables accelerator
   --multiprocessing-distributed
                         Use multi-processing distributed training to launch N processes per node, which has N GPUs. This is the fastest way to use PyTorch for either single node or multi node data parallel
                         training
