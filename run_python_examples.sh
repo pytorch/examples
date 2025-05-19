@@ -158,6 +158,7 @@ function word_language_model() {
   for model in "RNN_TANH" "RNN_RELU" "LSTM" "GRU" "Transformer"; do
     uv run main.py --model $model --epochs 1 --dry-run $CUDA_FLAG --mps || error "word_language_model failed"
   done
+  uv run generate.py $CUDA_FLAG --mps || error "word_language_model generate failed"
 }
 
 function gcn() {
