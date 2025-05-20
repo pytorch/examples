@@ -32,10 +32,10 @@ pip install -r requirements.txt
 
 ## Usage
 
-### Train the model
+### Train & Save the model
 
 ```bash
-python swin_transformer.py --epochs 10 --batch-size 64 --lr 0.001
+python swin_transformer.py --epochs 10 --batch-size 64 --lr 0.001 --save-model
 ```
 
 ### Test the model
@@ -44,13 +44,7 @@ Testing is done automatically after each epoch. To only test, run with:
 
 ```bash
 python swin_transformer.py --epochs 1
-```
-
-### Save the model
-
-```bash
-python swin_transformer.py --save-model
-```
+``
 
 The model will be saved as `swin_cifar10.pt`.
 

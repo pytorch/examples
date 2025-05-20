@@ -195,9 +195,9 @@ function stop() {
     time_sequence_prediction/traindata.pt \
     word_language_model/model.pt \
     gcn/cora/ \
-    gat/cora/ || error "couldn't clean up some files"
-    swin_transformer/swin_cifar10.pt || error "couldn't clean up some files"
-
+    gat/cora/ || error "couldn't clean up some files" \
+    swin_transformer/ \
+    swin_trasformer/swin_cifar10.pt || error "command swin_transformer/swin_cifar10.pt not found" \
   git checkout fast_neural_style/images/output-images/amber-candy.jpg || error "couldn't clean up fast neural style image"
 
   base_stop "$1"
@@ -225,7 +225,7 @@ function run_all() {
   run fx
   run gcn
   run gat
-  run swin
+  run swin_transformer
 }
 
 # by default, run all examples

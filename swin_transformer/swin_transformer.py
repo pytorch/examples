@@ -1,6 +1,4 @@
-from __future__ import print_function
 import argparse
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -202,6 +200,4 @@ def main():
 
     if args.save_model:
         torch.save(model.state_dict(), "swin_cifar10.pt")
-
-if __name__ == '__main__':
-    main()
+main()
