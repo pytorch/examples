@@ -19,7 +19,7 @@ It includes:
 ## Requirements
 
 - Python 3.8+
-- PyTorch 1.10 or later
+- PyTorch 2.6 or later
 - `torchvision` (for CIFAR-10 dataset)
 
 Install dependencies:
