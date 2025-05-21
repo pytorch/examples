@@ -195,9 +195,8 @@ function stop() {
     time_sequence_prediction/traindata.pt \
     word_language_model/model.pt \
     gcn/cora/ \
-    gat/cora/ || error "couldn't clean up some files" \
-    swin_transformer/ \
-    swin_trasformer/swin_cifar10.pt || error "command swin_transformer/swin_cifar10.pt not found" \
+    gat/cora/ \
+    swin_trasformer/swin_cifar10.pt || error "couldn't clean up some files"
   git checkout fast_neural_style/images/output-images/amber-candy.jpg || error "couldn't clean up fast neural style image"
 
   base_stop "$1"
