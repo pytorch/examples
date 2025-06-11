@@ -1,3 +1,4 @@
+# torchrun --nnodes 1 --nproc-per-node 4 <fn>
 import os
 import sys
 import torch
