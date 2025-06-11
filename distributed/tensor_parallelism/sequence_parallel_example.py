@@ -1,3 +1,4 @@
+# torchrun --nnodes 1 --nproc-per-node 4 <fn>
 import os
 import sys
 import torch
@@ -13,6 +14,7 @@ from torch.distributed.tensor.parallel import (
 
 from log_utils import rank_log, get_logger, verify_min_gpu_count
 
+from torch.distributed.tensor.debug import CommDebugMode
 
 # ---- GPU check ------------
 _min_gpu_count = 2
@@ -63,9 +65,10 @@ PyTorch native APIs.
 """
 logger = get_logger()
 
+device_type = torch.accelerator.current_accelerator().type
 # create a device mesh based on the given world_size.
 device_mesh = init_device_mesh(
-    device_type="cuda", mesh_shape=(int(os.environ["WORLD_SIZE"]),)
+    device_type=device_type, mesh_shape=(int(os.environ["WORLD_SIZE"]),)
 )
 
 _rank = device_mesh.get_rank()
@@ -75,7 +78,7 @@ print(f"Starting PyTorch Sequence Parallel example on rank {_rank}.")
 rank_log(_rank, logger, f"Device Mesh created: {device_mesh=}")
 
 # create model and move it to GPU.  Init_device_mesh has already assigned gpu ids...
-model = ToyModel().to("cuda")
+model = ToyModel().to(device_type)
 
 # Custom parallelization plan for the model
 sp_model = parallelize_module(
@@ -87,6 +90,8 @@ sp_model = parallelize_module(
     },
 )
 
+if torch.distributed.get_rank() == 0:
+	print (f"model {sp_model}")
 
 # Create a optimizer for the parallelized module.
 lr = 0.25
@@ -98,12 +103,19 @@ optimizer = torch.optim.AdamW(sp_model.parameters(), lr=lr, foreach=True)
 num_iters = 10
 rank_log(_rank, logger, "Sequence Parallel training starting...")
 
+
 for i in range(num_iters):
     # For SP, input can be different across all ranks.
-    inp = torch.rand(20, 10, device="cuda")
-    output = sp_model(inp)
-    output.sum().backward()
-    optimizer.step()
+    #inp = torch.rand(20, 10, device=device_type)
+    inp = torch.rand(1, 10, device=device_type)
+    comm_mode = CommDebugMode()
+    with comm_mode:
+        output = sp_model(inp)
+        output.sum().backward()
+        optimizer.step()
     rank_log(_rank, logger, f"Sequence Parallel iter {i} completed")
+
+    if i == 0:
+        print (f" rank{torch.distributed.get_rank()} {i} get_comm_counts {comm_mode.get_comm_counts()} get_sharding_info() {comm_mode.get_sharding_info()} generate_comm_debug_tracing_table {comm_mode.generate_comm_debug_tracing_table(noise_level=1)} ")
 
 rank_log(_rank, logger, "Sequence Parallel training completed!")
