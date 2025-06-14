@@ -42,14 +42,14 @@ def get_data(opts):
 
     # Build a vocabulary object for these languages
     src_vocab = build_vocab_from_iterator(
-        _yield_tokens(train_iterator, src_tokenizer, src_lang),
+        _yield_tokens(train_iterator, src_tokenizer, True),
         min_freq=1,
         specials=list(special_symbols.keys()),
         special_first=True
     )
 
     tgt_vocab = build_vocab_from_iterator(
-        _yield_tokens(train_iterator, tgt_tokenizer, tgt_lang),
+        _yield_tokens(train_iterator, tgt_tokenizer, False),
         min_freq=1,
         specials=list(special_symbols.keys()),
         special_first=True
