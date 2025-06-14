@@ -143,7 +143,6 @@ def main_worker(gpu, ngpus_per_node, args):
     if use_accel:
         if args.gpu is not None:
             torch.accelerator.set_device_index(args.gpu)
-            print("Use GPU: {} for training".format(args.gpu))
         device = torch.accelerator.current_accelerator()
     else:
         device = torch.device("cpu")
