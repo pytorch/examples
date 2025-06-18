@@ -4,14 +4,17 @@ This example trains a multi-layer RNN (Elman, GRU, or LSTM) or Transformer on a 
 The trained model can then be used by the generate script to generate new text.
 
 ```bash
-python main.py --accel --epochs 6           # Train a LSTM on Wikitext-2 with CUDA.
-python main.py --accel --epochs 6 --tied    # Train a tied LSTM on Wikitext-2 with CUDA.
-python main.py --accel --tied               # Train a tied LSTM on Wikitext-2 with CUDA for 40 epochs.
+python main.py --accel --epochs 6           # Train a LSTM on Wikitext-2.
+python main.py --accel --epochs 6 --tied    # Train a tied LSTM on Wikitext-2.
+python main.py --accel --tied               # Train a tied LSTM on Wikitext-2for 40 epochs.
 python main.py --accel --epochs 6 --model Transformer --lr 5
-                                           # Train a Transformer model on Wikitext-2 with CUDA.
+                                           # Train a Transformer model on Wikitext-2.
 
 python generate.py --accel                       # Generate samples from the default model checkpoint.
 ```
+
+> [!NOTE] 
+> Example supports running on acceleration devices (CUDA, MPS, XPU)
 
 The model uses the `nn.RNN` module (and its sister modules `nn.GRU` and `nn.LSTM`) or Transformer module (`nn.TransformerEncoder` and `nn.TransformerEncoderLayer`) which will automatically use the cuDNN backend if run on CUDA with cuDNN installed.
 
