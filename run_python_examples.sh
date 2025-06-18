@@ -136,8 +136,8 @@ function fx() {
 }
 
 function super_resolution() {
-  uv run main.py --upscale_factor 3 --batchSize 4 --testBatchSize 100 --nEpochs 1 --lr 0.001 --mps || error "super resolution failed"
-  uv run super_resolve.py --input_image dataset/BSDS300/images/test/16077.jpg --model model_epoch_1.pth --output_filename out.png || error "super resolution upscaling failed"
+  uv run main.py --upscale_factor 3 --batchSize 4 --testBatchSize 100 --nEpochs 1 --lr 0.001 $ACCEL_FLAG || error "super resolution failed"
+  uv run super_resolve.py --input_image dataset/BSDS300/images/test/16077.jpg --model model_epoch_1.pth --output_filename out.png $ACCEL_FLAG || error "super resolution upscaling failed"
 }
 
 function time_sequence_prediction() {
