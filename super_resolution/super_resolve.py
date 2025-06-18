@@ -12,7 +12,7 @@ parser = argparse.ArgumentParser(description='PyTorch Super Res Example')
 parser.add_argument('--input_image', type=str, required=True, help='input image to use')
 parser.add_argument('--model', type=str, required=True, help='model file to use')
 parser.add_argument('--output_filename', type=str, help='where to save the output image')
-parser.add_argument('--cuda', action='store_true', help='use cuda')
+parser.add_argument('--accel', action='store_true', help='Enables acceleration device, if available')
 opt = parser.parse_args()
 
 print(opt)
@@ -32,9 +32,10 @@ with open(opt.model, 'rb') as f:
 img_to_tensor = ToTensor()
 input = img_to_tensor(y).view(1, -1, y.size[1], y.size[0])
 
-if opt.cuda:
-    model = model.cuda()
-    input = input.cuda()
+if opt.accel:
+    device = torch.accelerator.current_accelerator()
+    model = model.to(device)
+    input = input.to(device)
 
 out = model(input)
 out = out.cpu()
