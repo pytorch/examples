@@ -5,7 +5,7 @@ This example illustrates how to use the efficient sub-pixel convolution layer de
 ```
 usage: main.py [-h] --upscale_factor UPSCALE_FACTOR [--batchSize BATCHSIZE]
                [--testBatchSize TESTBATCHSIZE] [--nEpochs NEPOCHS] [--lr LR]
-               [--cuda] [--threads THREADS] [--seed SEED]
+               [--accel] [--threads THREADS] [--seed SEED]
 
 PyTorch Super Res Example
 
@@ -16,8 +16,7 @@ optional arguments:
   --testBatchSize       testing batch size
   --nEpochs             number of epochs to train for
   --lr                  Learning Rate. Default=0.01
-  --cuda                use cuda
-  --mps                 enable GPU on macOS
+  --accel                use accelerator
   --threads             number of threads for data loader to use Default=4
   --seed                random seed to use. Default=123
 ```
@@ -29,11 +28,11 @@ This example trains a super-resolution network on the [BSD300 dataset](https://w
 ### Train
 
 ```bash
-python main.py --upscale_factor 3 --batchSize 4 --testBatchSize 100 --nEpochs 30 --lr 0.001
+python main.py --upscale_factor 3 --batchSize 4 --testBatchSize 100 --nEpochs 30 --lr 0.001 --accel
 ```
 
 ### Super Resolve
 
 ```bash
-python super_resolve.py --input_image dataset/BSDS300/images/test/16077.jpg --model model_epoch_30.pth --output_filename out.png
+python super_resolve.py --input_image dataset/BSDS300/images/test/16077.jpg --model model_epoch_30.pth --output_filename out.png --accel
 ```
