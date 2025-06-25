@@ -170,6 +170,11 @@ function gat() {
   uv run main.py --epochs 1 --dry-run || error "graph attention network failed"
 }
 
+function differentiable_physics() {
+  uv run mass_spring.py --mode train --epochs 5 --steps 3 || error "differentiable_physics example failed"
+}
+
+
 eval "base_$(declare -f stop)"
 
 function stop() {
@@ -223,6 +228,7 @@ function run_all() {
   run fx
   run gcn
   run gat
+  run differentiable_physics
 }
 
 # by default, run all examples
