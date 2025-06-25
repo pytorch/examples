@@ -38,7 +38,7 @@ This idea is inspired by differentiable simulation frameworks such as those pres
 - PyTorch ≥ 2.0
 
 Install requirements (if needed):
-```bash
+
 pip install -r requirements.txt
 
 
@@ -48,7 +48,7 @@ First, ensure PyTorch is installed.
 
 #### Train the system
 
-```bash
+
 python mass_spring.py --mode train
 
 
