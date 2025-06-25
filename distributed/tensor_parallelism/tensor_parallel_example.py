@@ -11,7 +11,6 @@ from torch.distributed.tensor.parallel import (
 )
 
 from log_utils import rank_log, get_logger, verify_min_gpu_count
-from torch.distributed.tensor.debug import CommDebugMode
 
 # ---- GPU check ------------
 _min_gpu_count = 2
@@ -104,9 +103,6 @@ tp_model = parallelize_module(
     },
 )
 
-if torch.distributed.get_rank() == 0:
-    print (f"model {tp_model}")
-
 # Create an optimizer for the parallelized module.
 lr = 0.25
 optimizer = torch.optim.AdamW(tp_model.parameters(), lr=lr, foreach=True)
@@ -121,14 +117,10 @@ for i in range(num_iters):
     # For TP, input needs to be same across all TP ranks.
     # Setting the random seed is to mimic the behavior of dataloader.
     torch.manual_seed(i)
-    inp = torch.rand(4, 10, device=device_type)
-    comm_mode = CommDebugMode()
-    with comm_mode:
-        output = tp_model(inp)
-        output.sum().backward()
-        optimizer.step()
+    inp = torch.rand(20, 10, device=device_type)
+    output = tp_model(inp)
+    output.sum().backward()
+    optimizer.step()
     rank_log(_rank, logger, f"Tensor Parallel iter {i} completed")
-    if i == 1:
-        print (f" rank{torch.distributed.get_rank()} {i} get_comm_counts {comm_mode.get_comm_counts()} get_sharding_info() {comm_mode.get_sharding_info()} generate_comm_debug_tracing_table {comm_mode.generate_comm_debug_tracing_table(noise_level=1)} ")
 
 rank_log(_rank, logger, "Tensor Parallel training completed!")
