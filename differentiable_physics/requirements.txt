@@ -1,3 +1,0 @@
-torch>=2.6
-matplotlib
-
