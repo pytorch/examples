@@ -1,3 +1,4 @@
+# torchrun --nnodes 1 --nproc-per-node 4 <fn>
 import os
 import sys
 import torch
@@ -63,9 +64,10 @@ PyTorch native APIs.
 """
 logger = get_logger()
 
+device_type = torch.accelerator.current_accelerator().type
 # create a device mesh based on the given world_size.
 device_mesh = init_device_mesh(
-    device_type="cuda", mesh_shape=(int(os.environ["WORLD_SIZE"]),)
+    device_type=device_type, mesh_shape=(int(os.environ["WORLD_SIZE"]),)
 )
 
 _rank = device_mesh.get_rank()
@@ -75,7 +77,7 @@ print(f"Starting PyTorch Sequence Parallel example on rank {_rank}.")
 rank_log(_rank, logger, f"Device Mesh created: {device_mesh=}")
 
 # create model and move it to GPU.  Init_device_mesh has already assigned gpu ids...
-model = ToyModel().to("cuda")
+model = ToyModel().to(device_type)
 
 # Custom parallelization plan for the model
 sp_model = parallelize_module(
@@ -100,7 +102,8 @@ rank_log(_rank, logger, "Sequence Parallel training starting...")
 
 for i in range(num_iters):
     # For SP, input can be different across all ranks.
-    inp = torch.rand(20, 10, device="cuda")
+    #inp = torch.rand(20, 10, device=device_type)
+    inp = torch.rand(1, 10, device=device_type)
     output = sp_model(inp)
     output.sum().backward()
     optimizer.step()
