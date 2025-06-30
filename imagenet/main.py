@@ -372,7 +372,7 @@ def validate(val_loader, model, criterion, args):
                 i = base_progress + i
                 if use_accel:
                     if args.gpu is not None and device.type=='cuda':
-                        torch.accelerator.set_device_index(argps.gpu)
+                        torch.accelerator.set_device_index(args.gpu)
                         images = images.cuda(args.gpu, non_blocking=True)
                         target = target.cuda(args.gpu, non_blocking=True)
                     else:

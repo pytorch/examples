@@ -81,6 +81,7 @@ function imagenet() {
     cp sample/train/n/* sample/val/n/
   fi
   uv run main.py --epochs 1 sample/ || error "imagenet example failed"
+  uv run main.py --epochs 1 --gpu 0 sample/ || error "imagenet example failed"
 }
 
 function language_translation() {
