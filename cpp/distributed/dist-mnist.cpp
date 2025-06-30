@@ -1,4 +1,7 @@
-#include <c10d/ProcessGroupMPI.hpp>
+#define USE_C10D_MPI
+#include <torch/csrc/distributed/c10d/Work.hpp>
+#include <torch/csrc/distributed/c10d/ProcessGroup.hpp>
+#include <torch/csrc/distributed/c10d/ProcessGroupMPI.hpp>
 #include <torch/torch.h>
 #include <iostream>
 
@@ -35,8 +38,8 @@ struct Model : torch::nn::Module {
 };
 
 void waitWork(
-    std::shared_ptr<c10d::ProcessGroupMPI> pg,
-    std::vector<std::shared_ptr<c10d::ProcessGroup::Work>> works) {
+    c10::intrusive_ptr<c10d::ProcessGroupMPI> pg,
+    std::vector<c10::intrusive_ptr<c10d::Work>> works) {
   for (auto& work : works) {
     try {
       work->wait();
@@ -115,7 +118,7 @@ int main(int argc, char* argv[]) {
       // since this synchronizes parameters after backward pass while DDP
       // overlaps synchronizing parameters and computing gradients in backward
       // pass
-      std::vector<std::shared_ptr<::c10d::ProcessGroup::Work>> works;
+      std::vector<::c10::intrusive_ptr<::c10d::Work>> works;
       for (auto& param : model->named_parameters()) {
         std::vector<torch::Tensor> tmp = {param.value().grad()};
         auto work = pg->allreduce(tmp);
