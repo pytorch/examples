@@ -102,8 +102,7 @@ rank_log(_rank, logger, "Sequence Parallel training starting...")
 
 for i in range(num_iters):
     # For SP, input can be different across all ranks.
-    #inp = torch.rand(20, 10, device=device_type)
-    inp = torch.rand(1, 10, device=device_type)
+    inp = torch.rand(20, 10, device=device_type)
     output = sp_model(inp)
     output.sum().backward()
     optimizer.step()
