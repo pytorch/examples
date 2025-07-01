@@ -12,5 +12,5 @@ https://pytorch.org/docs/stable/distributed.tensor.parallel.html
 
 ```
 pip install -r requirements.txt
-python example.py
+torchrun --nnodes 1 --nproc-per-node 4 tensor_parallel_example.py
 ```
