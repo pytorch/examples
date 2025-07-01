@@ -1,5 +1,5 @@
 # The following is an example command to run this code
-# torchrun --nnodes 1 --nproc-per-node 4 <fn>
+# torchrun --nnodes 1 --nproc-per-node 4 tensor_parallel_example.py
 import os
 import sys
 import torch
