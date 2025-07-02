@@ -30,9 +30,18 @@ def set_modules_to_backward_prefetch(model, num_to_backward_prefetch):
 
 def main(args):
     rank = int(os.environ["LOCAL_RANK"])
-    device = torch.device(f"cuda:{rank}")
-    torch.cuda.set_device(device)
-    torch.distributed.init_process_group(backend="nccl", device_id=device)
+    if torch.accelerator.is_available():
+        device_type = torch.accelerator.current_accelerator()
+        device: torch.device = torch.device(f"{device_type}:{rank}")
+        torch.accelerator.device_index(rank)
+        print(f"Running on rank {rank} on device {device}")
+        backend = torch.distributed.get_default_backend_for_device(device)
+        torch.distributed.init_process_group(backend=backend, device_id=device)
+    else:
+        device = torch.device("cpu")
+        print(f"Running on device {device}")
+        torch.distributed.init_process_group(backend="gloo", device_id=device)
+
     torch.manual_seed(0)
     vocab_size = 1024
     batch_size = 32
