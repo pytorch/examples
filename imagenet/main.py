@@ -459,7 +459,7 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
     def all_reduce(self):    
-        if use_accel:
+        if self.use_accel:
             device = torch.accelerator.current_accelerator()
         else:
             device = torch.device("cpu")
