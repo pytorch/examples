@@ -77,10 +77,11 @@ assert (
 # create a sharding plan based on the given world_size.
 dp_size = _world_size // tp_size
 
+device_type = torch.accelerator.current_accelerator().type
 # Create a device mesh with 2 dimensions.
 # First dim is the data parallel dimension
 # Second dim is the tensor parallel dimension.
-device_mesh = init_device_mesh("cuda", (dp_size, tp_size), mesh_dim_names=("dp", "tp"))
+device_mesh = init_device_mesh(device_type, (dp_size, tp_size), mesh_dim_names=("dp", "tp"))
 
 rank_log(_rank, logger, f"Device Mesh created: {device_mesh=}")
 tp_mesh = device_mesh["tp"]
@@ -92,10 +93,10 @@ dp_mesh = device_mesh["dp"]
 # to mimic the behavior of the dataloader.
 dp_rank = dp_mesh.get_local_rank()
 
-# create model and move it to GPU - init"cuda"_mesh has already mapped GPU ids.
+# create model and move it to GPU - initdevice_type_mesh has already mapped GPU ids.
 simple_llama2_config = ModelArgs(dim=256, n_layers=2, n_heads=16, vocab_size=32000)
 
-model = Transformer.from_model_args(simple_llama2_config).to("cuda")
+model = Transformer.from_model_args(simple_llama2_config).to(device_type)
 
 # init model weights
 model.init_weights()
@@ -170,7 +171,7 @@ batch_size = 2
 for i in range(num_iterations):
     # seeding with dp_rank to ensure identical inputs for TP groups
     torch.manual_seed(i + dp_rank)
-    inp = torch.randint(32000, (8, 256), device="cuda")
+    inp = torch.randint(32000, (8, 256), device=device_type)
 
     output = sharded_model(inp)
     output.sum().backward()
