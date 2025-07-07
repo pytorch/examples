@@ -8,6 +8,7 @@ import argparse
 import torch
 
 import data
+from model import PositionalEncoding, RNNModel, TransformerModel
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 Language Model')
 # Model parameters.
@@ -52,7 +53,26 @@ if args.temperature < 1e-3:
     parser.error("--temperature has to be greater or equal 1e-3.")
 
 with open(args.checkpoint, 'rb') as f:
-    model = torch.load(f, map_location=device)
+    safe_globals = [
+        PositionalEncoding,
+        RNNModel,
+        TransformerModel,
+        torch.nn.functional.relu,
+        torch.nn.modules.activation.MultiheadAttention,
+        torch.nn.modules.container.ModuleList,
+        torch.nn.modules.dropout.Dropout,
+        torch.nn.modules.linear.Linear,
+        torch.nn.modules.linear.NonDynamicallyQuantizableLinear,
+        torch.nn.modules.normalization.LayerNorm,
+        torch.nn.modules.sparse.Embedding,
+        torch.nn.modules.rnn.GRU,
+        torch.nn.modules.rnn.LSTM,
+        torch.nn.modules.rnn.RNN,
+        torch.nn.modules.transformer.TransformerEncoder,
+        torch.nn.modules.transformer.TransformerEncoderLayer,
+    ]
+    with torch.serialization.safe_globals(safe_globals):
+        model = torch.load(f, map_location=device)
 model.eval()
 
 corpus = data.Corpus(args.data)

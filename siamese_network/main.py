@@ -247,8 +247,8 @@ def main():
                         help='learning rate (default: 1.0)')
     parser.add_argument('--gamma', type=float, default=0.7, metavar='M',
                         help='Learning rate step gamma (default: 0.7)')
-    parser.add_argument('--accel', action='store_true', 
-                    help='use accelerator')
+    parser.add_argument('--no-accel', action='store_true', 
+                    help='disables accelerator')
     parser.add_argument('--dry-run', action='store_true', default=False,
                         help='quickly check a single pass')
     parser.add_argument('--seed', type=int, default=1, metavar='S',
@@ -258,16 +258,13 @@ def main():
     parser.add_argument('--save-model', action='store_true', default=False,
                         help='For Saving the current Model')
     args = parser.parse_args()
+    
+    use_accel = not args.no_accel and torch.accelerator.is_available()
 
     torch.manual_seed(args.seed)
 
-    if args.accel and not torch.accelerator.is_available():
-        print("ERROR: accelerator is not available, try running on CPU")
-        sys.exit(1)
-    if not args.accel and torch.accelerator.is_available():
-        print("WARNING: accelerator is available, run with --accel to enable it")
 
-    if args.accel:
+    if use_accel:
         device = torch.accelerator.current_accelerator()
     else:
         device = torch.device("cpu")
@@ -276,12 +273,12 @@ def main():
 
     train_kwargs = {'batch_size': args.batch_size}
     test_kwargs = {'batch_size': args.test_batch_size}
-    if device=="cuda":
-        cuda_kwargs = {'num_workers': 1,
+    if use_accel:
+        accel_kwargs = {'num_workers': 1,
                        'pin_memory': True,
                        'shuffle': True}
-        train_kwargs.update(cuda_kwargs)
-        test_kwargs.update(cuda_kwargs)
+        train_kwargs.update(accel_kwargs)
+        test_kwargs.update(accel_kwargs)
 
     train_dataset = APP_MATCHER('../data', train=True, download=True)
     test_dataset = APP_MATCHER('../data', train=False)
