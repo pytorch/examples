@@ -1,4 +1,4 @@
-torch
-torchvision==0.20.0
+torch>=2.6
+torchvision
 requests
-numpy<2
+numpy
