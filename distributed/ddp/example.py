@@ -22,38 +22,37 @@ class ToyModel(nn.Module):
         return self.net2(self.relu(self.net1(x)))
 
 
-def demo_basic(local_world_size, local_rank):
-
-    # setup devices for this process. For local_world_size = 2, num_gpus = 8,
-    # rank 0 uses GPUs [0, 1, 2, 3] and
-    # rank 1 uses GPUs [4, 5, 6, 7].
-    n = torch.cuda.device_count() // local_world_size
-    device_ids = list(range(local_rank * n, (local_rank + 1) * n))
+def demo_basic(rank):
 
     print(
         f"[{os.getpid()}] rank = {dist.get_rank()}, "
-        + f"world_size = {dist.get_world_size()}, n = {n}, device_ids = {device_ids} \n", end=''
-    )
+        + f"world_size = {dist.get_world_size()}"
+        )
 
-    model = ToyModel().cuda(device_ids[0])
-    ddp_model = DDP(model, device_ids)
+    model = ToyModel().to(rank)
+    ddp_model = DDP(model, device_ids=[rank])
 
     loss_fn = nn.MSELoss()
     optimizer = optim.SGD(ddp_model.parameters(), lr=0.001)
 
     optimizer.zero_grad()
     outputs = ddp_model(torch.randn(20, 10))
-    labels = torch.randn(20, 5).to(device_ids[0])
+    labels = torch.randn(20, 5).to(rank)
     loss_fn(outputs, labels).backward()
     optimizer.step()
 
+    print(f"training completed in rank {rank}!")
 
-def spmd_main(local_world_size, local_rank):
+
+def main():
     # These are the parameters used to initialize the process group
     env_dict = {
         key: os.environ[key]
-        for key in ("MASTER_ADDR", "MASTER_PORT", "RANK", "WORLD_SIZE")
+        for key in ("MASTER_ADDR", "MASTER_PORT", "RANK", "LOCAL_RANK", "WORLD_SIZE", "LOCAL_WORLD_SIZE")
     }
+    rank = int(env_dict['RANK'])
+    local_rank = int(env_dict['LOCAL_RANK'])
+    local_world_size = int(env_dict['LOCAL_WORLD_SIZE'])
     
     if sys.platform == "win32":
         # Distributed package only covers collective communications with Gloo
@@ -80,18 +79,10 @@ def spmd_main(local_world_size, local_rank):
         + f"rank = {dist.get_rank()}, backend={dist.get_backend()} \n", end=''
     )
 
-    demo_basic(local_world_size, local_rank)
+    demo_basic(rank)
 
     # Tear down the process group
     dist.destroy_process_group()
 
-
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    # This is passed in via launch.py
-    parser.add_argument("--local_rank", type=int, default=0)
-    # This needs to be explicitly passed in
-    parser.add_argument("--local_world_size", type=int, default=1)
-    args = parser.parse_args()
-    # The main entry point is called directly without using subprocess
-    spmd_main(args.local_world_size, args.local_rank)
+    main()

@@ -51,7 +51,7 @@ function distributed_tensor_parallelism() {
 }
 
 function distributed_ddp() {
-    uv run main.py || error "ddp example failed"
+    uv run bash run_example.sh example.py || error "ddp example failed"
 }
 
 function run_all() {
