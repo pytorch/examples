@@ -165,7 +165,6 @@ def load_cora(path='./cora', device='cpu'):
 
     return features.to_sparse().to(device), labels.to(device), adj_mat.to_sparse().to(device)
 
-
 def train_iter(epoch, model, optimizer, criterion, input, target, mask_train, mask_val, print_every=10):
     start_t = time.time()
     model.train()
@@ -199,8 +198,6 @@ def test(model, criterion, input, target, mask):
 
 
 if __name__ == '__main__':
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
     parser = argparse.ArgumentParser(description='PyTorch Graph Convolutional Network')
     parser.add_argument('--epochs', type=int, default=200,
                         help='number of epochs to train (default: 200)')
@@ -214,29 +211,25 @@ if __name__ == '__main__':
                         help='dimension of the hidden representation (default: 16)')
     parser.add_argument('--val-every', type=int, default=20,
                         help='epochs to wait for print training and validation evaluation (default: 20)')
-    parser.add_argument('--include-bias', action='store_true', default=False,
+    parser.add_argument('--include-bias', action='store_true',
                         help='use bias term in convolutions (default: False)')
-    parser.add_argument('--no-cuda', action='store_true', default=False,
-                        help='disables CUDA training')
-    parser.add_argument('--no-mps', action='store_true', default=False,
-                        help='disables macOS GPU training')
-    parser.add_argument('--dry-run', action='store_true', default=False,
+    parser.add_argument('--no-accel', action='store_true',
+                        help='disables accelerator')
+    parser.add_argument('--dry-run', action='store_true',
                         help='quickly check a single pass')
     parser.add_argument('--seed', type=int, default=42, metavar='S',
                         help='random seed (default: 42)')
     args = parser.parse_args()
 
-    use_cuda = not args.no_cuda and torch.cuda.is_available()
-    use_mps = not args.no_mps and torch.backends.mps.is_available()
+    use_accel = not args.no_accel and torch.accelerator.is_available()
 
     torch.manual_seed(args.seed)
 
-    if use_cuda:
-        device = torch.device('cuda')
-    elif use_mps:
-        device = torch.device('mps')
+    if use_accel:
+        device = torch.accelerator.current_accelerator()
     else:
         device = torch.device('cpu')
+
     print(f'Using {device} device')
 
     cora_url = 'https://linqs-data.soe.ucsc.edu/public/lbc/cora.tgz'
