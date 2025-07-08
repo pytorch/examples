@@ -72,7 +72,10 @@ def main():
         dist.init_process_group(backend="gloo", init_method=init_method, rank=int(env_dict["RANK"]), world_size=int(env_dict["WORLD_SIZE"]))
     else:
         print(f"[{os.getpid()}] Initializing process group with: {env_dict}")  
-        dist.init_process_group(backend="nccl")
+        acc = torch.accelerator.current_accelerator()
+        backend = torch.distributed.get_default_backend_for_device(acc)
+        torch.accelerator.set_device_index(rank)
+        dist.init_process_group(backend=backend)
 
     print(
         f"[{os.getpid()}]: world_size = {dist.get_world_size()}, "

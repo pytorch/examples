@@ -74,11 +74,10 @@ def spmd_main():
     local_world_size = int(env_dict['LOCAL_WORLD_SIZE'])
 
     print(f"[{os.getpid()}] Initializing process group with: {env_dict}")
-    dist.init_process_group(backend="nccl")
-    print(
-        f"[{os.getpid()}] world_size = {dist.get_world_size()}, "
-        + f"rank = {dist.get_rank()}, backend={dist.get_backend()}"
-    )
+    acc = torch.accelerator.current_accelerator()
+    vendor_backend = torch.distributed.get_default_backend_for_device(acc)
+    torch.accelerator.set_device_index(rank)
+    torch.distributed.init_process_group(backend=vendor_backend)
 
     demo_basic(rank)
 
