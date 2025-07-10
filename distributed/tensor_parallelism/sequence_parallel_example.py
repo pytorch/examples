@@ -1,5 +1,22 @@
-# The following is an example command to run this code
-# torchrun --nnodes 1 --nproc-per-node 4 sequence_parallel_example.py
+"""
+This is the script to test Sequence Parallel(SP) on a toy model in a
+Megetron-LM SPMD style. We show an E2E working flow from forward,
+backward and optimization.
+
+We use the example of two `nn.Linear` layers with an element-wise `nn.RELU`
+in between to show an example of sequence parallel, which was proposed in paper:
+
+https://arxiv.org/pdf/2205.05198.pdf.
+
+Like tensor parallel, we parallelize the first linear layer by column
+and also parallelize the second linear layer by row. But the input in each rank
+now is different so that we need one all-gather for input and one reduce-scatter
+in the end of the second linear layer.
+
+The following is an example command to run this code
+    torchrun --nnodes 1 --nproc-per-node 4 sequence_parallel_example.py
+"""
+
 import os
 import sys
 import torch
@@ -24,27 +41,7 @@ if not verify_min_gpu_count(min_gpus=_min_gpu_count):
     sys.exit()
 # ---------------------------
 
-
 from torch.distributed._tensor.device_mesh import init_device_mesh
-
-
-
-"""
-This is the script to test Sequence Parallel(SP) on a toy model in a
-Megetron-LM SPMD style. We show an E2E working flow from forward,
-backward and optimization.
-
-We use the example of two `nn.Linear` layers with an element-wise `nn.RELU`
-in between to show an example of sequence parallel, which was proposed in paper:
-
-https://arxiv.org/pdf/2205.05198.pdf.
-
-Like tensor parallel, we parallelize the first linear layer by column
-and also parallelize the second linear layer by row. But the input in each rank
-now is different so that we need one all-gather for input and one reduce-scatter
-in the end of the second linear layer.
-"""
-
 
 class ToyModel(nn.Module):
     """MLP based model"""
