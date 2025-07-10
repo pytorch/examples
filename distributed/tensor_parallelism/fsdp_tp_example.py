@@ -1,34 +1,3 @@
-import sys
-import os
-import torch
-import torch.distributed as dist
-import torch.nn as nn
-import torch.nn.functional as F
-
-from log_utils import rank_log, get_logger, verify_min_gpu_count
-
-# ---- GPU check ------------
-_min_gpu_count = 4
-
-if not verify_min_gpu_count(min_gpus=_min_gpu_count):
-    print(f"Unable to locate sufficient {_min_gpu_count} gpus to run this example. Exiting.")
-    sys.exit()
-# ---------------------------
-
-from llama2_model import Transformer, ModelArgs
-
-from torch.distributed.device_mesh import init_device_mesh
-from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
-from torch.distributed._tensor import Shard, Replicate
-from torch.distributed.tensor.parallel import (
-    parallelize_module,
-    ColwiseParallel,
-    RowwiseParallel,
-    PrepareModuleInput,
-    SequenceParallel
-)
-
-
 """
 This is the script to test 2D Parallel which combines Tensor/Sequence
 parallel with Fully Sharded Data Parallel (TP/SP + FSDP) on a example
@@ -59,6 +28,36 @@ FSDP:
 More details can be seen in the PyTorch tutorials:
 https://pytorch.org/tutorials/intermediate/TP_tutorial.html
 """
+
+import sys
+import os
+import torch
+import torch.distributed as dist
+import torch.nn as nn
+import torch.nn.functional as F
+
+from log_utils import rank_log, get_logger, verify_min_gpu_count
+
+# ---- GPU check ------------
+_min_gpu_count = 4
+
+if not verify_min_gpu_count(min_gpus=_min_gpu_count):
+    print(f"Unable to locate sufficient {_min_gpu_count} gpus to run this example. Exiting.")
+    sys.exit()
+# ---------------------------
+
+from llama2_model import Transformer, ModelArgs
+
+from torch.distributed.device_mesh import init_device_mesh
+from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+from torch.distributed._tensor import Shard, Replicate
+from torch.distributed.tensor.parallel import (
+    parallelize_module,
+    ColwiseParallel,
+    RowwiseParallel,
+    PrepareModuleInput,
+    SequenceParallel
+)
 
 tp_size = 2
 logger = get_logger()
