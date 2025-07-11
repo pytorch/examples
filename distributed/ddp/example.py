@@ -11,6 +11,12 @@ import torch.optim as optim
 
 from torch.nn.parallel import DistributedDataParallel as DDP
 
+def verify_min_gpu_count(min_gpus: int = 2) -> bool:
+    """ verification that we have at least 2 gpus to run dist examples """
+    has_gpu = torch.accelerator.is_available()
+    gpu_count = torch.accelerator.device_count()
+    return has_gpu and gpu_count >= min_gpus
+
 class ToyModel(nn.Module):
     def __init__(self):
         super(ToyModel, self).__init__()
@@ -88,4 +94,8 @@ def main():
     dist.destroy_process_group()
 
 if __name__ == "__main__":
+    _min_gpu_count = 2
+    if not verify_min_gpu_count(min_gpus=_min_gpu_count):
+        print(f"Unable to locate sufficient {_min_gpu_count} gpus to run this example. Exiting.")
+        sys.exit()
     main()
