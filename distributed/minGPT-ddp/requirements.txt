@@ -1,5 +1,4 @@
-torch>=1.11.0
-fsspec
+torch>=2.7
 boto3
 hydra-core
 requests
