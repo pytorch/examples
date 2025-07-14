@@ -48,7 +48,7 @@ function run() {
   if start $EXAMPLE; then
     # drop trailing slash (occurs due to auto completion in bash interactive mode)
     # replace slashes with underscores: this allows to call nested examples
-    EXAMPLE_FN=$(echo $EXAMPLE | sed "s@/\$@@" | sed 's@/@_@')
+    EXAMPLE_FN=$(echo $EXAMPLE | sed "s@/\$@@" | sed 's@/@_@g')
     $EXAMPLE_FN
   fi
   stop $EXAMPLE
