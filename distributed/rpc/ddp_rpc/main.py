@@ -27,12 +27,13 @@ class HybridModel(torch.nn.Module):
     def __init__(self, remote_emb_module, device):
         super(HybridModel, self).__init__()
         self.remote_emb_module = remote_emb_module
-        self.fc = DDP(torch.nn.Linear(16, 8).cuda(device), device_ids=[device])
+        self.fc = DDP(torch.nn.Linear(16, 8).to(device), device_ids=[device])
         self.device = device
 
     def forward(self, indices, offsets):
+        device = torch.accelerator.current_accelerator()
         emb_lookup = self.remote_emb_module.forward(indices, offsets)
-        return self.fc(emb_lookup.cuda(self.device))
+        return self.fc(emb_lookup.to(self.device))
 
 
 def _run_trainer(remote_emb_module, rank):
@@ -83,7 +84,7 @@ def _run_trainer(remote_emb_module, rank):
                 batch_size += 1
 
             offsets_tensor = torch.LongTensor(offsets)
-            target = torch.LongTensor(batch_size).random_(8).cuda(rank)
+            target = torch.LongTensor(batch_size).random_(8).to(rank)
             yield indices, offsets_tensor, target
 
     # Train for 100 epochs
@@ -145,9 +146,15 @@ def run_worker(rank, world_size):
         for fut in futs:
             fut.wait()
     elif rank <= 1:
+        if torch.accelerator.is_available():
+            acc = torch.accelerator.current_accelerator()
+            device = torch.device(acc)
+        else:
+            device = torch.device("cpu")
+        backend = torch.distributed.get_default_backend_for_device(device)
         # Initialize process group for Distributed DataParallel on trainers.
         dist.init_process_group(
-            backend="gloo", rank=rank, world_size=2, init_method="tcp://localhost:29500"
+            backend=backend, rank=rank, world_size=2, init_method="tcp://localhost:29500"
         )
 
         # Initialize RPC.

@@ -20,15 +20,19 @@ class Net(nn.Module):
         super(Net, self).__init__()
         print(f"Using {num_gpus} GPUs to train")
         self.num_gpus = num_gpus
-        device = torch.device(
-            "cuda:0" if torch.cuda.is_available() and self.num_gpus > 0 else "cpu")
+        if torch.accelerator.is_available() and self.num_gpus > 0:
+            acc = torch.accelerator.current_accelerator()
+            device = torch.device(f'{acc}:0')
+        else:
+            device = torch.device("cpu")
         print(f"Putting first 2 convs on {str(device)}")
-        # Put conv layers on the first cuda device
+        # Put conv layers on the first accelerator device
         self.conv1 = nn.Conv2d(1, 32, 3, 1).to(device)
         self.conv2 = nn.Conv2d(32, 64, 3, 1).to(device)
-        # Put rest of the network on the 2nd cuda device, if there is one
-        if "cuda" in str(device) and num_gpus > 1:
-            device = torch.device("cuda:1")
+        # Put rest of the network on the 2nd accelerator device, if there is one
+        if torch.accelerator.is_available() and self.num_gpus > 0:
+            acc = torch.accelerator.current_accelerator()
+            device = torch.device(f'{acc}:1')
 
         print(f"Putting rest of layers on {str(device)}")
         self.dropout1 = nn.Dropout2d(0.25).to(device)
@@ -72,11 +76,9 @@ def call_method(method, rref, *args, **kwargs):
 # <foo_instance>.bar(arg1, arg2) on the remote node and getting the result
 # back.
 
-
 def remote_method(method, rref, *args, **kwargs):
     args = [method, rref] + list(args)
     return rpc.rpc_sync(rref.owner(), call_method, args=args, kwargs=kwargs)
-
 
 # --------- Parameter Server --------------------
 class ParameterServer(nn.Module):
@@ -84,9 +86,12 @@ class ParameterServer(nn.Module):
         super().__init__()
         model = Net(num_gpus=num_gpus)
         self.model = model
-        self.input_device = torch.device(
-            "cuda:0" if torch.cuda.is_available() and num_gpus > 0 else "cpu")
-
+        if torch.accelerator.is_available() and num_gpus > 0:
+            acc = torch.accelerator.current_accelerator()
+            self.input_device = torch.device(f'{acc}:0')
+        else:
+            self.input_device = torch.device("cpu")
+            
     def forward(self, inp):
         inp = inp.to(self.input_device)
         out = self.model(inp)
@@ -113,10 +118,8 @@ class ParameterServer(nn.Module):
         param_rrefs = [rpc.RRef(param) for param in self.model.parameters()]
         return param_rrefs
 
-
 param_server = None
 global_lock = Lock()
-
 
 def get_parameter_server(num_gpus=0):
     global param_server
@@ -197,8 +200,11 @@ def get_accuracy(test_loader, model):
     model.eval()
     correct_sum = 0
     # Use GPU to evaluate if possible
-    device = torch.device("cuda:0" if model.num_gpus > 0
-        and torch.cuda.is_available() else "cpu")
+    if torch.accelerator.is_available() and model.num_gpus > 0:
+        acc = torch.accelerator.current_accelerator()
+        device = torch.device(f'{acc}:0')
+    else:
+        device = torch.device("cpu")
     with torch.no_grad():
         for i, (data, target) in enumerate(test_loader):
             out = model(data)
