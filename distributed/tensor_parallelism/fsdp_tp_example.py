@@ -121,12 +121,12 @@ for layer_id, transformer_block in enumerate(model.layers):
     layer_tp_plan = {
         "attention_norm": SequenceParallel(),
         "attention": PrepareModuleInput(
-            input_layouts=(Shard(1), None),
-            desired_input_layouts=(Replicate(), None),
+            input_layouts=(Shard(1), Replicate()),
+            desired_input_layouts=(Replicate(), Replicate()),
         ),
-        "attention.wq": ColwiseParallel(),
-        "attention.wk": ColwiseParallel(),
-        "attention.wv": ColwiseParallel(),
+        "attention.wq": ColwiseParallel(use_local_output=False),
+        "attention.wk": ColwiseParallel(use_local_output=False),
+        "attention.wv": ColwiseParallel(use_local_output=False),
         "attention.wo": RowwiseParallel(output_layouts=Shard(1)),
         "ffn_norm": SequenceParallel(),
         "feed_forward": PrepareModuleInput(
@@ -137,11 +137,6 @@ for layer_id, transformer_block in enumerate(model.layers):
         "feed_forward.w2": RowwiseParallel(output_layouts=Shard(1)),
         "feed_forward.w3": ColwiseParallel(),
     }
-
-    # Adjust attention module to use the local number of heads
-    attn_layer = transformer_block.attention
-    attn_layer.n_heads = attn_layer.n_heads // tp_mesh.size()
-    attn_layer.n_kv_heads = attn_layer.n_kv_heads // tp_mesh.size()
 
     # Custom parallelization plan for the model
     parallelize_module(
