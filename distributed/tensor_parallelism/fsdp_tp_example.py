@@ -49,7 +49,7 @@ if not verify_min_gpu_count(min_gpus=_min_gpu_count):
 from llama2_model import Transformer, ModelArgs
 
 from torch.distributed.device_mesh import init_device_mesh
-from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+from torch.distributed.fsdp import fully_shard
 from torch.distributed._tensor import Shard, Replicate
 from torch.distributed.tensor.parallel import (
     parallelize_module,
@@ -151,7 +151,7 @@ for layer_id, transformer_block in enumerate(model.layers):
     )
 
 # Init FSDP using the dp device mesh
-sharded_model = FSDP(model, device_mesh=dp_mesh, use_orig_params=True)
+sharded_model = fully_shard(model, mesh=dp_mesh)
 
 rank_log(_rank, logger, f"Model after parallelization {sharded_model=}\n")
 
