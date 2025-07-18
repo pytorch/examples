@@ -11,8 +11,20 @@ import os
 
 
 def ddp_setup():
-    torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
-    init_process_group(backend="nccl")
+    rank = int(os.environ["LOCAL_RANK"])
+    if torch.accelerator.is_available():
+        device_type = torch.accelerator.current_accelerator()
+        device: torch.device = torch.device(f"{device_type}:{rank}")
+        torch.accelerator.device_index(rank)
+        print(f"Running on rank {rank} on device {device}")
+        backend = torch.distributed.get_default_backend_for_device(device)
+        torch.distributed.init_process_group(backend=backend)
+        return device_type
+    else:
+        device = torch.device("cpu")
+        print(f"Running on device {device}")
+        torch.distributed.init_process_group(backend="gloo")
+        return device
 
 class Trainer:
     def __init__(
@@ -22,6 +34,7 @@ class Trainer:
         optimizer: torch.optim.Optimizer,
         save_every: int,
         snapshot_path: str,
+        device
     ) -> None:
         self.local_rank = int(os.environ["LOCAL_RANK"])
         self.global_rank = int(os.environ["RANK"])
@@ -31,6 +44,7 @@ class Trainer:
         self.save_every = save_every
         self.epochs_run = 0
         self.snapshot_path = snapshot_path
+        self.device = device
         if os.path.exists(snapshot_path):
             print("Loading snapshot")
             self._load_snapshot(snapshot_path)
@@ -38,7 +52,7 @@ class Trainer:
         self.model = DDP(self.model, device_ids=[self.local_rank])
 
     def _load_snapshot(self, snapshot_path):
-        loc = f"cuda:{self.local_rank}"
+        loc = str(self.device)
         snapshot = torch.load(snapshot_path, map_location=loc)
         self.model.load_state_dict(snapshot["MODEL_STATE"])
         self.epochs_run = snapshot["EPOCHS_RUN"]
@@ -93,10 +107,10 @@ def prepare_dataloader(dataset: Dataset, batch_size: int):
 
 
 def main(save_every: int, total_epochs: int, batch_size: int, snapshot_path: str = "snapshot.pt"):
-    ddp_setup()
+    device = ddp_setup()
     dataset, model, optimizer = load_train_objs()
     train_data = prepare_dataloader(dataset, batch_size)
-    trainer = Trainer(model, train_data, optimizer, save_every, snapshot_path)
+    trainer = Trainer(model, train_data, optimizer, save_every, snapshot_path, device)
     trainer.train(total_epochs)
     destroy_process_group()
 
