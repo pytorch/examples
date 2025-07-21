@@ -51,12 +51,17 @@ function distributed_tensor_parallelism() {
 }
 
 function distributed_ddp() {
-    uv run main.py || error "ddp example failed"
+    uv run bash run_example.sh example.py || error "ddp example failed"
+}
+
+function distributed_minGPT-ddp() {
+  uv run bash run_example.sh mingpt/main.py || error "minGPT example failed"
 }
 
 function run_all() {
   run distributed/tensor_parallelism
   run distributed/ddp
+  run distributed/minGPT-ddp
 }
 
 # by default, run all examples

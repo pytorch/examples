@@ -1,29 +1,3 @@
-import os
-import sys
-import torch
-import torch.nn as nn
-
-from torch.distributed.tensor.parallel import (
-    parallelize_module,
-    ColwiseParallel,
-    RowwiseParallel,
-)
-
-from log_utils import rank_log, get_logger, verify_min_gpu_count
-
-# ---- GPU check ------------
-_min_gpu_count = 2
-
-if not verify_min_gpu_count(min_gpus=_min_gpu_count):
-    print(f"Unable to locate sufficient {_min_gpu_count} gpus to run this example. Exiting.")
-    sys.exit()
-# ---------------------------
-
-from torch.distributed._tensor.device_mesh import init_device_mesh
-
-
-
-
 """
 This is the script to test Tensor Parallel(TP) on a toy model in a
 Megetron-LM SPMD style. We show an E2E working flow from forward,
@@ -53,7 +27,32 @@ To parallelize a nn module, we need to specify what parallel style we want
 to use and our `parallelize_module` API will parse and parallelize the modules
 based on the given `ParallelStyle`. We are using this PyTorch native Tensor
 Parallelism APIs in this example to show users how to use them.
+
+The following is an example command to run this code
+    torchrun --nnodes 1 --nproc-per-node 4 tensor_parallel_example.py
 """
+
+import os
+import sys
+import torch
+import torch.nn as nn
+import torch.distributed as dist
+from torch.distributed.tensor.parallel import (
+    parallelize_module,
+    ColwiseParallel,
+    RowwiseParallel,
+)
+from log_utils import rank_log, get_logger, verify_min_gpu_count
+
+# ---- GPU check ------------
+_min_gpu_count = 2
+
+if not verify_min_gpu_count(min_gpus=_min_gpu_count):
+    print(f"Unable to locate sufficient {_min_gpu_count} gpus to run this example. Exiting.")
+    sys.exit()
+# ---------------------------
+
+from torch.distributed._tensor.device_mesh import init_device_mesh
 
 class ToyModel(nn.Module):
     """MLP based model"""
@@ -76,8 +75,8 @@ logger = get_logger()
 
 # create a device mesh based on the given world_size.
 _world_size = int(os.environ["WORLD_SIZE"])
-
-device_mesh = init_device_mesh(device_type="cuda", mesh_shape=(_world_size,))
+device_type = torch.accelerator.current_accelerator().type
+device_mesh = init_device_mesh(device_type=device_type, mesh_shape=(_world_size,))
 _rank = device_mesh.get_rank()
 
 
@@ -88,8 +87,8 @@ assert (
 
 rank_log(_rank, logger, f"Device Mesh created: {device_mesh=}")
 
-# create model and move it to GPU - init"cuda"_mesh has already mapped GPU ids.
-tp_model = ToyModel().to("cuda")
+# create model and move it to GPU - initdevice_type_mesh has already mapped GPU ids.
+tp_model = ToyModel().to(device_type)
 
 
 # Custom parallelization plan for the model
@@ -116,7 +115,7 @@ for i in range(num_iters):
     # For TP, input needs to be same across all TP ranks.
     # Setting the random seed is to mimic the behavior of dataloader.
     torch.manual_seed(i)
-    inp = torch.rand(20, 10, device="cuda")
+    inp = torch.rand(20, 10, device=device_type)
     output = tp_model(inp)
     output.sum().backward()
     optimizer.step()

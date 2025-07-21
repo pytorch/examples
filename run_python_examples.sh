@@ -58,7 +58,7 @@ case $USE_CUDA in
 esac
 
 function dcgan() {
-  uv run main.py --dataset fake $CUDA_FLAG --mps --dry-run || error "dcgan failed"
+  uv run main.py --dataset fake $ACCEL_FLAG --dry-run || error "dcgan failed"
 }
 
 function fast_neural_style() {
@@ -81,6 +81,7 @@ function imagenet() {
     cp sample/train/n/* sample/val/n/
   fi
   uv run main.py --epochs 1 sample/ || error "imagenet example failed"
+  uv run main.py --epochs 1 --gpu 0 sample/ || error "imagenet example failed"
 }
 
 function language_translation() {
@@ -136,7 +137,8 @@ function fx() {
 }
 
 function super_resolution() {
-  uv run main.py --upscale_factor 3 --batchSize 4 --testBatchSize 100 --nEpochs 1 --lr 0.001 --mps || error "super resolution failed"
+  uv run main.py --upscale_factor 3 --batchSize 4 --testBatchSize 100 --nEpochs 1 --lr 0.001 $ACCEL_FLAG || error "super resolution failed"
+  uv run super_resolve.py --input_image dataset/BSDS300/images/test/16077.jpg --model model_epoch_1.pth --output_filename out.png $ACCEL_FLAG || error "super resolution upscaling failed"
 }
 
 function time_sequence_prediction() {
@@ -154,6 +156,11 @@ function vision_transformer() {
 
 function word_language_model() {
   uv run main.py --epochs 1 --dry-run $CUDA_FLAG --mps || error "word_language_model failed"
+  uv run generate.py $CUDA_FLAG --mps || error "word_language_model generate failed"
+  for model in "RNN_TANH" "RNN_RELU" "LSTM" "GRU" "Transformer"; do
+    uv run main.py --model $model --epochs 1 --dry-run $CUDA_FLAG --mps || error "word_language_model failed"
+    uv run generate.py $CUDA_FLAG --mps || error "word_language_model generate failed"
+  done
 }
 
 function gcn() {

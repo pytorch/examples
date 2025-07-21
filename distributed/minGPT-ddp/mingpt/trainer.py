@@ -48,6 +48,10 @@ class Trainer:
         # set torchrun variables
         self.local_rank = int(os.environ["LOCAL_RANK"])
         self.global_rank = int(os.environ["RANK"])  
+        # set device
+        self.acc = torch.accelerator.current_accelerator()
+        self.device: torch.device = torch.device(f"{self.acc}:{self.local_rank}")
+        self.device_type = self.device.type
         # data stuff
         self.train_dataset = train_dataset
         self.train_loader = self._prepare_dataloader(train_dataset)
@@ -58,7 +62,7 @@ class Trainer:
         self.optimizer = optimizer        
         self.save_every = self.config.save_every
         if self.config.use_amp:
-            self.scaler = torch.cuda.amp.GradScaler()
+            self.scaler = torch.amp.GradScaler(self.device_type)
         # load snapshot if available. only necessary on the first node.
         if self.config.snapshot_path is None:
             self.config.snapshot_path = "snapshot.pt"
@@ -93,7 +97,7 @@ class Trainer:
 
 
     def _run_batch(self, source, targets, train: bool = True) -> float:
-        with torch.set_grad_enabled(train), torch.amp.autocast(device_type="cuda", dtype=torch.float16, enabled=(self.config.use_amp)):
+        with torch.set_grad_enabled(train), torch.amp.autocast(device_type=self.device_type, dtype=torch.float16, enabled=(self.config.use_amp)):
             _, loss = self.model(source, targets)
         
         if train:
@@ -111,14 +115,15 @@ class Trainer:
         return loss.item()
 
     def _run_epoch(self, epoch: int, dataloader: DataLoader, train: bool = True):
-        dataloader.sampler.set_epoch(epoch)
+        if train:
+            dataloader.sampler.set_epoch(epoch)
         for iter, (source, targets) in enumerate(dataloader):
             step_type = "Train" if train else "Eval"
             source = source.to(self.local_rank)
             targets = targets.to(self.local_rank)
             batch_loss = self._run_batch(source, targets, train)
             if iter % 100 == 0:
-                print(f"[GPU{self.global_rank}] Epoch {epoch} | Iter {iter} | {step_type} Loss {batch_loss:.5f}")
+                print(f"[RANK{self.global_rank}] Epoch {epoch} | Iter {iter} | {step_type} Loss {batch_loss:.5f}")
 
     def _save_snapshot(self, epoch):
         # capture snapshot

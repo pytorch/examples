@@ -1,34 +1,3 @@
-import sys
-import os
-import torch
-import torch.distributed as dist
-import torch.nn as nn
-import torch.nn.functional as F
-
-from log_utils import rank_log, get_logger, verify_min_gpu_count
-
-# ---- GPU check ------------
-_min_gpu_count = 4
-
-if not verify_min_gpu_count(min_gpus=_min_gpu_count):
-    print(f"Unable to locate sufficient {_min_gpu_count} gpus to run this example. Exiting.")
-    sys.exit()
-# ---------------------------
-
-from llama2_model import Transformer, ModelArgs
-
-from torch.distributed.device_mesh import init_device_mesh
-from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
-from torch.distributed._tensor import Shard, Replicate
-from torch.distributed.tensor.parallel import (
-    parallelize_module,
-    ColwiseParallel,
-    RowwiseParallel,
-    PrepareModuleInput,
-    SequenceParallel
-)
-
-
 """
 This is the script to test 2D Parallel which combines Tensor/Sequence
 parallel with Fully Sharded Data Parallel (TP/SP + FSDP) on a example
@@ -60,6 +29,36 @@ More details can be seen in the PyTorch tutorials:
 https://pytorch.org/tutorials/intermediate/TP_tutorial.html
 """
 
+import sys
+import os
+import torch
+import torch.distributed as dist
+import torch.nn as nn
+import torch.nn.functional as F
+
+from log_utils import rank_log, get_logger, verify_min_gpu_count
+
+# ---- GPU check ------------
+_min_gpu_count = 4
+
+if not verify_min_gpu_count(min_gpus=_min_gpu_count):
+    print(f"Unable to locate sufficient {_min_gpu_count} gpus to run this example. Exiting.")
+    sys.exit()
+# ---------------------------
+
+from llama2_model import Transformer, ModelArgs
+
+from torch.distributed.device_mesh import init_device_mesh
+from torch.distributed.fsdp import fully_shard
+from torch.distributed._tensor import Shard, Replicate
+from torch.distributed.tensor.parallel import (
+    parallelize_module,
+    ColwiseParallel,
+    RowwiseParallel,
+    PrepareModuleInput,
+    SequenceParallel
+)
+
 tp_size = 2
 logger = get_logger()
 
@@ -77,10 +76,11 @@ assert (
 # create a sharding plan based on the given world_size.
 dp_size = _world_size // tp_size
 
+device_type = torch.accelerator.current_accelerator().type
 # Create a device mesh with 2 dimensions.
 # First dim is the data parallel dimension
 # Second dim is the tensor parallel dimension.
-device_mesh = init_device_mesh("cuda", (dp_size, tp_size), mesh_dim_names=("dp", "tp"))
+device_mesh = init_device_mesh(device_type, (dp_size, tp_size), mesh_dim_names=("dp", "tp"))
 
 rank_log(_rank, logger, f"Device Mesh created: {device_mesh=}")
 tp_mesh = device_mesh["tp"]
@@ -92,10 +92,10 @@ dp_mesh = device_mesh["dp"]
 # to mimic the behavior of the dataloader.
 dp_rank = dp_mesh.get_local_rank()
 
-# create model and move it to GPU - init"cuda"_mesh has already mapped GPU ids.
+# create model and move it to GPU - initdevice_type_mesh has already mapped GPU ids.
 simple_llama2_config = ModelArgs(dim=256, n_layers=2, n_heads=16, vocab_size=32000)
 
-model = Transformer.from_model_args(simple_llama2_config).to("cuda")
+model = Transformer.from_model_args(simple_llama2_config).to(device_type)
 
 # init model weights
 model.init_weights()
@@ -121,12 +121,12 @@ for layer_id, transformer_block in enumerate(model.layers):
     layer_tp_plan = {
         "attention_norm": SequenceParallel(),
         "attention": PrepareModuleInput(
-            input_layouts=(Shard(1), None),
-            desired_input_layouts=(Replicate(), None),
+            input_layouts=(Shard(1), Replicate()),
+            desired_input_layouts=(Replicate(), Replicate()),
         ),
-        "attention.wq": ColwiseParallel(),
-        "attention.wk": ColwiseParallel(),
-        "attention.wv": ColwiseParallel(),
+        "attention.wq": ColwiseParallel(use_local_output=False),
+        "attention.wk": ColwiseParallel(use_local_output=False),
+        "attention.wv": ColwiseParallel(use_local_output=False),
         "attention.wo": RowwiseParallel(output_layouts=Shard(1)),
         "ffn_norm": SequenceParallel(),
         "feed_forward": PrepareModuleInput(
@@ -138,11 +138,6 @@ for layer_id, transformer_block in enumerate(model.layers):
         "feed_forward.w3": ColwiseParallel(),
     }
 
-    # Adjust attention module to use the local number of heads
-    attn_layer = transformer_block.attention
-    attn_layer.n_heads = attn_layer.n_heads // tp_mesh.size()
-    attn_layer.n_kv_heads = attn_layer.n_kv_heads // tp_mesh.size()
-
     # Custom parallelization plan for the model
     parallelize_module(
         module=transformer_block,
@@ -151,7 +146,7 @@ for layer_id, transformer_block in enumerate(model.layers):
     )
 
 # Init FSDP using the dp device mesh
-sharded_model = FSDP(model, device_mesh=dp_mesh, use_orig_params=True)
+sharded_model = fully_shard(model, mesh=dp_mesh)
 
 rank_log(_rank, logger, f"Model after parallelization {sharded_model=}\n")
 
@@ -170,7 +165,7 @@ batch_size = 2
 for i in range(num_iterations):
     # seeding with dp_rank to ensure identical inputs for TP groups
     torch.manual_seed(i + dp_rank)
-    inp = torch.randint(32000, (8, 256), device="cuda")
+    inp = torch.randint(32000, (8, 256), device=device_type)
 
     output = sharded_model(inp)
     output.sum().backward()

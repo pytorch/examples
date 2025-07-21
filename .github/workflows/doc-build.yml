@@ -18,15 +18,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-    - name: Dependencies
-      run: |
-        export DEBIAN_FRONTEND=noninteractive
-        sudo apt-get update
-        sudo apt install -y git python3-venv make
-        echo `python3 --version`
-        python3 -m venv venv 
-        source venv/bin/activate 
-        pip install --upgrade pip setuptools 
       id: build
     - name: Build the docset
       run: | 

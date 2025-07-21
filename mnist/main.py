@@ -107,6 +107,7 @@ def main():
     test_kwargs = {'batch_size': args.test_batch_size}
     if use_accel:
         accel_kwargs = {'num_workers': 1,
+                        'persistent_workers': True,
                        'pin_memory': True,
                        'shuffle': True}
         train_kwargs.update(accel_kwargs)
