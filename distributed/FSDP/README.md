@@ -1,6 +1,10 @@
-## FSDP T5
+Note: FSDP1 is deprecated. Please follow [FSDP2 tutorial](https://docs.pytorch.org/tutorials/intermediate/FSDP_tutorial.html) and [code examples](https://github.com/pytorch/examples/tree/main/distributed/FSDP2).
 
-To run the T5 example with FSDP for text summarization:
+## FSDP1 T5
+
+
+
+To run the T5 example with FSDP1 for text summarization:
 
 ## Get the wikihow dataset
 ```bash
