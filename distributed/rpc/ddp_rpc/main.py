@@ -15,6 +15,11 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 NUM_EMBEDDINGS = 100
 EMBEDDING_DIM = 16
 
+def verify_min_gpu_count(min_gpus: int = 2) -> bool:
+    """ verification that we have at least 2 gpus to run dist examples """
+    has_gpu = torch.accelerator.is_available()
+    gpu_count = torch.accelerator.device_count()
+    return has_gpu and gpu_count >= min_gpus
 
 class HybridModel(torch.nn.Module):
     r"""
@@ -24,15 +29,15 @@ class HybridModel(torch.nn.Module):
     This remote model can get a Remote Reference to the embedding table on the parameter server.
     """
 
-    def __init__(self, remote_emb_module, device):
+    def __init__(self, remote_emb_module, rank):
         super(HybridModel, self).__init__()
         self.remote_emb_module = remote_emb_module
-        self.fc = DDP(torch.nn.Linear(16, 8).cuda(device), device_ids=[device])
-        self.device = device
+        self.fc = DDP(torch.nn.Linear(16, 8).to(rank))
+        self.rank = rank
 
     def forward(self, indices, offsets):
         emb_lookup = self.remote_emb_module.forward(indices, offsets)
-        return self.fc(emb_lookup.cuda(self.device))
+        return self.fc(emb_lookup.to(self.rank))
 
 
 def _run_trainer(remote_emb_module, rank):
@@ -83,7 +88,7 @@ def _run_trainer(remote_emb_module, rank):
                 batch_size += 1
 
             offsets_tensor = torch.LongTensor(offsets)
-            target = torch.LongTensor(batch_size).random_(8).cuda(rank)
+            target = torch.LongTensor(batch_size).random_(8).to(rank)
             yield indices, offsets_tensor, target
 
     # Train for 100 epochs
@@ -145,9 +150,13 @@ def run_worker(rank, world_size):
         for fut in futs:
             fut.wait()
     elif rank <= 1:
+        acc = torch.accelerator.current_accelerator()
+        device = torch.device(acc)
+        backend = torch.distributed.get_default_backend_for_device(device)
+        torch.accelerator.device_index(rank)
         # Initialize process group for Distributed DataParallel on trainers.
         dist.init_process_group(
-            backend="gloo", rank=rank, world_size=2, init_method="tcp://localhost:29500"
+            backend=backend, rank=rank, world_size=2, init_method="tcp://localhost:29500"
         )
 
         # Initialize RPC.
@@ -172,9 +181,18 @@ def run_worker(rank, world_size):
 
     # block until all rpcs finish
     rpc.shutdown()
+    
+    # Clean up process group for trainers to avoid resource leaks
+    if rank <= 1:
+        dist.destroy_process_group()
 
 
 if __name__ == "__main__":
     # 2 trainers, 1 parameter server, 1 master.
     world_size = 4
+    _min_gpu_count = 2
+    if not verify_min_gpu_count(min_gpus=_min_gpu_count):
+        print(f"Unable to locate sufficient {_min_gpu_count} gpus to run this example. Exiting.")
+        exit()
     mp.spawn(run_worker, args=(world_size,), nprocs=world_size, join=True)
+    print("Distributed RPC example completed successfully.")
