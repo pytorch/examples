@@ -150,11 +150,8 @@ def run_worker(rank, world_size):
         for fut in futs:
             fut.wait()
     elif rank <= 1:
-        if torch.accelerator.is_available():
-            acc = torch.accelerator.current_accelerator()
-            device = torch.device(acc)
-        else:
-            device = torch.device("cpu")
+        acc = torch.accelerator.current_accelerator()
+        device = torch.device(acc)
         backend = torch.distributed.get_default_backend_for_device(device)
         torch.accelerator.device_index(rank)
         # Initialize process group for Distributed DataParallel on trainers.
