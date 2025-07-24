@@ -1,25 +1,27 @@
 ## FSDP2
 To run FSDP2 on transformer model:
+
 ```
 cd distributed/FSDP2
-torchrun --nproc_per_node 2 train.py
+pip install -r requirements.txt
+torchrun --nproc_per_node 2 example.py
 ```
 * For 1st time, it creates a "checkpoints" folder and saves state dicts there
 * For 2nd time, it loads from previous checkpoints
 
 To enable explicit prefetching
 ```
-torchrun --nproc_per_node 2 train.py --explicit-prefetch
+torchrun --nproc_per_node 2 example.py --explicit-prefetch
 ```
 
 To enable mixed precision
 ```
-torchrun --nproc_per_node 2 train.py --mixed-precision
+torchrun --nproc_per_node 2 example.py --mixed-precision
 ```
 
 To showcase DCP API
 ```
-torchrun --nproc_per_node 2 train.py --dcp-api
+torchrun --nproc_per_node 2 example.py --dcp-api
 ```
 
 ## Ensure you are running a recent version of PyTorch:

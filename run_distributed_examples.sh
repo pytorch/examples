@@ -50,6 +50,10 @@ function distributed_tensor_parallelism() {
     uv run bash run_example.sh fsdp_tp_example.py || error "2D parallel example failed"
 }
 
+function distributed_FSDP2() {
+    uv run bash run_example.sh example.py || error "FSDP2 example failed"
+}
+
 function distributed_ddp() {
     uv run bash run_example.sh example.py || error "ddp example failed"
 }
