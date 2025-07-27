@@ -43,13 +43,15 @@ class EmbeddingTable(nn.Module):
         super(EmbeddingTable, self).__init__()
         self.drop = nn.Dropout(dropout)
         self.encoder = nn.Embedding(ntoken, ninp)
-        if torch.cuda.is_available():
-            self.encoder = self.encoder.cuda()
+        if torch.accelerator.is_available():
+            device = torch.accelerator.current_accelerator()
+            self.encoder = self.encoder.to(device)
         nn.init.uniform_(self.encoder.weight, -0.1, 0.1)
 
     def forward(self, input):
-        if torch.cuda.is_available():
-            input = input.cuda()
+        if torch.accelerator.is_available():
+            device = torch.accelerator.current_accelerator()
+            input = input.to(device)
         return self.drop(self.encoder(input)).cpu()
 
 
