@@ -141,7 +141,7 @@ def main():
     for i_episode in count(1):
 
         # reset environment and episode reward
-        state, _ = env.reset()
+        state = env.reset()
         ep_reward = 0
 
         # for each episode, only run 9999 steps so that we don't
@@ -152,7 +152,7 @@ def main():
             action = select_action(state)
 
             # take the action
-            state, reward, done, _, _ = env.step(action)
+            state, reward, done, _ = env.step(action)
 
             if args.render:
                 env.render()
