@@ -1,8 +1,6 @@
 # Copyright (c) 2022 Meta Platforms, Inc. and its affiliates.
 # All rights reserved.
 #
-# This source code is licensed under the Apache-style license found in the
-# LICENSE file in the root directory of this source tree.
 
 # This is a simple check to confirm that your current server has full bfloat support -
 #  both GPU native support, and Network communication support.
