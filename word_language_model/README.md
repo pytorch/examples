@@ -8,9 +8,11 @@ python main.py --accel --epochs 6           # Train a LSTM on Wikitext-2.
 python main.py --accel --epochs 6 --tied    # Train a tied LSTM on Wikitext-2.
 python main.py --accel --tied               # Train a tied LSTM on Wikitext-2for 40 epochs.
 python main.py --accel --epochs 6 --model Transformer --lr 5
-                                           # Train a Transformer model on Wikitext-2.
+                                            # Train a Transformer model on Wikitext-2.
+python main.py --accel --epochs 6 --model Transformer --use-optimizer --lr 0.001
+                                            # Train a Transformer model with AdamW optimizer on Wikitext-2.
 
-python generate.py --accel                       # Generate samples from the default model checkpoint.
+python generate.py --accel                  # Generate samples from the default model checkpoint.
 ```
 
 > [!NOTE] 
@@ -45,6 +47,7 @@ optional arguments:
                         path to export the final model in onnx format
   --nhead NHEAD         the number of heads in the encoder/decoder of the transformer model
   --dry-run             verify the code and the model
+  --use-optimizer       specify whether to use an AdamW optimizer
 ```
 
 With these arguments, a variety of models can be tested.
