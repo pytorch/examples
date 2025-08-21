@@ -1,4 +1,3 @@
 torch
-numpy<2
-gym
-pygame
+numpy
+gymnasium[classic-control]

@@ -1,4 +1,4 @@
 torch==2.2.0
 torchvision==0.7.0
 numpy
-gym
+gymnasium

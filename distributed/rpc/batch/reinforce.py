@@ -1,5 +1,5 @@
 import argparse
-import gym
+import gymnasium as gym
 import os
 import threading
 import time
@@ -68,7 +68,7 @@ class Observer:
     def __init__(self, batch=True):
         self.id = rpc.get_worker_info().id - 1
         self.env = gym.make('CartPole-v1')
-        self.env.seed(args.seed)
+        self.env.reset(seed=args.seed)
         self.select_action = Agent.select_action_batch if batch else Agent.select_action
 
     def run_episode(self, agent_rref, n_steps):
@@ -92,10 +92,10 @@ class Observer:
             )
 
             # apply the action to the environment, and get the reward
-            state, reward, done, _ = self.env.step(action)
+            state, reward, terminated, truncated, _ = self.env.step(action)
             rewards[step] = reward
 
-            if done or step + 1 >= n_steps:
+            if terminated or truncated or step + 1 >= n_steps:
                 curr_rewards = rewards[start_step:(step + 1)]
                 R = 0
                 for i in range(curr_rewards.numel() -1, -1, -1):
@@ -226,8 +226,7 @@ def run_worker(rank, world_size, n_episode, batch, print_log=True):
             last_reward, running_reward = agent.run_episode(n_steps=NUM_STEPS)
 
             if print_log:
-                print('Episode {}\tLast reward: {:.2f}\tAverage reward: {:.2f}'.format(
-                    i_episode, last_reward, running_reward))
+                print(f'Episode {i_episode}\tLast reward: {last_reward:.2f}\tAverage reward: {running_reward:.2f}')
     else:
         # other ranks are the observer
         rpc.init_rpc(OBSERVER_NAME.format(rank), rank=rank, world_size=world_size)

@@ -1,5 +1,5 @@
 import argparse
-import gym
+import gymnasium as gym
 import numpy as np
 from itertools import count
 from collections import deque
@@ -22,7 +22,8 @@ parser.add_argument('--log-interval', type=int, default=10, metavar='N',
 args = parser.parse_args()
 
 
-env = gym.make('CartPole-v1')
+render_mode = "human" if args.render else None
+env = gym.make('CartPole-v1', render_mode=render_mode)
 env.reset(seed=args.seed)
 torch.manual_seed(args.seed)
 
@@ -85,22 +86,20 @@ def main():
         ep_reward = 0
         for t in range(1, 10000):  # Don't infinite loop while learning
             action = select_action(state)
-            state, reward, done, _, _ = env.step(action)
+            state, reward, terminated, truncated, _ = env.step(action)
             if args.render:
                 env.render()
             policy.rewards.append(reward)
             ep_reward += reward
-            if done:
+            if terminated or truncated:
                 break
 
         running_reward = 0.05 * ep_reward + (1 - 0.05) * running_reward
         finish_episode()
         if i_episode % args.log_interval == 0:
-            print('Episode {}\tLast reward: {:.2f}\tAverage reward: {:.2f}'.format(
-                  i_episode, ep_reward, running_reward))
+            print(f'Episode {i_episode}\tLast reward: {ep_reward:.2f}\tAverage reward: {running_reward:.2f}')
         if running_reward > env.spec.reward_threshold:
-            print("Solved! Running reward is now {} and "
-                  "the last episode runs to {} time steps!".format(running_reward, t))
+            print(f"Solved! Running reward is now {running_reward} and the last episode runs to {t} time steps!")
             break
 
 
