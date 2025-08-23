@@ -1,18 +1,10 @@
 Distributed DataParallel + Distributed RPC Framework Example
 
-The example shows how to combine Distributed DataParallel with the Distributed 
-RPC Framework. There are two trainer nodes, 1 master node and 1 parameter 
-server in the example.
+This example demonstrates how to combine Distributed DataParallel (DDP) with the Distributed RPC Framework. It requires two trainer nodes (each with a GPU), one master node, and one parameter server.
 
-The master node creates an embedding table on the parameter server and drives 
-the training loop on the trainers. The model consists of a dense part 
-(nn.Linear) replicated on the trainers via Distributed DataParallel and a 
-sparse part (nn.EmbeddingBag) which resides on the parameter server. Each 
-trainer performs an embedding lookup on the parameter server (using the 
-Distributed RPC Framework)  and then executes its local nn.Linear module. 
-During the backward pass, the gradients for the dense part are aggregated via 
-allreduce by DDP and the distributed backward pass updates the parameters for 
-the embedding table on the parameter server.
+The master node initializes an embedding table on the parameter server and orchestrates the training loop across the trainers. The model is composed of a dense component (`nn.Linear`), which is replicated on the trainers using DDP, and a sparse component (`nn.EmbeddingBag`), which resides on the parameter server.
+
+Each trainer performs embedding lookups on the parameter server via RPC, then processes the results through its local `nn.Linear` module. During the backward pass, DDP aggregates gradients for the dense part using allreduce, while the distributed backward pass updates the embedding table parameters on the parameter server.
 
 
 ```

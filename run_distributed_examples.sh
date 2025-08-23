@@ -56,13 +56,32 @@ function distributed_ddp-tutorial-series() {
     uv run bash run_example.sh multinode.py || error "ddp tutorial series multinode example failed"
 }
 
+function distributed_FSDP2() {
+    uv run bash run_example.sh example.py || error "FSDP2 example failed"
+}
+
 function distributed_ddp() {
-    uv run main.py || error "ddp example failed"
+    uv run bash run_example.sh example.py || error "ddp example failed"
+}
+
+function distributed_minGPT-ddp() {
+  uv run bash run_example.sh mingpt/main.py || error "minGPT example failed"
+}
+
+function distributed_rpc_ddp_rpc() {
+    uv run main.py || error "ddp_rpc example failed"
+}
+
+function distributed_rpc_rnn() {
+    uv run main.py || error "rpc_rnn example failed"
 }
 
 function run_all() {
   run distributed/tensor_parallelism
   run distributed/ddp
+  run distributed/minGPT-ddp
+  run distributed/rpc/ddp_rpc
+  run distributed/rpc/rnn
 }
 
 # by default, run all examples
