@@ -47,7 +47,10 @@ parser.add_argument('--nhead', type=int, default=2,
                     help='the number of heads in the encoder/decoder of the transformer model')
 parser.add_argument('--dry-run', action='store_true',
                     help='verify the code and the model')
-parser.add_argument('--accel', action='store_true',help='Enables accelerated training')
+parser.add_argument('--accel', action='store_true',
+                    help='Enables accelerated training')
+parser.add_argument('--use-optimizer', action='store_true',
+                    help='Uses AdamW optimizer for gradient updating')
 args = parser.parse_args()
 
 # Set the random seed manually for reproducibility.
@@ -104,6 +107,8 @@ else:
     model = RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
 
 criterion = nn.NLLLoss()
+if args.use_optimizer:
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
 
 ###############################################################################
 # Training code
@@ -167,7 +172,10 @@ def train():
         data, targets = get_batch(train_data, i)
         # Starting each batch, we detach the hidden state from how it was previously produced.
         # If we didn't, the model would try backpropagating all the way to start of the dataset.
-        model.zero_grad()
+        if args.use_optimizer:
+            optimizer.zero_grad()
+        else:
+            model.zero_grad()
         if args.model == 'Transformer':
             output = model(data)
             output = output.view(-1, ntokens)
@@ -179,8 +187,11 @@ def train():
 
         # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
         torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
-        for p in model.parameters():
-            p.data.add_(p.grad, alpha=-lr)
+        if args.use_optimizer:
+            optimizer.step()
+        else:
+            for p in model.parameters():
+                p.data.add_(p.grad, alpha=-lr)
 
         total_loss += loss.item()
 
