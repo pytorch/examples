@@ -189,8 +189,6 @@ function stop() {
     snli/.data/ \
     snli/.vector_cache/ \
     snli/results/ \
-    # super_resolution/dataset/ \
-    # super_resolution/model_epoch_1.pth \
     time_sequence_prediction/predict*.pdf \
     time_sequence_prediction/traindata.pt \
     word_language_model/model.pt \
