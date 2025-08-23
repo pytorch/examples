@@ -17,9 +17,20 @@ def ddp_setup(rank, world_size):
         world_size: Total number of processes
     """
     os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "12355"
-    torch.cuda.set_device(rank)
-    init_process_group(backend="nccl", rank=rank, world_size=world_size)
+    os.environ["MASTER_PORT"] = "12455"
+
+    
+    rank = int(os.environ["LOCAL_RANK"])
+    if torch.accelerator.is_available():
+        device_type = torch.accelerator.current_accelerator()
+        device = torch.device(f"{device_type}:{rank}")
+        torch.accelerator.device_index(rank)
+        print(f"Running on rank {rank} on device {device}")
+    else:
+        device = torch.device("cpu")
+        print(f"Running on device {device}")
+
+    backend = torch.distributed.get_default_backend_for_device(device)
 
 class Trainer:
     def __init__(
@@ -100,5 +111,5 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', default=32, type=int, help='Input batch size on each device (default: 32)')
     args = parser.parse_args()
 
-    world_size = torch.cuda.device_count()
+    world_size = torch.accelerator.device_count()
     mp.spawn(main, args=(world_size, args.save_every, args.total_epochs, args.batch_size), nprocs=world_size)
