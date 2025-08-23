@@ -1,0 +1,2 @@
+torch>=2.6
+torchvision
