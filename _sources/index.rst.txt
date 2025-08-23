@@ -88,12 +88,12 @@ experiment with PyTorch.
     `GO TO EXAMPLE <https://github.com/pytorch/examples/blob/main/mnist_hogwild>`__ :opticon:`link-external`
 
     ---
-    Training a CartPole to balance in OpenAI Gym with actor-critic
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    Training a CartPole to balance with actor-critic
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     This reinforcement learning tutorial demonstrates how to train a
     CartPole to balance
-    in the `OpenAI Gym <https://gym.openai.com/>`__ toolkit by using the
+    in the `Gymnasium <https://gymnasium.farama.org/>`__ toolkit by using the
     `Actor-Critic <https://proceedings.neurips.cc/paper/1999/file/6449f44a102fde848669bdd9eb6b76fa-Paper.pdf>`__ method.
 
     `GO TO EXAMPLE <https://github.com/pytorch/examples/blob/main/reinforcement_learning>`__ :opticon:`link-external`
