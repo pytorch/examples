@@ -21,7 +21,7 @@ https://pytorch.org/examples/
 - [Variational Auto-Encoders](./vae/README.md)
 - [Superresolution using an efficient sub-pixel convolutional neural network](./super_resolution/README.md)
 - [Hogwild training of shared ConvNets across multiple processes on MNIST](mnist_hogwild)
-- [Training a CartPole to balance in OpenAI Gym with actor-critic](./reinforcement_learning/README.md)
+- [Training a CartPole to balance with actor-critic](./reinforcement_learning/README.md)
 - [Natural Language Inference (SNLI) with GloVe vectors, LSTMs, and torchtext](snli)
 - [Time sequence prediction - use an LSTM to learn Sine waves](./time_sequence_prediction/README.md)
 - [Implement the Neural Style Transfer algorithm on images](./fast_neural_style/README.md)
