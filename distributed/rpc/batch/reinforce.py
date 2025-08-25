@@ -3,6 +3,10 @@ import gymnasium as gym
 import os
 import threading
 import time
+import warnings
+
+# Suppress deprecated ProcessGroup warning
+warnings.filterwarnings("ignore", message="You are using a Backend.*ProcessGroup")
 
 import torch
 import torch.distributed.rpc as rpc
@@ -26,6 +30,8 @@ parser.add_argument('--seed', type=int, default=543, metavar='N',
                     help='random seed (default: 543)')
 parser.add_argument('--num-episode', type=int, default=10, metavar='E',
                     help='number of episodes (default: 10)')
+parser.add_argument('--max-world-size', type=int, default=3, metavar='W',
+                    help='maximum world size to test (default: 3)')
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
@@ -79,7 +85,8 @@ class Observer:
             agent_rref (RRef): an RRef referencing the agent object.
             n_steps (int): number of steps in this episode
         """
-        state, ep_reward = self.env.reset(), NUM_STEPS
+        state, _ = self.env.reset()
+        ep_reward = NUM_STEPS
         rewards = torch.zeros(n_steps)
         start_step = 0
         for step in range(n_steps):
@@ -101,7 +108,7 @@ class Observer:
                 for i in range(curr_rewards.numel() -1, -1, -1):
                     R = curr_rewards[i] + args.gamma * R
                     curr_rewards[i] = R
-                state = self.env.reset()
+                state, _ = self.env.reset()
                 if start_step == 0:
                     ep_reward = min(ep_reward, step - start_step + 1)
                 start_step = step + 1
@@ -235,7 +242,7 @@ def run_worker(rank, world_size, n_episode, batch, print_log=True):
 
 
 def main():
-    for world_size in range(2, 12):
+    for world_size in range(2, args.max_world_size):
         delays = []
         for batch in [True, False]:
             tik = time.time()
