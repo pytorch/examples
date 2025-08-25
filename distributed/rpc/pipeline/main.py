@@ -194,10 +194,9 @@ image_h = 128
 
 
 def create_optimizer_for_remote_params(worker_name, param_rrefs, lr=0.05):
-    """Create optimizer on remote worker for given parameters"""
+    """Create torch.compiled optimizers on  each worker"""
     params = [p.to_here() for p in param_rrefs]
     opt = optim.SGD(params, lr=lr)
-    # Use torch.compile to optimize the optimizer step
     opt.step = torch.compile(opt.step)
     return opt
 
@@ -242,11 +241,9 @@ def run_master(split_size):
             outputs = model(inputs)
             dist_autograd.backward(context_id, [loss_fn(outputs, labels)])
             
-            # Step both optimizers
             opt1_rref.rpc_sync().step()
             opt2_rref.rpc_sync().step()
             
-            # Zero gradients
             opt1_rref.rpc_sync().zero_grad()
             opt2_rref.rpc_sync().zero_grad()
 
