@@ -1,14 +1,19 @@
 import os
 import threading
 from datetime import datetime
+import warnings
 
 import torch
+import torch.distributed as dist
 import torch.distributed.rpc as rpc
 import torch.multiprocessing as mp
 import torch.nn as nn
 from torch import optim
 
 import torchvision
+
+# Suppress deprecated ProcessGroup warning
+warnings.filterwarnings("ignore", message="You are using a Backend.*ProcessGroup")
 
 
 batch_size = 20
@@ -114,9 +119,17 @@ def run_ps(trainers):
 def run(rank, world_size):
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '29500'
+    
+    # Initialize the process group first
+    dist.init_process_group(
+        backend="gloo",
+        rank=rank,
+        world_size=world_size
+    )
+    
     options=rpc.TensorPipeRpcBackendOptions(
         num_worker_threads=16,
-        rpc_timeout=0  # infinite timeout
+        rpc_timeout=60  # 60 second timeout instead of infinite
      )
     if rank != 0:
         rpc.init_rpc(
@@ -137,6 +150,7 @@ def run(rank, world_size):
 
     # block until all rpcs finish
     rpc.shutdown()
+    dist.destroy_process_group()
 
 
 if __name__=="__main__":
