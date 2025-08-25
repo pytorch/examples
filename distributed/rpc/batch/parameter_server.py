@@ -129,7 +129,7 @@ def run(rank, world_size):
     
     options=rpc.TensorPipeRpcBackendOptions(
         num_worker_threads=16,
-        rpc_timeout=60  # 60 second timeout instead of infinite
+        rpc_timeout=60
      )
     if rank != 0:
         rpc.init_rpc(
