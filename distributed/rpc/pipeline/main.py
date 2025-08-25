@@ -1,6 +1,7 @@
 import os
 import threading
 import time
+import warnings
 from functools import wraps
 
 import torch
@@ -12,6 +13,14 @@ import torch.optim as optim
 from torch.distributed.rpc import RRef
 
 from torchvision.models.resnet import Bottleneck
+
+# Suppress warnings that can't be fixed from user code
+warnings.filterwarnings("ignore", 
+    message="You are using a Backend .* as a ProcessGroup. This usage is deprecated", 
+    category=UserWarning)
+warnings.filterwarnings("ignore", 
+    message="networkx backend defined more than once: nx-loopback", 
+    category=RuntimeWarning)
 
 
 #########################################################
@@ -271,6 +280,9 @@ def run_worker(rank, world_size, num_split):
 
 
 if __name__=="__main__":
+    # Suppress torch compile profiler warnings
+    os.environ['TORCH_LOGS'] = '-dynamo'
+    
     world_size = 3
     for num_split in [1, 2, 4, 8]:
         tik = time.time()
