@@ -173,3 +173,6 @@ for i in range(num_iterations):
     rank_log(_rank, logger, f"2D iter {i} complete")
 
 rank_log(_rank, logger, "2D training successfully completed!")
+
+if dist.is_initialized():
+    dist.destroy_process_group()

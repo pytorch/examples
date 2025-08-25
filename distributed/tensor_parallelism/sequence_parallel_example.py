@@ -22,6 +22,7 @@ import sys
 import torch
 import torch.nn as nn
 
+import torch.distributed as dist
 from torch.distributed._tensor import Shard
 
 from torch.distributed.tensor.parallel import (
@@ -107,3 +108,6 @@ for i in range(num_iters):
     rank_log(_rank, logger, f"Sequence Parallel iter {i} completed")
 
 rank_log(_rank, logger, "Sequence Parallel training completed!")
+
+if dist.is_initialized():
+    dist.destroy_process_group()
