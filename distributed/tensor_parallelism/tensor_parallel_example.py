@@ -122,3 +122,6 @@ for i in range(num_iters):
     rank_log(_rank, logger, f"Tensor Parallel iter {i} completed")
 
 rank_log(_rank, logger, "Tensor Parallel training completed!")
+
+if dist.is_initialized():
+    dist.destroy_process_group()
