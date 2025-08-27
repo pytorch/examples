@@ -154,10 +154,10 @@ if __name__ == "__main__":
         ]
     )
     train_loader = DataLoader(
-        MNIST("./data/", train=True, download=True, transform=transform), **train_kwargs
+        MNIST("../data/", train=True, download=True, transform=transform), **train_kwargs
     )
     test_loader = DataLoader(
-        MNIST("./data/", train=False, download=True, transform=transform), **test_kwargs
+        MNIST("../data/", train=False, download=True, transform=transform), **test_kwargs
     )
     net = Net([784, 500, 500])
     x, y = next(iter(train_loader))
