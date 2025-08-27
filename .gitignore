@@ -6,6 +6,8 @@ cpp/mnist/build
 cpp/dcgan/build
 dcgan/*.png
 dcgan/*.pth
+distributed/dcgan/*.png
+distributed/dcgan/*.pth
 snli/.data
 snli/.vector_cache
 snli/results
@@ -23,3 +25,4 @@ docs/venv
 # development
 .vscode
 **/.DS_Store
+
