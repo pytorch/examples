@@ -44,6 +44,10 @@ case $USE_CUDA in
     ;;
 esac
 
+function distributed_dcgan() {
+    uv run bash run_example.sh main.py || error "dcgan example failed"
+}
+
 function distributed_tensor_parallelism() {
     uv run bash run_example.sh tensor_parallel_example.py || error "tensor parallel example failed"
     uv run bash run_example.sh sequence_parallel_example.py || error "sequence parallel example failed"
@@ -71,6 +75,7 @@ function distributed_rpc_rnn() {
 }
 
 function run_all() {
+  run distributed/dcgan
   run distributed/tensor_parallelism
   run distributed/ddp
   run distributed/minGPT-ddp
