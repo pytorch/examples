@@ -22,7 +22,29 @@
 #  │   ├── ......
 #  ├── ......
 #
-#
+
+if [ ! -f ILSVRC2012_img_train.tar ]; then
+    read -p "There is no train data. Do you want to download ILSVRC2012_img_train.tar (about 138 GB)? (y/n): " answer
+    if [ "$answer" = "y" ]; then
+        wget https://image-net.org/data/ILSVRC/2012/ILSVRC2012_img_train.tar --no-check-certificate
+    else
+        exit
+    fi
+else
+    echo "The train data 'ILSVRC2012_img_train.tar' is in the current directory."
+fi
+
+if [ ! -f ILSVRC2012_img_val.tar ]; then
+    read -p "There is no train data. Do you want to download ILSVRC2012_img_val.tar (about 6.3 GB)? (y/n): " answer
+    if [ "$answer" = "y" ]; then
+        wget https://image-net.org/data/ILSVRC/2012/ILSVRC2012_img_val.tar --no-check-certificate
+    else
+        exit
+    fi
+else
+    echo "The val data 'ILSVRC2012_img_val.tar' is in the current directory."
+fi
+
 # Make imagnet directory
 #
 mkdir imagenet
