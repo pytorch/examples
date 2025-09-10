@@ -21,7 +21,7 @@ struct Options {
 
 static Options options;
 
-using Data = std::vector<std::pair<std::string, long>>;
+using Data = std::vector<std::pair<std::string, int64_t>>;
 
 class CustomDataset : public torch::data::datasets::Dataset<CustomDataset> {
   using Example = torch::data::Example<>;
@@ -73,7 +73,7 @@ std::pair<Data, Data> readInfo() {
   std::ifstream stream(options.infoFilePath);
   assert(stream.is_open());
 
-  long label;
+  int64_t label;
   std::string path, type;
 
   while (true) {
