@@ -14,10 +14,11 @@ head_node_ip=$(srun --nodes=1 --ntasks=1 -w "$head_node" hostname --ip-address)
 echo Node IP: $head_node_ip
 export LOGLEVEL=INFO
 
+job_id=2024
 srun torchrun \
 --nnodes 4 \
 --nproc_per_node 1 \
---rdzv_id $RANDOM \
+--rdzv_id ${job_id} \
 --rdzv_backend c10d \
 --rdzv_endpoint $head_node_ip:29500 \
 /shared/examples/multinode_torchrun.py 50 10
