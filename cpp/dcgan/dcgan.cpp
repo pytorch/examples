@@ -106,7 +106,7 @@ int main(int argc, const char* argv[]) {
   }
   // The number of epochs to train, default value is 30.
   const int64_t kNumberOfEpochs = parser.get<int64_t>("--epochs");
-  std::cout << "Traning with number of epochs: " << kNumberOfEpochs
+  std::cout << "Training with number of epochs: " << kNumberOfEpochs
             << std::endl;
 
   torch::manual_seed(1);
