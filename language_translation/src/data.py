@@ -24,7 +24,7 @@ def get_data(opts):
     multi30k.URL["train"] = "https://raw.githubusercontent.com/neychev/small_DL_repo/master/datasets/Multi30k/training.tar.gz"
     multi30k.URL["valid"] = "https://raw.githubusercontent.com/neychev/small_DL_repo/master/datasets/Multi30k/validation.tar.gz"
 
-    # Define a token "unkown", "padding", "beginning of sentence", and "end of sentence"
+    # Define a token "unknown", "padding", "beginning of sentence", and "end of sentence"
     special_symbols = {
         "<unk>":0,
         "<pad>":1,
