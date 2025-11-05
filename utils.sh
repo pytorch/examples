@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# This script contains utility functions and initialize exmaple scripts.
+# This script contains utility functions and initialize example scripts.
 # Eg: run_python_examples.sh, run_distributed_examples.sh
 
 BASE_DIR="$(pwd)/$(dirname $0)"
