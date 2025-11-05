@@ -192,7 +192,7 @@ class Agent:
             # make async RPC to kick off an episode on all observers
             futs.append(ob_rref.rpc_async().run_episode(self.agent_rref, n_steps))
 
-        # wait until all obervers have finished this episode
+        # wait until all observers have finished this episode
         rets = torch.futures.wait_all(futs)
         rewards = torch.stack([ret[0] for ret in rets]).cuda().t()
         ep_rewards = sum([ret[1] for ret in rets]) / len(rets)
