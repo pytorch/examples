@@ -40,4 +40,4 @@ If you'd like to contribute your own example or fix a bug please make sure to ta
 
 ## Notes for Developers" "This section is added for practicing GitHub workflow.
 
-## this is the second time just for trying##
+## this is the second time just for trying
