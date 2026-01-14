@@ -117,9 +117,9 @@ def main():
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
         ])
-    dataset1 = datasets.MNIST('../data', train=True, download=True,
+    dataset1 = datasets.MNIST('../data', train=True, download=False,
                        transform=transform)
-    dataset2 = datasets.MNIST('../data', train=False,
+    dataset2 = datasets.MNIST('../data', train=False, download=False,
                        transform=transform)
     train_loader = torch.utils.data.DataLoader(dataset1,**train_kwargs)
     test_loader = torch.utils.data.DataLoader(dataset2, **test_kwargs)
@@ -138,4 +138,25 @@ def main():
 
 
 if __name__ == '__main__':
+    from torchvision import datasets, transforms
+    import os
+
+    os.makedirs('../data', exist_ok=True)
+
+    # Download MNIST once in the main process to avoid
+    # concurrent downloads in mp.spawn workers
+    datasets.MNIST(
+        root='../data',
+        train=True,
+        download=True,
+        transform=transforms.ToTensor(),
+    )
+    datasets.MNIST(
+        root='../data',
+        train=False,
+        download=True,
+        transform=transforms.ToTensor(),
+    )
+
     main()
+
