@@ -24,7 +24,7 @@ def get_data(opts):
     multi30k.URL["train"] = "https://raw.githubusercontent.com/neychev/small_DL_repo/master/datasets/Multi30k/training.tar.gz"
     multi30k.URL["valid"] = "https://raw.githubusercontent.com/neychev/small_DL_repo/master/datasets/Multi30k/validation.tar.gz"
 
-    # Define a token "unkown", "padding", "beginning of sentence", and "end of sentence"
+    # Define a token "unknown", "padding", "beginning of sentence", and "end of sentence"
     special_symbols = {
         "<unk>":0,
         "<pad>":1,
@@ -33,23 +33,24 @@ def get_data(opts):
     }
 
     # Get training examples from torchtext (the multi30k dataset)
-    train_iterator = Multi30k(split="train", language_pair=(src_lang, tgt_lang))
-    valid_iterator = Multi30k(split="valid", language_pair=(src_lang, tgt_lang))
+    # Materialize datasets to avoid exhausting the iterator during vocab building.
+    train_data = list(Multi30k(split="train", language_pair=(src_lang, tgt_lang)))
+    valid_data = list(Multi30k(split="valid", language_pair=(src_lang, tgt_lang)))
 
     # Grab a tokenizer for these languages
-    src_tokenizer = get_tokenizer("spacy", src_lang)
-    tgt_tokenizer = get_tokenizer("spacy", tgt_lang)
+    src_tokenizer = get_tokenizer("spacy", "en_core_web_sm")
+    tgt_tokenizer = get_tokenizer("spacy", "de_core_news_sm")
 
     # Build a vocabulary object for these languages
     src_vocab = build_vocab_from_iterator(
-        _yield_tokens(train_iterator, src_tokenizer, True),
+        _yield_tokens(train_data, src_tokenizer, True),
         min_freq=1,
         specials=list(special_symbols.keys()),
         special_first=True
     )
 
     tgt_vocab = build_vocab_from_iterator(
-        _yield_tokens(train_iterator, tgt_tokenizer, False),
+        _yield_tokens(train_data, tgt_tokenizer, False),
         min_freq=1,
         specials=list(special_symbols.keys()),
         special_first=True
@@ -90,8 +91,8 @@ def get_data(opts):
         return src_batch, tgt_batch
 
     # Create the dataloader
-    train_dataloader = DataLoader(train_iterator, batch_size=opts.batch, collate_fn=_collate_fn)
-    valid_dataloader = DataLoader(valid_iterator, batch_size=opts.batch, collate_fn=_collate_fn)
+    train_dataloader = DataLoader(train_data, batch_size=opts.batch, shuffle=True, collate_fn=_collate_fn)
+    valid_dataloader = DataLoader(valid_data, batch_size=opts.batch, collate_fn=_collate_fn)
 
     return train_dataloader, valid_dataloader, src_vocab, tgt_vocab, src_lang_transform, tgt_lang_transform, special_symbols
 
@@ -116,12 +117,12 @@ def create_mask(src, tgt, pad_idx, device):
     tgt_padding_mask = (tgt == pad_idx).transpose(0, 1)
     return src_mask, tgt_mask, src_padding_mask, tgt_padding_mask
 
-# A small test to make sure our data loasd in correctly
+# A small test to make sure our data loads in correctly
 if __name__=="__main__":
 
     class Opts:
         def __init__(self):
-            self.src = "en",
+            self.src = "en"
             self.tgt = "de"
             self.batch = 128
 
@@ -130,5 +131,5 @@ if __name__=="__main__":
     train_dl, valid_dl, src_vocab, tgt_vocab, src_lang_transform, tgt_lang_transform, special_symbols = get_data(opts)
 
     print(f"{opts.src} vocab size: {len(src_vocab)}")
-    print(f"{opts.src} vocab size: {len(tgt_vocab)}")
+    print(f"{opts.tgt} vocab size: {len(tgt_vocab)}")
 
