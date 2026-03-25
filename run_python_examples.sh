@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # This script runs through the code in each of the python examples.
-# The purpose is just as an integration test, not to actually train models in any meaningful way.
+# The purpose is just as an integration test, not to actually train models in any meaningful way.
 # For that reason, most of these set epochs = 1 and --dry-run.
 #
 # Optionally specify a comma separated list of examples to run. Can be run as:
@@ -91,7 +91,7 @@ function language_translation() {
 }
 
 function mnist() {
-  uv run main.py --epochs 1 --dry-run || error "mnist example failed"
+  uv run main.py --epochs 1 --dry-run $ACCEL_FLAG || error "mnist example failed"
 }
 function mnist_forward_forward() {
   uv run main.py --epochs 1 --no_accel || error "mnist forward forward failed"

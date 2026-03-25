@@ -7,6 +7,15 @@ from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
 
 
+_XLA_AVAILABLE = False
+try:
+    import torch_xla
+    import torch_xla.core.xla_model as xm
+    _XLA_AVAILABLE = True
+except ImportError:
+    pass
+
+
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
@@ -41,7 +50,10 @@ def train(args, model, device, train_loader, optimizer, epoch):
         output = model(data)
         loss = F.nll_loss(output, target)
         loss.backward()
-        optimizer.step()
+        if args.xla:
+            xm.optimizer_step(optimizer)
+        else:
+            optimizer.step()
         if batch_idx % args.log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
@@ -84,36 +96,45 @@ def main():
                         help='Learning rate step gamma (default: 0.7)')
     parser.add_argument('--no-accel', action='store_true',
                         help='disables accelerator')
+    parser.add_argument('--xla', action='store_true', default=False,
+                        help='enables XLA device (e.g. TPU). Requires torch_xla.')
     parser.add_argument('--dry-run', action='store_true',
                         help='quickly check a single pass')
     parser.add_argument('--seed', type=int, default=1, metavar='S',
                         help='random seed (default: 1)')
     parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                         help='how many batches to wait before logging training status')
-    parser.add_argument('--save-model', action='store_true', 
+    parser.add_argument('--save-model', action='store_true',
                         help='For Saving the current Model')
     args = parser.parse_args()
 
-    use_accel = not args.no_accel and torch.accelerator.is_available()
+    if args.xla:
+        if not _XLA_AVAILABLE:
+            raise RuntimeError(
+                "--xla flag requires torch_xla to be installed. "
+                "Install with: pip install torch_xla[tpu]"
+            )
+        device = xm.xla_device()
+    else:
+        use_accel = not args.no_accel and torch.accelerator.is_available()
+        device = torch.accelerator.current_accelerator() if use_accel else torch.device("cpu")
 
     torch.manual_seed(args.seed)
 
-    if use_accel:
-        device = torch.accelerator.current_accelerator()
-    else:
-        device = torch.device("cpu")
-
     train_kwargs = {'batch_size': args.batch_size}
     test_kwargs = {'batch_size': args.test_batch_size}
-    if use_accel:
-        accel_kwargs = {'num_workers': 1,
-                        'persistent_workers': True,
-                       'pin_memory': True,
-                       'shuffle': True}
+
+    if args.xla:
+        train_kwargs.update({'num_workers': 4, 'persistent_workers': True,
+                             'shuffle': True, 'drop_last': True})
+        test_kwargs.update({'num_workers': 4, 'persistent_workers': True})
+    elif not args.no_accel and torch.accelerator.is_available():
+        accel_kwargs = {'num_workers': 1, 'persistent_workers': True,
+                        'pin_memory': True, 'shuffle': True}
         train_kwargs.update(accel_kwargs)
         test_kwargs.update(accel_kwargs)
 
-    transform=transforms.Compose([
+    transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
         ])
@@ -121,7 +142,7 @@ def main():
                        transform=transform)
     dataset2 = datasets.MNIST('../data', train=False,
                        transform=transform)
-    train_loader = torch.utils.data.DataLoader(dataset1,**train_kwargs)
+    train_loader = torch.utils.data.DataLoader(dataset1, **train_kwargs)
     test_loader = torch.utils.data.DataLoader(dataset2, **test_kwargs)
 
     model = Net().to(device)
@@ -132,9 +153,14 @@ def main():
         train(args, model, device, train_loader, optimizer, epoch)
         test(model, device, test_loader)
         scheduler.step()
+        if args.xla:
+            xm.mark_step()
 
     if args.save_model:
-        torch.save(model.state_dict(), "mnist_cnn.pt")
+        if args.xla:
+            torch.save(model.cpu().state_dict(), "mnist_cnn.pt")
+        else:
+            torch.save(model.state_dict(), "mnist_cnn.pt")
 
 
 if __name__ == '__main__':
