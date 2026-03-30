@@ -22,13 +22,21 @@ To force execution on the CPU, use `--no-accel` command line argument:
 python main.py --no-accel
 ```
 
+To run on a TPU via XLA, install `torch_xla` and use the `--xla` flag:
+
+```bash
+pip install torch_xla[tpu]
+python main.py --xla
+```
+
 The main.py script accepts the following optional arguments:
 
 ```bash
 --batch-size            input batch size for training (default: 128)
 --epochs                number of epochs to train (default: 10)
 --no-accel              disables accelerator
+--xla                   enables XLA device (e.g. TPU). Requires torch_xla.
 --seed                  random seed (default: 1)
---log-interval	        how many batches to wait before logging training status
+--log-interval          how many batches to wait before logging training status
 ```
 
