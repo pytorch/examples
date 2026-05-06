@@ -2,6 +2,7 @@ import argparse
 import os
 import random
 import shutil
+import sys
 import time
 import warnings
 from enum import Enum
@@ -85,6 +86,7 @@ best_acc1 = 0
 
 def main():
     args = parser.parse_args()
+    args.lr_supplied = learning_rate_arg_supplied(sys.argv[1:])
 
     if args.seed is not None:
         random.seed(args.seed)
@@ -223,6 +225,9 @@ def main_worker(gpu, ngpus_per_node, args):
                 best_acc1 = best_acc1.to(args.gpu)
             model.load_state_dict(checkpoint['state_dict'])
             optimizer.load_state_dict(checkpoint['optimizer'])
+            if args.lr_supplied:
+                for param_group in optimizer.param_groups:
+                    param_group['lr'] = args.lr
             scheduler.load_state_dict(checkpoint['scheduler'])
             print("=> loaded checkpoint '{}' (epoch {})"
                   .format(args.resume, checkpoint['epoch']))
@@ -430,6 +435,16 @@ def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     torch.save(state, filename)
     if is_best:
         shutil.copyfile(filename, 'model_best.pth.tar')
+
+
+def learning_rate_arg_supplied(argv):
+    return any(
+        arg in ('--lr', '--learning-rate')
+        or arg.startswith('--lr=')
+        or arg.startswith('--learning-rate=')
+        for arg in argv
+    )
+
 
 class Summary(Enum):
     NONE = 0
