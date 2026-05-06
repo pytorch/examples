@@ -81,6 +81,14 @@ function imagenet() {
     cp sample/train/n/* sample/val/n/
   fi
   uv run main.py --epochs 1 sample/ || error "imagenet example failed"
+  uv run main.py --epochs 2 --resume checkpoint.pth.tar --lr 0.05 sample/ || error "imagenet resume example failed"
+  uv run python - <<'PY' || error "imagenet resume learning rate check failed"
+import torch
+
+checkpoint = torch.load("checkpoint.pth.tar", map_location="cpu")
+for param_group in checkpoint["optimizer"]["param_groups"]:
+    assert param_group["lr"] == 0.05
+PY
   uv run main.py --epochs 1 --gpu 0 sample/ || error "imagenet example failed"
 }
 
