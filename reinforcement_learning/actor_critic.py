@@ -21,6 +21,8 @@ parser.add_argument('--render', action='store_true',
                     help='render the environment')
 parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                     help='interval between training status logs (default: 10)')
+parser.add_argument('--no-accel', action='store_true', default=False,
+                    help='disables accelerator')
 args = parser.parse_args()
 
 
@@ -28,6 +30,14 @@ render_mode = "human" if args.render else None
 env = gym.make('CartPole-v1', render_mode=render_mode)
 env.reset(seed=args.seed)
 torch.manual_seed(args.seed)
+
+use_accel = not args.no_accel and torch.accelerator.is_available()
+
+# Set the device to run on
+if use_accel:
+    device = torch.accelerator.current_accelerator()
+else:
+    device = torch.device('cpu')
 
 
 SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
@@ -70,13 +80,13 @@ class Policy(nn.Module):
         return action_prob, state_values
 
 
-model = Policy()
+model = Policy().to(device)
 optimizer = optim.Adam(model.parameters(), lr=3e-2)
 eps = np.finfo(np.float32).eps.item()
 
 
 def select_action(state):
-    state = torch.from_numpy(state).float()
+    state = torch.from_numpy(state).float().to(device)
     probs, state_value = model(state)
 
     # create a categorical distribution over the list of probabilities of actions
@@ -118,7 +128,7 @@ def finish_episode():
         policy_losses.append(-log_prob * advantage)
 
         # calculate critic (value) loss using L1 smooth loss
-        value_losses.append(F.smooth_l1_loss(value, torch.tensor([R])))
+        value_losses.append(F.smooth_l1_loss(value, torch.tensor([R], device=device)))
 
     # reset gradients
     optimizer.zero_grad()

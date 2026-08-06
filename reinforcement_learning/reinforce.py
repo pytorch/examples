@@ -19,6 +19,8 @@ parser.add_argument('--render', action='store_true',
                     help='render the environment')
 parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                     help='interval between training status logs (default: 10)')
+parser.add_argument('--no-accel', action='store_true', default=False,
+                    help='disables accelerator')
 args = parser.parse_args()
 
 
@@ -26,6 +28,14 @@ render_mode = "human" if args.render else None
 env = gym.make('CartPole-v1', render_mode=render_mode)
 env.reset(seed=args.seed)
 torch.manual_seed(args.seed)
+
+use_accel = not args.no_accel and torch.accelerator.is_available()
+
+# Set the device to run on
+if use_accel:
+    device = torch.accelerator.current_accelerator()
+else:
+    device = torch.device('cpu')
 
 
 class Policy(nn.Module):
@@ -46,13 +56,13 @@ class Policy(nn.Module):
         return F.softmax(action_scores, dim=1)
 
 
-policy = Policy()
+policy = Policy().to(device)
 optimizer = optim.Adam(policy.parameters(), lr=1e-2)
 eps = np.finfo(np.float32).eps.item()
 
 
 def select_action(state):
-    state = torch.from_numpy(state).float().unsqueeze(0)
+    state = torch.from_numpy(state).float().unsqueeze(0).to(device)
     probs = policy(state)
     m = Categorical(probs)
     action = m.sample()
@@ -67,7 +77,7 @@ def finish_episode():
     for r in policy.rewards[::-1]:
         R = r + args.gamma * R
         returns.appendleft(R)
-    returns = torch.tensor(returns)
+    returns = torch.tensor(returns, device=device)
     returns = (returns - returns.mean()) / (returns.std() + eps)
     for log_prob, R in zip(policy.saved_log_probs, returns):
         policy_loss.append(-log_prob * R)
