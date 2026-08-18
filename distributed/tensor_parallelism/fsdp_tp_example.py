@@ -170,6 +170,7 @@ for i in range(num_iterations):
     output = sharded_model(inp)
     output.sum().backward()
     optimizer.step()
+    optimizer.zero_grad()
     rank_log(_rank, logger, f"2D iter {i} complete")
 
 rank_log(_rank, logger, "2D training successfully completed!")

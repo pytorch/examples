@@ -105,6 +105,7 @@ for i in range(num_iters):
     output = sp_model(inp)
     output.sum().backward()
     optimizer.step()
+    optimizer.zero_grad()
     rank_log(_rank, logger, f"Sequence Parallel iter {i} completed")
 
 rank_log(_rank, logger, "Sequence Parallel training completed!")
