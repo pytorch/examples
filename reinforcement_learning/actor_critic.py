@@ -31,13 +31,11 @@ env = gym.make('CartPole-v1', render_mode=render_mode)
 env.reset(seed=args.seed)
 torch.manual_seed(args.seed)
 
-use_accel = not args.no_accel and torch.accelerator.is_available()
-
 # Set the device to run on
-if use_accel:
-    device = torch.accelerator.current_accelerator()
-else:
+if args.no_accel:
     device = torch.device('cpu')
+else:
+    device = torch.accelerator.current_accelerator() or torch.device('cpu')
 
 
 SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
@@ -86,7 +84,7 @@ eps = np.finfo(np.float32).eps.item()
 
 
 def select_action(state):
-    state = torch.from_numpy(state).float().to(device)
+    state = torch.from_numpy(state).to(dtype=torch.float, device=device)
     probs, state_value = model(state)
 
     # create a categorical distribution over the list of probabilities of actions

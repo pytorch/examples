@@ -59,10 +59,10 @@ if __name__ == '__main__':
     use_accel = not args.no_accel and torch.accelerator.is_available()
 
     # Set the device to run on
-    if use_accel:
-        device = torch.accelerator.current_accelerator()
-    else:
+    if args.no_accel:
         device = torch.device('cpu')
+    else:
+        device = torch.accelerator.current_accelerator() or torch.device('cpu')
 
     transform=transforms.Compose([
         transforms.ToTensor(),
