@@ -19,8 +19,6 @@ parser.add_argument('--render', action='store_true',
                     help='render the environment')
 parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                     help='interval between training status logs (default: 10)')
-parser.add_argument('--no-accel', action='store_true', default=False,
-                    help='disables accelerator')
 args = parser.parse_args()
 
 
@@ -30,10 +28,7 @@ env.reset(seed=args.seed)
 torch.manual_seed(args.seed)
 
 # Set the device to run on
-if args.no_accel:
-    device = torch.device('cpu')
-else:
-    device = torch.accelerator.current_accelerator() or torch.device('cpu')
+device = torch.accelerator.current_accelerator() or torch.device('cpu')
 
 
 class Policy(nn.Module):

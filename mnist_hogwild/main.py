@@ -27,8 +27,6 @@ parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                     help='how many batches to wait before logging training status')
 parser.add_argument('--num-processes', type=int, default=2, metavar='N',
                     help='how many training processes to use (default: 2)')
-parser.add_argument('--no-accel', action='store_true', default=False,
-                    help='disables accelerator')
 parser.add_argument('--save_model', action='store_true', default=False,
                     help='save the trained model to state_dict')
 parser.add_argument('--dry-run', action='store_true', default=False,
@@ -56,13 +54,8 @@ class Net(nn.Module):
 if __name__ == '__main__':
     args = parser.parse_args()
 
-    use_accel = not args.no_accel and torch.accelerator.is_available()
-
     # Set the device to run on
-    if args.no_accel:
-        device = torch.device('cpu')
-    else:
-        device = torch.accelerator.current_accelerator() or torch.device('cpu')
+    device = torch.accelerator.current_accelerator() or torch.device('cpu')
 
     transform=transforms.Compose([
         transforms.ToTensor(),
@@ -74,7 +67,7 @@ if __name__ == '__main__':
                        transform=transform)
     kwargs = {'batch_size': args.batch_size,
               'shuffle': True}
-    if use_accel:
+    if torch.accelerator.is_available():
         kwargs.update({'num_workers': 1,
                        'pin_memory': True,
                       })
