@@ -98,7 +98,7 @@ function mnist_forward_forward() {
 
 }
 function mnist_hogwild() {
-  uv run main.py --epochs 1 --dry-run $CUDA_FLAG || error "mnist hogwild failed"
+  uv run main.py --epochs 1 --dry-run || error "mnist hogwild failed"
 }
 
 function mnist_rnn() {

@@ -27,10 +27,6 @@ parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                     help='how many batches to wait before logging training status')
 parser.add_argument('--num-processes', type=int, default=2, metavar='N',
                     help='how many training processes to use (default: 2)')
-parser.add_argument('--cuda', action='store_true', default=False,
-                    help='enables CUDA training')
-parser.add_argument('--mps', action='store_true', default=False,
-                    help='enables macOS GPU training')
 parser.add_argument('--save_model', action='store_true', default=False,
                     help='save the trained model to state_dict')
 parser.add_argument('--dry-run', action='store_true', default=False,
@@ -58,14 +54,8 @@ class Net(nn.Module):
 if __name__ == '__main__':
     args = parser.parse_args()
 
-    use_cuda = args.cuda and torch.cuda.is_available()
-    use_mps = args.mps and torch.backends.mps.is_available()
-    if use_cuda:
-        device = torch.device("cuda")
-    elif use_mps:
-        device = torch.device("mps")
-    else:
-        device = torch.device("cpu")
+    # Set the device to run on
+    device = torch.accelerator.current_accelerator() or torch.device('cpu')
 
     transform=transforms.Compose([
         transforms.ToTensor(),
@@ -77,7 +67,7 @@ if __name__ == '__main__':
                        transform=transform)
     kwargs = {'batch_size': args.batch_size,
               'shuffle': True}
-    if use_cuda:
+    if torch.accelerator.is_available():
         kwargs.update({'num_workers': 1,
                        'pin_memory': True,
                       })
