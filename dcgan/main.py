@@ -243,7 +243,7 @@ for epoch in range(opt.niter):
         output = netD(fake.detach())
         errD_fake = criterion(output, label)
         errD_fake.backward()
-        D_G_z1 = output.mean().item()
+        discriminator_score_on_fake_before_update = output.mean().item()
         errD = errD_real + errD_fake
         optimizerD.step()
 
@@ -255,12 +255,14 @@ for epoch in range(opt.niter):
         output = netD(fake)
         errG = criterion(output, label)
         errG.backward()
-        D_G_z2 = output.mean().item()
+        discriminator_score_on_fake_after_update = output.mean().item()
         optimizerG.step()
 
         print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
               % (epoch, opt.niter, i, len(dataloader),
-                 errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
+                 errD.item(), errG.item(), D_x,
+                 discriminator_score_on_fake_before_update,
+                 discriminator_score_on_fake_after_update))
         if i % 100 == 0:
             vutils.save_image(real_cpu,
                     '%s/real_samples.png' % opt.outf,
