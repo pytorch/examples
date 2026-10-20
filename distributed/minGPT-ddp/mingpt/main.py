@@ -50,7 +50,9 @@ def main(cfg: DictConfig):
     destroy_process_group()
 
 if __name__ == "__main__":
-    _min_gpu_count = 2
+    # torchrun sets LOCAL_WORLD_SIZE to the number of workers on this node.
+    # Each local worker needs its own accelerator.
+    _min_gpu_count = int(os.environ.get("LOCAL_WORLD_SIZE", "2"))
     if not verify_min_gpu_count(min_gpus=_min_gpu_count):
         print(f"Unable to locate sufficient {_min_gpu_count} gpus to run this example. Exiting.")
         sys.exit()
